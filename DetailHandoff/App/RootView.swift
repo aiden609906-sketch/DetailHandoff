@@ -49,13 +49,3 @@ private struct SettingsView: View {
         }
     }
 }
-
-// Temporary placeholder until the Jobs feature supplies the production view.
-private struct JobsListView: View {
-    var body: some View {
-        NavigationStack {
-            Text("Jobs")
-                .navigationTitle("Jobs")
-        }
-    }
-}
