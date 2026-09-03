@@ -22,7 +22,8 @@ final class ProjectSmokeTests: XCTestCase {
         container.mainContext.insert(profile)
         try container.mainContext.save()
 
-        let savedProfiles = try container.mainContext.fetch(FetchDescriptor<BusinessProfile>())
+        let reloadedContext = ModelContext(container)
+        let savedProfiles = try reloadedContext.fetch(FetchDescriptor<BusinessProfile>())
 
         XCTAssertEqual(savedProfiles.map(\.businessName), ["Northside Detail Co."])
     }
