@@ -55,7 +55,7 @@ final class JobRepositoryTests: XCTestCase {
     }
 
     @MainActor
-    func testAdvanceMovesJobToNextStatus() throws {
+    func testAdvanceMovesDraftToBeforeCaptureAndUpdatesTimestamp() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: BusinessProfile.self, JobRecord.self,
@@ -71,9 +71,41 @@ final class JobRepositoryTests: XCTestCase {
             notes: ""
         )
 
+        let oldUpdatedAt = Date(timeIntervalSince1970: 1)
+        job.updatedAt = oldUpdatedAt
+
         try repository.advance(job)
 
         XCTAssertEqual(job.status, .beforeCapture)
+        XCTAssertGreaterThan(job.updatedAt, oldUpdatedAt)
+    }
+
+    @MainActor
+    func testAdvanceUpdatesTimestampForEveryTransition() throws {
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: BusinessProfile.self, JobRecord.self,
+            configurations: configuration
+        )
+        let repository = JobRepository(context: container.mainContext)
+        let job = try repository.createJob(
+            customerName: "Marcus Lee",
+            vehicleLabel: "2021 Honda Accord",
+            plate: "7HKL248",
+            color: "Pearl White",
+            serviceName: "Full detail",
+            notes: ""
+        )
+
+        for expectedStatus in JobStatus.allCases.dropFirst() {
+            let oldUpdatedAt = Date(timeIntervalSince1970: 1)
+            job.updatedAt = oldUpdatedAt
+
+            try repository.advance(job)
+
+            XCTAssertEqual(job.status, expectedStatus)
+            XCTAssertGreaterThan(job.updatedAt, oldUpdatedAt)
+        }
     }
 
     @MainActor
@@ -93,11 +125,14 @@ final class JobRepositoryTests: XCTestCase {
             notes: ""
         )
         job.status = .archived
+        let oldUpdatedAt = Date(timeIntervalSince1970: 1)
+        job.updatedAt = oldUpdatedAt
 
         XCTAssertThrowsError(try repository.advance(job)) { error in
             XCTAssertEqual(error as? JobRepositoryError, .noNextStatus)
         }
         XCTAssertEqual(job.status, .archived)
+        XCTAssertEqual(job.updatedAt, oldUpdatedAt)
     }
 
     @MainActor

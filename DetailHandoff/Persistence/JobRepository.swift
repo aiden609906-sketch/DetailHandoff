@@ -55,7 +55,8 @@ final class JobRepository {
         }
 
         job.status = nextStatus
-        try context.save()
+        job.updatedAt = Date()
+        try saveChanges()
     }
 
     func search(_ jobs: [JobRecord], query: String) -> [JobRecord] {
