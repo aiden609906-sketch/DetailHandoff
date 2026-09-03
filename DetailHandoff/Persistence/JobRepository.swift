@@ -8,9 +8,16 @@ enum JobRepositoryError: Error, Equatable {
 @MainActor
 final class JobRepository {
     private let context: ModelContext
+    private let saveChanges: () throws -> Void
 
     init(context: ModelContext) {
         self.context = context
+        saveChanges = { try context.save() }
+    }
+
+    init(context: ModelContext, saveChanges: @escaping () throws -> Void) {
+        self.context = context
+        self.saveChanges = saveChanges
     }
 
     func createJob(
@@ -31,7 +38,14 @@ final class JobRepository {
         )
 
         context.insert(job)
-        try context.save()
+
+        do {
+            try saveChanges()
+        } catch {
+            context.delete(job)
+            throw error
+        }
+
         return job
     }
 

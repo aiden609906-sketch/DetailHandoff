@@ -27,6 +27,34 @@ final class JobRepositoryTests: XCTestCase {
     }
 
     @MainActor
+    func testCreateJobRemovesPendingJobWhenSaveFails() throws {
+        enum SaveFailure: Error {
+            case simulated
+        }
+
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: BusinessProfile.self, JobRecord.self,
+            configurations: configuration
+        )
+        let repository = JobRepository(context: container.mainContext) {
+            throw SaveFailure.simulated
+        }
+
+        XCTAssertThrowsError(
+            try repository.createJob(
+                customerName: "Marcus Lee",
+                vehicleLabel: "2021 Honda Accord",
+                plate: "7HKL248",
+                color: "Pearl White",
+                serviceName: "Full detail",
+                notes: ""
+            )
+        )
+        XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<JobRecord>()).isEmpty)
+    }
+
+    @MainActor
     func testAdvanceMovesJobToNextStatus() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(

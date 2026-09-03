@@ -60,3 +60,61 @@ Result: exit code 0; no whitespace errors. Git emitted only its existing line-en
 ## Limitation / Follow-up
 
 Run the focused validator suite and generic iOS Simulator build on macOS with Xcode (and generate the Xcode project from `project.yml` if it is not already generated) before release or merge confidence is claimed. This environment cannot compile SwiftUI/SwiftData iOS sources.
+
+## Fix Round 1
+
+### Changes
+
+- Added `JobsListContentState` in `DetailHandoff/Features/Jobs/JobsListView.swift`. It now distinguishes a first-job empty list from a non-empty local list whose current search has no matches. The view presents `No matching jobs` with a query-refinement message in the latter case.
+- `JobRepository.createJob` now deletes the newly inserted `JobRecord` before rethrowing any save error. This keeps the failed create from remaining in the calling `ModelContext` and appearing as a pending job on a later query/save.
+- Added an internal `saveChanges` initializer seam solely to make the existing repository's save-error boundary deterministic in a unit test. The production initializer continues to call `ModelContext.save()` unchanged.
+
+### Covering Tests
+
+- `DetailHandoffTests/JobsListViewStateTests.swift`
+  - `testContentStateShowsFirstJobMessageWhenThereAreNoActiveJobs`
+  - `testContentStateShowsNoResultsWhenActiveJobsDoNotMatchSearch`
+  - `testContentStateShowsJobsWhenSearchReturnsMatches`
+- `DetailHandoffTests/JobRepositoryTests.swift`
+  - `testCreateJobRemovesPendingJobWhenSaveFails`
+
+The repository test uses a real in-memory `ModelContext` and verifies its fetch has no `JobRecord` after a controlled save error. It does not mock persistence queries or model insertion; the narrowly injected operation is the otherwise nondeterministic failing save itself.
+
+### TDD Evidence
+
+The list-content state tests and the failed-save cleanup test were added before `JobsListContentState`, the repository save seam, or the cleanup catch branch. Their production changes would respectively fail the tests if the no-match case returned the first-job state, or if the catch no longer removed the pending object.
+
+The red and green focused commands were both attempted:
+
+```powershell
+xcodebuild test -project DetailHandoff.xcodeproj -scheme DetailHandoff -only-testing:DetailHandoffTests/JobsListViewStateTests -only-testing:DetailHandoffTests/JobRepositoryTests/testCreateJobRemovesPendingJobWhenSaveFails
+```
+
+Output on both attempts: `xcodebuild` is not recognized as a PowerShell command. Windows therefore prevented observing either the expected missing-symbol red compilation failure or XCTest green run.
+
+### Verification Commands and Results
+
+```powershell
+xcodebuild test -project DetailHandoff.xcodeproj -scheme DetailHandoff -only-testing:DetailHandoffTests/JobsListViewStateTests -only-testing:DetailHandoffTests/JobRepositoryTests/testCreateJobRemovesPendingJobWhenSaveFails
+```
+
+Result: not executable because this Windows host has no `xcodebuild`.
+
+```powershell
+xcodebuild build -project DetailHandoff.xcodeproj -scheme DetailHandoff -destination 'generic/platform=iOS Simulator'
+```
+
+Result: not executable because this Windows host has no `xcodebuild`.
+
+```powershell
+git diff --check
+```
+
+Result: executed after the code changes with exit code 0; no whitespace errors. Git emitted only line-ending conversion warnings.
+
+### Self-Review
+
+- The first-job onboarding copy is now shown only when the active (non-deleted) job count is zero.
+- Existing jobs with zero matches cannot receive the first-report guidance.
+- Cleanup scopes only the newly created job; it does not roll back unrelated unsaved work in the shared model context.
+- The original `JobRepository(context:)` initializer and all successful-create behavior are preserved.
