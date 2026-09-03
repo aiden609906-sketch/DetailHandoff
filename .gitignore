@@ -14,6 +14,10 @@ DerivedData/
 *.dSYM
 *.dSYM.zip
 
+# Local Git worktrees and agent scratch state
+.worktrees/
+.superpowers/
+
 # Swift Package Manager
 .build/
 .swiftpm/xcode/package.xcworkspace/xcuserdata/
@@ -27,4 +31,3 @@ DerivedData/
 # Windows
 Thumbs.db
 Desktop.ini
-
