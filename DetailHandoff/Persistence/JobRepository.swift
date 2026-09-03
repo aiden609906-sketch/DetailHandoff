@@ -54,9 +54,18 @@ final class JobRepository {
             throw JobRepositoryError.noNextStatus
         }
 
+        let previousStatus = job.status
+        let previousUpdatedAt = job.updatedAt
         job.status = nextStatus
         job.updatedAt = Date()
-        try saveChanges()
+
+        do {
+            try saveChanges()
+        } catch {
+            job.status = previousStatus
+            job.updatedAt = previousUpdatedAt
+            throw error
+        }
     }
 
     func search(_ jobs: [JobRecord], query: String) -> [JobRecord] {

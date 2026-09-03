@@ -59,3 +59,39 @@ Static checks confirmed the repository timestamp assignment, the archived button
 ## Concerns / Follow-up
 
 Run `xcodebuild test` and the iOS build on macOS with Xcode before asserting test/build success or merging. This Windows host cannot compile SwiftUI/SwiftData sources or execute XCTest. The explicit handoff instruction also prohibits a subagent review, so the review here is self-review plus static inspection.
+
+## Fix Round 1
+
+### Root Cause and Fix
+
+`JobRepository.advance(_:)` updated the in-memory `status` and `updatedAt` before calling the injected `saveChanges` seam. When that closure threw, the method rethrew without restoring either property, leaving the displayed job advanced even though persistence failed.
+
+`advance(_:)` now snapshots the validated current status and timestamp before mutation. Its save-error `catch` restores both fields and rethrows the original error. Successful advance behavior and the existing archived guard are unchanged.
+
+### Regression Test
+
+Added `testAdvanceRestoresStatusAndTimestampWhenSaveFails` in `DetailHandoffTests/JobRepositoryTests.swift`. It creates a real draft in an in-memory `ModelContext`, fixes its timestamp to `1970-01-01`, then advances through a `JobRepository` whose existing injected save seam throws `SaveFailure.simulated`. It asserts that the call throws, the status remains `.draft`, and the timestamp remains the exact fixed value.
+
+The test was added before the rollback code. It would fail against the prior `advance(_:)` implementation because that implementation left the job at `.beforeCapture` with a new current timestamp after the controlled save failure.
+
+### Commands and Output
+
+```powershell
+xcodebuild test -scheme DetailHandoff -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:DetailHandoffTests/JobRepositoryTests/testAdvanceRestoresStatusAndTimestampWhenSaveFails
+```
+
+RED and GREEN attempts both returned PowerShell exit code 1 before XCTest could start: `The term 'xcodebuild' is not recognized as a name of a cmdlet, function, script file, or executable program.` This Windows host cannot observe XCTest execution.
+
+```powershell
+git diff --check
+```
+
+Result: no whitespace errors; Git emitted only line-ending conversion warnings for the modified tracked Swift files.
+
+Static checks confirmed the regression test name plus the status and timestamp snapshot/restore lines in `JobRepository.advance(_:)`.
+
+### Self-Review
+
+- The rollback captures both mutable values only after the `next` guard succeeds, so archived records still fail without any mutation.
+- The error is rethrown after restoration, allowing the view to continue showing its save-failure alert without displaying a falsely advanced workflow state.
+- The regression exercises the real job model and in-memory context; the narrow injected closure represents only the otherwise nondeterministic save failure boundary.

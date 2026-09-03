@@ -109,6 +109,37 @@ final class JobRepositoryTests: XCTestCase {
     }
 
     @MainActor
+    func testAdvanceRestoresStatusAndTimestampWhenSaveFails() throws {
+        enum SaveFailure: Error {
+            case simulated
+        }
+
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(
+            for: BusinessProfile.self, JobRecord.self,
+            configurations: configuration
+        )
+        let job = try JobRepository(context: container.mainContext).createJob(
+            customerName: "Marcus Lee",
+            vehicleLabel: "2021 Honda Accord",
+            plate: "7HKL248",
+            color: "Pearl White",
+            serviceName: "Full detail",
+            notes: ""
+        )
+        let oldUpdatedAt = Date(timeIntervalSince1970: 1)
+        job.updatedAt = oldUpdatedAt
+        let repository = JobRepository(context: container.mainContext) {
+            throw SaveFailure.simulated
+        }
+
+        XCTAssertThrowsError(try repository.advance(job))
+
+        XCTAssertEqual(job.status, .draft)
+        XCTAssertEqual(job.updatedAt, oldUpdatedAt)
+    }
+
+    @MainActor
     func testAdvanceRejectsArchivedJobWithNoNextStatusError() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
