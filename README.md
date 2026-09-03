@@ -4,7 +4,11 @@ DetailHandoff is an offline-first iPhone and iPad app for mobile auto detailers 
 
 ## Product status
 
-The product requirements are approved in stages and implementation planning is next.
+Phase 1 foundation is implemented on the `feature/phase-1-foundation` branch. It
+contains the local SwiftData schema, first-run business setup, draft-job creation
+and search, and the eight-stage workflow navigation skeleton. Camera capture,
+customer signatures, PDF reports, report sealing, backup/restore, and release
+verification are intentionally deferred to later phases.
 
 ## Product decisions
 
@@ -18,4 +22,41 @@ The product requirements are approved in stages and implementation planning is n
 ## Documentation
 
 - [Product design and PRD](docs/superpowers/specs/2026-09-03-detailhandoff-design.md)
+
+## Build and test
+
+XcodeGen and Xcode are required. On a Mac, from the repository root:
+
+```bash
+brew install xcodegen
+xcodegen generate
+open DetailHandoff.xcodeproj
+```
+
+To build for a generic iOS Simulator destination without code signing:
+
+```bash
+xcodebuild -project DetailHandoff.xcodeproj -scheme DetailHandoff -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+```
+
+To run the complete unit-test target:
+
+```bash
+xcodebuild test -project DetailHandoff.xcodeproj -scheme DetailHandoff -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest'
+```
+
+For a focused workflow-state test run:
+
+```bash
+xcodebuild test -project DetailHandoff.xcodeproj -scheme DetailHandoff -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' -only-testing:DetailHandoffTests/JobStatusTests
+```
+
+Windows can edit and inspect this repository, but cannot run Xcode, XcodeGen,
+`xcodebuild`, or the iOS Simulator. Build and test results must therefore be
+collected on macOS (locally or through the repository's macOS GitHub Actions
+workflow).
+
+Phase 1 is offline and local-only: it contains no networking, analytics,
+subscription, AI, or account/login integration. Later-phase capabilities are
+not verified or claimed here.
 

@@ -693,7 +693,7 @@ git commit -m "feat: add end-to-end job workflow navigation"
 - Consumes: all Phase 1 tasks
 - Produces: reproducible build instructions and recorded verification evidence
 
-- [ ] **Step 1: Update README build instructions**
+- [x] **Step 1: Update README build instructions**
 
 Document these exact Mac steps:
 
@@ -705,7 +705,7 @@ open DetailHandoff.xcodeproj
 
 Also document the command-line generic simulator build and focused unit-test command. State that Windows can edit the repository but cannot run Xcode.
 
-- [ ] **Step 2: Run all verification commands fresh**
+- [x] **Step 2: Run all verification commands fresh**
 
 ```bash
 xcodegen generate
@@ -721,7 +721,14 @@ Expected:
 - test reports `TEST SUCCEEDED` with zero failures;
 - `git status --short` is empty after the final documentation commit.
 
-- [ ] **Step 3: Check privacy and scope mechanically**
+Verification result on 2026-09-03 (Windows PowerShell, before the documentation
+commit): `xcodegen generate`, the generic simulator `xcodebuild` build, and the
+named iPhone 16 Pro `xcodebuild test` command each returned exit code 1 because
+the macOS executable is not installed on Windows. No `BUILD SUCCEEDED` or
+`TEST SUCCEEDED` result is claimed. The final post-commit `git status --short`
+check is recorded in the Task 7 report.
+
+- [x] **Step 3: Check privacy and scope mechanically**
 
 Run:
 
@@ -731,28 +738,44 @@ rg -n 'URLSession|Firebase|RevenueCat|Analytics|StoreKit|Anthropic|SignInWithApp
 
 Expected: no matches. Phase 1 must not contain networking, analytics, subscription, AI, or login code.
 
-- [ ] **Step 4: Record platform-dependent gaps honestly**
+The command returned exit code 1 with no matches in `DetailHandoff`, consistent
+with the Phase 1 scope. `git diff --check` also returned exit code 0.
+
+- [x] **Step 4: Record platform-dependent gaps honestly**
 
 If a named simulator is unavailable, list devices with `xcrun simctl list devices available`, choose an available iPhone on the latest installed iOS runtime, and record that exact destination in the commit message body. Do not claim TestFlight, camera, PDF, signature, backup, or real-device verification in Phase 1.
 
-- [ ] **Step 5: Commit documentation and push**
+`xcrun simctl list devices available` was attempted and returned exit code 1
+because `xcrun` is unavailable on Windows. Consequently no simulator inventory
+or alternate destination exists to record, and no simulator, TestFlight,
+camera, PDF, signature, backup, or real-device verification is claimed.
+
+- [x] **Step 5: Commit documentation**
 
 ```bash
 git add README.md docs/superpowers/plans/2026-09-03-detailhandoff-phase-1-foundation.md
 git commit -m "docs: add Phase 1 build and verification guide"
-git push origin main
 ```
+
+The documentation is committed on `feature/phase-1-foundation`. The requested
+push to `main` is intentionally pending: this task's preflight ruling prohibits
+push/merge to `main`; the controller will perform the final branch workflow.
+
+### Task 7 verification record
+
+Fresh command evidence, static checks, self-review, and known gaps are recorded
+in `.superpowers/sdd/2026-09-03-detailhandoff-phase-1-foundation/task-7-report.md`.
 
 ---
 
 ## Phase 1 Acceptance Checklist
 
-- [ ] GitHub Actions generates the project and builds the iOS target.
-- [ ] Unit tests cover legal and illegal workflow transitions.
-- [ ] SwiftData persists business profile and job records locally.
-- [ ] First launch creates a local business profile without login.
-- [ ] A user can create and search a draft job.
-- [ ] A user can inspect all eight workflow stages.
-- [ ] No networking, analytics, AI, subscription, or account code exists.
-- [ ] README explains Mac generation, build, and test commands.
-- [ ] Changes are committed in focused commits and pushed to `main`.
+- [ ] GitHub Actions generates the project and builds the iOS target (workflow present; macOS run not observed here).
+- [x] Unit-test sources cover legal and illegal workflow transitions (execution pending on macOS).
+- [x] SwiftData models and in-memory repository tests cover local business-profile and job persistence (execution pending on macOS).
+- [x] First-run source creates a local business profile without login.
+- [x] Source and tests cover draft-job creation and search.
+- [x] Workflow source presents all eight statuses.
+- [x] Privacy/scope scan found no networking, analytics, AI, subscription, or account integration symbols.
+- [x] README explains Mac generation, build, and test commands.
+- [ ] Push to `main` (pending controller finishing workflow; prohibited in this task).
