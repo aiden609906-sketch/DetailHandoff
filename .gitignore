@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+
+# Xcode build output
+build/
+DerivedData/
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Swift Package Manager
+.build/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+
+# Local configuration and secrets
+*.xcconfig.local
+.env
+.env.*
+!.env.example
+
+# Windows
+Thumbs.db
+Desktop.ini
+
