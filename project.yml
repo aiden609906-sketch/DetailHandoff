@@ -14,8 +14,6 @@ targets:
     platform: iOS
     sources:
       - path: DetailHandoff
-    resources:
-      - path: DetailHandoff/Resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.aiden609906.detailhandoff

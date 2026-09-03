@@ -14,16 +14,29 @@ final class JobRepositoryTests: XCTestCase {
 
         let job = try repository.createJob(
             customerName: "  Marcus Lee  ",
-            vehicleLabel: "2021 Honda Accord",
-            plate: "7HKL248",
-            color: "Pearl White",
-            serviceName: "Full detail",
-            notes: "Driveway gate code in message"
+            vehicleLabel: "  2021 Honda Accord  ",
+            plate: "  7HKL248  ",
+            color: "  Pearl White  ",
+            serviceName: "  Full detail  ",
+            notes: "  Driveway gate code in message  "
         )
+        let jobID = job.id
+        let createdAt = job.createdAt
+        let reloadedContext = ModelContext(container)
+        let descriptor = FetchDescriptor<JobRecord>(
+            predicate: #Predicate { $0.id == jobID }
+        )
+        let savedJob = try XCTUnwrap(try reloadedContext.fetch(descriptor).first)
 
-        XCTAssertEqual(job.customerName, "Marcus Lee")
-        XCTAssertEqual(job.status, .draft)
-        XCTAssertNotNil(job.createdAt)
+        XCTAssertEqual(savedJob.customerName, "Marcus Lee")
+        XCTAssertEqual(savedJob.vehicleLabel, "2021 Honda Accord")
+        XCTAssertEqual(savedJob.plate, "7HKL248")
+        XCTAssertEqual(savedJob.color, "Pearl White")
+        XCTAssertEqual(savedJob.serviceName, "Full detail")
+        XCTAssertEqual(savedJob.notes, "Driveway gate code in message")
+        XCTAssertEqual(savedJob.status, .draft)
+        XCTAssertEqual(savedJob.createdAt, createdAt)
+        XCTAssertEqual(savedJob.updatedAt, createdAt)
     }
 
     @MainActor
@@ -73,11 +86,23 @@ final class JobRepositoryTests: XCTestCase {
 
         let oldUpdatedAt = Date(timeIntervalSince1970: 1)
         job.updatedAt = oldUpdatedAt
+        let jobID = job.id
 
         try repository.advance(job)
+        let reloadedContext = ModelContext(container)
+        let descriptor = FetchDescriptor<JobRecord>(
+            predicate: #Predicate { $0.id == jobID }
+        )
+        let savedJob = try XCTUnwrap(try reloadedContext.fetch(descriptor).first)
 
-        XCTAssertEqual(job.status, .beforeCapture)
-        XCTAssertGreaterThan(job.updatedAt, oldUpdatedAt)
+        XCTAssertEqual(savedJob.customerName, "Marcus Lee")
+        XCTAssertEqual(savedJob.vehicleLabel, "2021 Honda Accord")
+        XCTAssertEqual(savedJob.plate, "7HKL248")
+        XCTAssertEqual(savedJob.color, "Pearl White")
+        XCTAssertEqual(savedJob.serviceName, "Full detail")
+        XCTAssertEqual(savedJob.notes, "")
+        XCTAssertEqual(savedJob.status, .beforeCapture)
+        XCTAssertGreaterThan(savedJob.updatedAt, oldUpdatedAt)
     }
 
     @MainActor
@@ -110,7 +135,7 @@ final class JobRepositoryTests: XCTestCase {
 
     @MainActor
     func testAdvanceRestoresStatusAndTimestampWhenSaveFails() throws {
-        enum SaveFailure: Error {
+        enum SaveFailure: Error, Equatable {
             case simulated
         }
 
@@ -133,7 +158,9 @@ final class JobRepositoryTests: XCTestCase {
             throw SaveFailure.simulated
         }
 
-        XCTAssertThrowsError(try repository.advance(job))
+        XCTAssertThrowsError(try repository.advance(job)) { error in
+            XCTAssertEqual(error as? SaveFailure, .simulated)
+        }
 
         XCTAssertEqual(job.status, .draft)
         XCTAssertEqual(job.updatedAt, oldUpdatedAt)

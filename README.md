@@ -4,11 +4,10 @@ DetailHandoff is an offline-first iPhone and iPad app for mobile auto detailers 
 
 ## Product status
 
-Phase 1 foundation is implemented on the `feature/phase-1-foundation` branch. It
-contains the local SwiftData schema, first-run business setup, draft-job creation
-and search, and the eight-stage workflow navigation skeleton. Camera capture,
-customer signatures, PDF reports, report sealing, backup/restore, and release
-verification are intentionally deferred to later phases.
+Phase 1 foundation contains the local SwiftData schema, first-run business setup,
+draft-job creation and search, and the eight-stage workflow navigation skeleton.
+Camera capture, customer signatures, PDF reports, report sealing, backup/restore,
+and release verification are intentionally deferred to later phases.
 
 ## Product decisions
 

@@ -1,6 +1,7 @@
 name: iOS Build
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
   pull_request:
@@ -22,3 +23,50 @@ jobs:
           -destination 'generic/platform=iOS Simulator'
           CODE_SIGNING_ALLOWED=NO
           build
+      - name: Select available iPhone simulator
+        id: simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          simulator_udid="$(
+            xcrun simctl list devices available --json |
+              jq -r '
+                [
+                  .devices
+                  | to_entries
+                  | map(select(.key | contains("SimRuntime.iOS-")))
+                  | sort_by(.key)
+                  | reverse
+                  | .[]
+                  | .value[]
+                  | select(.isAvailable == true and (.name | startswith("iPhone")))
+                ]
+                | first
+                | .udid // empty
+              '
+          )"
+
+          if [[ -z "$simulator_udid" ]]; then
+            echo "::error::No available iPhone simulator was found."
+            xcrun simctl list devices available
+            exit 1
+          fi
+
+          echo "udid=$simulator_udid" >> "$GITHUB_OUTPUT"
+      - name: Run full iOS unit-test target
+        run: >-
+          xcodebuild
+          test
+          -project DetailHandoff.xcodeproj
+          -scheme DetailHandoff
+          -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}'
+          -only-testing:DetailHandoffTests
+          -resultBundlePath TestResults.xcresult
+          CODE_SIGNING_ALLOWED=NO
+      - name: Upload iOS test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: TestResults.xcresult
+          if-no-files-found: ignore

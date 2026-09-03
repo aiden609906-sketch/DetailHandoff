@@ -3,6 +3,7 @@ import SwiftUI
 
 struct JobWorkflowView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let job: JobRecord
 
@@ -52,23 +53,39 @@ struct JobWorkflowView: View {
             Text("Workflow progress")
                 .font(.headline)
 
-            HStack(spacing: AppTheme.spacing8) {
-                ForEach(JobStatus.allCases) { status in
-                    VStack(spacing: 4) {
-                        Circle()
-                            .fill(progressColor(for: status))
-                            .frame(width: 12, height: 12)
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: AppTheme.spacing8) {
+                    ForEach(JobStatus.allCases) { status in
+                        let stepState = WorkflowProgressLayout.state(
+                            for: status,
+                            current: job.status
+                        )
 
-                        Text(status.displayName)
-                            .font(.caption2)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
+                        VStack(spacing: 4) {
+                            Circle()
+                                .fill(progressColor(for: stepState))
+                                .frame(width: 12, height: 12)
+
+                            Text(status.displayName)
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(
+                            width: WorkflowProgressLayout.minimumStepWidth(
+                                for: dynamicTypeSize
+                            ),
+                            alignment: .top
+                        )
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(
+                            "\(status.displayName), \(stepState.accessibilityValue)"
+                        )
                     }
-                    .frame(maxWidth: .infinity, alignment: .top)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(status.displayName), \(progressAccessibilityValue(for: status))")
                 }
+                .padding(.vertical, 2)
             }
+            .scrollIndicators(.visible)
         }
     }
 
@@ -103,25 +120,7 @@ struct JobWorkflowView: View {
         }
     }
 
-    private func progressColor(for status: JobStatus) -> Color {
-        guard let currentIndex = JobStatus.allCases.firstIndex(of: job.status),
-              let statusIndex = JobStatus.allCases.firstIndex(of: status) else {
-            return .secondary.opacity(0.25)
-        }
-
-        return statusIndex <= currentIndex ? .accentColor : .secondary.opacity(0.25)
-    }
-
-    private func progressAccessibilityValue(for status: JobStatus) -> String {
-        guard let currentIndex = JobStatus.allCases.firstIndex(of: job.status),
-              let statusIndex = JobStatus.allCases.firstIndex(of: status) else {
-            return "not started"
-        }
-
-        if statusIndex < currentIndex {
-            return "complete"
-        }
-
-        return statusIndex == currentIndex ? "current step" : "not started"
+    private func progressColor(for stepState: WorkflowProgressStepState) -> Color {
+        stepState == .upcoming ? .secondary.opacity(0.25) : .accentColor
     }
 }
