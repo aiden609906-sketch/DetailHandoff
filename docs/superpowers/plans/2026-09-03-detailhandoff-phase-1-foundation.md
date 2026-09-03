@@ -726,7 +726,7 @@ commit): `xcodegen generate`, the generic simulator `xcodebuild` build, and the
 named iPhone 16 Pro `xcodebuild test` command each returned exit code 1 because
 the macOS executable is not installed on Windows. No `BUILD SUCCEEDED` or
 `TEST SUCCEEDED` result is claimed. The final post-commit `git status --short`
-check is recorded in the Task 7 report.
+check returned exit code 0 with no output after commit `55039f2`.
 
 - [x] **Step 3: Check privacy and scope mechanically**
 
@@ -761,10 +761,25 @@ The documentation is committed on `feature/phase-1-foundation`. The requested
 push to `main` is intentionally pending: this task's preflight ruling prohibits
 push/merge to `main`; the controller will perform the final branch workflow.
 
-### Task 7 verification record
+### Task 7 verification evidence
 
-Fresh command evidence, static checks, self-review, and known gaps are recorded
-in `.superpowers/sdd/2026-09-03-detailhandoff-phase-1-foundation/task-7-report.md`.
+The tracked evidence for this task is summarized here so it remains available
+in a fresh clone:
+
+- `xcodegen generate`: exit 1; `xcodegen` is unavailable on Windows.
+- Generic simulator `xcodebuild ... CODE_SIGNING_ALLOWED=NO build`: exit 1;
+  `xcodebuild` is unavailable on Windows; no `BUILD SUCCEEDED` claim.
+- Named iPhone 16 Pro `xcodebuild test`: exit 1; `xcodebuild` is unavailable
+  on Windows; no `TEST SUCCEEDED` claim.
+- `xcrun simctl list devices available`: exit 1; `xcrun` is unavailable, so
+  no simulator inventory or alternate destination was selected.
+- `rg -n 'URLSession|Firebase|RevenueCat|Analytics|StoreKit|Anthropic|SignInWithApple' DetailHandoff`:
+  exit 1 with no matches.
+- `git diff --check`: exit 0 with no whitespace errors.
+- Final `git status --short`: exit 0 with no output after commit `55039f2`.
+
+The ignored task report is supplementary scratch output only; it is not needed
+to interpret or verify the evidence above.
 
 ---
 
