@@ -1,0 +1,48 @@
+import Foundation
+import SwiftData
+
+@Model
+final class JobRecord {
+    @Attribute(.unique) var id: UUID
+    var customerName: String
+    var vehicleLabel: String
+    var plate: String
+    var color: String
+    var serviceName: String
+    var notes: String
+    var statusRawValue: String
+    var createdAt: Date
+    var updatedAt: Date
+    var deletedAt: Date?
+
+    var status: JobStatus {
+        get { JobStatus(rawValue: statusRawValue) ?? .draft }
+        set { statusRawValue = newValue.rawValue }
+    }
+
+    init(
+        id: UUID = UUID(),
+        customerName: String,
+        vehicleLabel: String,
+        plate: String,
+        color: String,
+        serviceName: String,
+        notes: String,
+        status: JobStatus = .draft,
+        createdAt: Date = Date(),
+        updatedAt: Date? = nil,
+        deletedAt: Date? = nil
+    ) {
+        self.id = id
+        self.customerName = customerName
+        self.vehicleLabel = vehicleLabel
+        self.plate = plate
+        self.color = color
+        self.serviceName = serviceName
+        self.notes = notes
+        self.statusRawValue = status.rawValue
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt ?? createdAt
+        self.deletedAt = deletedAt
+    }
+}
