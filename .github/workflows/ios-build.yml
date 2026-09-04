@@ -63,10 +63,17 @@ jobs:
           -only-testing:DetailHandoffTests
           -resultBundlePath TestResults.xcresult
           CODE_SIGNING_ALLOWED=NO
+      - name: Export test attachments for visual inspection
+        if: always() && hashFiles('TestResults.xcresult/Info.plist') != ''
+        run: |
+          xcrun xcresulttool help export attachments
+          xcrun xcresulttool export attachments --path TestResults.xcresult --output-path TestAttachments
       - name: Upload iOS test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ios-test-results
-          path: TestResults.xcresult
+          path: |
+            TestResults.xcresult
+            TestAttachments
           if-no-files-found: ignore
