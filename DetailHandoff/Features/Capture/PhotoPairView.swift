@@ -47,7 +47,7 @@ struct PhotoPairView: View {
 
     private func phaseColumn(_ title: String, photos: [CapturedPhoto], skip: CaptureSkip?) -> some View {
         let presentation = CapturePresentationState.phasePresentation(photos: photos, skip: skip)
-        VStack(alignment: .leading, spacing: AppTheme.spacing8) {
+        return VStack(alignment: .leading, spacing: AppTheme.spacing8) {
             Text(title).font(.subheadline.weight(.semibold))
             if !presentation.photos.isEmpty {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: AppTheme.spacing8)], spacing: AppTheme.spacing8) {
