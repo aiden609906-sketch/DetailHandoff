@@ -65,9 +65,13 @@ final class CaptureRepositoryTests: XCTestCase {
         let repository = CaptureRepository(context: container.mainContext, media: MediaStore(root: root))
         try repository.addPhoto(to: job, data: try jpegData(), slotID: "front", phase: .before)
         let photo = try XCTUnwrap(try repository.document(for: job).photos.first)
-        let wrongSlotFinding = VehicleFinding(slotID: "rear", kind: "Scratch", severity: "Low", notes: "", photoIDs: [photo.id])
+        let wrongSlotFinding = VehicleFinding(slotID: "rear", kind: "Scratch", severity: "Minor", notes: "", photoIDs: [photo.id])
         XCTAssertThrowsError(try repository.saveFinding(on: job, finding: wrongSlotFinding))
-        let finding = VehicleFinding(slotID: "front", kind: "Scratch", severity: "Low", notes: "", photoIDs: [photo.id])
+        let emptyFinding = VehicleFinding(slotID: "front", kind: "Scratch", severity: "Minor", notes: "", photoIDs: [])
+        XCTAssertThrowsError(try repository.saveFinding(on: job, finding: emptyFinding)) { error in
+            XCTAssertEqual(error as? CaptureRepositoryError, .findingRequiresPhoto)
+        }
+        let finding = VehicleFinding(slotID: "front", kind: "Scratch", severity: "Minor", notes: "", photoIDs: [photo.id])
         try repository.saveFinding(on: job, finding: finding)
         XCTAssertThrowsError(try repository.removePhoto(from: job, photoID: photo.id))
         try repository.removeFinding(from: job, findingID: finding.id)

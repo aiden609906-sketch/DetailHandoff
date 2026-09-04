@@ -12,6 +12,7 @@ enum CaptureDocumentCorruption: Error, Equatable {
     case unknownFindingSlot(String)
     case duplicateFindingPhoto(UUID)
     case findingPhotoDoesNotBelongToSlot(UUID)
+    case findingRequiresPhoto(UUID)
 }
 
 enum CaptureRepositoryError: Error, Equatable {
@@ -25,6 +26,7 @@ enum CaptureRepositoryError: Error, Equatable {
     case unknownFinding(UUID)
     case findingPhotoDoesNotBelongToSlot(UUID)
     case duplicateFindingPhoto(UUID)
+    case findingRequiresPhoto
 }
 
 struct CaptureRepositoryRollbackError: Error {
@@ -168,6 +170,7 @@ final class CaptureRepository {
     }
 
     private func validatePhotoOwnership(of finding: VehicleFinding, in document: CaptureDocument) throws {
+        guard !finding.photoIDs.isEmpty else { throw CaptureRepositoryError.findingRequiresPhoto }
         var seenPhotoIDs = Set<UUID>()
         for photoID in finding.photoIDs {
             guard seenPhotoIDs.insert(photoID).inserted else { throw CaptureRepositoryError.duplicateFindingPhoto(photoID) }
@@ -221,6 +224,9 @@ final class CaptureRepository {
             }
             guard slotIDs.contains(finding.slotID) else {
                 throw CaptureRepositoryError.corruptDocument(.unknownFindingSlot(finding.slotID))
+            }
+            guard !finding.photoIDs.isEmpty else {
+                throw CaptureRepositoryError.corruptDocument(.findingRequiresPhoto(finding.id))
             }
             var linkedPhotoIDs = Set<UUID>()
             for photoID in finding.photoIDs {

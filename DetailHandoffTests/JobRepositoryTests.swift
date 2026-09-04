@@ -123,6 +123,11 @@ final class JobRepositoryTests: XCTestCase {
         )
 
         for expectedStatus in JobStatus.allCases.dropFirst() {
+            if job.status == .beforeCapture {
+                job.captureData = try JSONEncoder().encode(completedCaptureDocument(for: .before))
+            } else if job.status == .afterCapture {
+                job.captureData = try JSONEncoder().encode(completedCaptureDocument(for: .after))
+            }
             let oldUpdatedAt = Date(timeIntervalSince1970: 1)
             job.updatedAt = oldUpdatedAt
 
@@ -131,6 +136,40 @@ final class JobRepositoryTests: XCTestCase {
             XCTAssertEqual(job.status, expectedStatus)
             XCTAssertGreaterThan(job.updatedAt, oldUpdatedAt)
         }
+    }
+
+    @MainActor
+    func testAdvanceBlocksIncompleteBeforeCaptureWithoutChangingStatusOrTimestamp() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        job.status = .beforeCapture
+        let oldUpdatedAt = Date(timeIntervalSince1970: 1)
+        job.updatedAt = oldUpdatedAt
+
+        XCTAssertThrowsError(try JobRepository(context: container.mainContext).advance(job)) { error in
+            XCTAssertEqual(
+                error as? JobRepositoryError,
+                .incompleteCapture(phase: .before, missingSlots: CaptureSlot.standard)
+            )
+        }
+        XCTAssertEqual(job.status, .beforeCapture)
+        XCTAssertEqual(job.updatedAt, oldUpdatedAt)
+    }
+
+    @MainActor
+    func testAdvanceBlocksCorruptCaptureWithoutChangingStatusOrTimestamp() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        job.status = .afterCapture
+        job.captureData = Data([0xFF])
+        let oldUpdatedAt = Date(timeIntervalSince1970: 1)
+        job.updatedAt = oldUpdatedAt
+
+        XCTAssertThrowsError(try JobRepository(context: container.mainContext).advance(job)) { error in
+            XCTAssertEqual(error as? JobRepositoryError, .corruptCapture(phase: .after))
+        }
+        XCTAssertEqual(job.status, .afterCapture)
+        XCTAssertEqual(job.updatedAt, oldUpdatedAt)
     }
 
     @MainActor
@@ -302,4 +341,12 @@ final class JobRepositoryTests: XCTestCase {
 
         XCTAssertEqual(job.status, .draft)
     }
+}
+
+private func completedCaptureDocument(for phase: CapturePhase) -> CaptureDocument {
+    CaptureDocument(
+        skips: CaptureSlot.standard.map {
+            CaptureSkip(slotID: $0.id, phase: phase, reason: "Not accessible")
+        }
+    )
 }

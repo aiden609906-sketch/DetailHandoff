@@ -61,14 +61,14 @@ final class CaptureDocumentTests: XCTestCase {
         let job = try makeSavedJob(in: container)
         let repository = CaptureRepository(context: container.mainContext, media: MediaStore(root: makeTemporaryRoot()))
         let photo = CapturedPhoto(slotID: "front", phase: .before, imagePath: "job/photo.jpg", thumbnailPath: "job/thumb.jpg")
-        let wrongSlot = VehicleFinding(slotID: "rear", kind: "Scratch", severity: "Low", notes: "", photoIDs: [photo.id])
+        let wrongSlot = VehicleFinding(slotID: "rear", kind: "Scratch", severity: "Minor", notes: "", photoIDs: [photo.id])
         job.captureData = try JSONEncoder().encode(CaptureDocument(photos: [photo], findings: [wrongSlot]))
 
         XCTAssertThrowsError(try repository.document(for: job)) { error in
             XCTAssertEqual(error as? CaptureRepositoryError, .corruptDocument(.findingPhotoDoesNotBelongToSlot(photo.id)))
         }
 
-        let dangling = VehicleFinding(slotID: "front", kind: "Scratch", severity: "Low", notes: "", photoIDs: [UUID()])
+        let dangling = VehicleFinding(slotID: "front", kind: "Scratch", severity: "Minor", notes: "", photoIDs: [UUID()])
         job.captureData = try JSONEncoder().encode(CaptureDocument(photos: [photo], findings: [dangling]))
         XCTAssertThrowsError(try repository.document(for: job))
     }

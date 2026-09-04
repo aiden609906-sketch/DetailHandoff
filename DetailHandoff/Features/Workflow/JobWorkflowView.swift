@@ -99,22 +99,47 @@ struct JobWorkflowView: View {
     private var captureDestination: some View {
         switch job.status {
         case .beforeCapture:
-            NavigationLink {
-                CaptureView(job: job, phase: .before)
-            } label: {
-                Label("Open Before capture", systemImage: "camera")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
+            captureActions(phase: .before)
         case .afterCapture:
+            captureActions(phase: .after)
+        case .review, .finalized, .archived:
+            VStack(spacing: AppTheme.spacing8) {
+                NavigationLink {
+                    PhotoPairView(job: job)
+                } label: {
+                    Label("Inspect photo pairs", systemImage: "rectangle.split.2x1")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                NavigationLink {
+                    FindingsView(job: job)
+                } label: {
+                    Label("Inspect findings", systemImage: "magnifyingglass")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    private func captureActions(phase: CapturePhase) -> some View {
+        VStack(spacing: AppTheme.spacing8) {
             NavigationLink {
-                CaptureView(job: job, phase: .after)
+                CaptureView(job: job, phase: phase)
             } label: {
-                Label("Open After capture", systemImage: "camera")
+                Label("Open \(phase == .before ? "Before" : "After") capture", systemImage: "camera")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-        case .review, .finalized, .archived:
+            NavigationLink {
+                FindingsView(job: job)
+            } label: {
+                Label("Record findings", systemImage: "magnifyingglass")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
             NavigationLink {
                 PhotoPairView(job: job)
             } label: {
@@ -122,8 +147,6 @@ struct JobWorkflowView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-        default:
-            EmptyView()
         }
     }
 
@@ -149,6 +172,17 @@ struct JobWorkflowView: View {
     private func advanceJob() {
         do {
             try JobRepository(context: modelContext).advance(job)
+        } catch let error as JobRepositoryError {
+            switch error {
+            case .incompleteCapture(let phase, let missingSlots):
+                let phaseName = phase == .before ? "Before photos" : "After photos"
+                advanceErrorMessage = "Complete \(phaseName) before continuing. Missing: \(missingSlots.map(\.name).joined(separator: ", "))."
+            case .corruptCapture(let phase):
+                let phaseName = phase == .before ? "before" : "after"
+                advanceErrorMessage = "The saved \(phaseName) capture record is invalid. Open capture to review it before continuing."
+            case .noNextStatus:
+                advanceErrorMessage = "This job has no later workflow step."
+            }
         } catch {
             advanceErrorMessage = "The job could not move to the next step."
         }

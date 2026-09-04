@@ -79,6 +79,23 @@ struct VehicleFinding: Codable, Equatable, Identifiable {
     }
 }
 
+enum FindingKind: String, CaseIterable, Identifiable {
+    case scratch = "Scratch"
+    case dent = "Dent"
+    case stain = "Stain"
+    case other = "Other"
+
+    var id: String { rawValue }
+}
+
+enum FindingSeverity: String, CaseIterable, Identifiable {
+    case minor = "Minor"
+    case moderate = "Moderate"
+    case severe = "Severe"
+
+    var id: String { rawValue }
+}
+
 struct CaptureDocument: Codable, Equatable {
     static let currentSchemaVersion = 1
 

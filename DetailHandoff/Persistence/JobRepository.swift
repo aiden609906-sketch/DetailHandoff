@@ -3,21 +3,26 @@ import SwiftData
 
 enum JobRepositoryError: Error, Equatable {
     case noNextStatus
+    case incompleteCapture(phase: CapturePhase, missingSlots: [CaptureSlot])
+    case corruptCapture(phase: CapturePhase)
 }
 
 @MainActor
 final class JobRepository {
     private let context: ModelContext
     private let saveChanges: () throws -> Void
+    private let media: MediaStore
 
     init(context: ModelContext) {
         self.context = context
         saveChanges = { try context.save() }
+        media = MediaStore(root: MediaStore.defaultRoot)
     }
 
     init(context: ModelContext, saveChanges: @escaping () throws -> Void) {
         self.context = context
         self.saveChanges = saveChanges
+        media = MediaStore(root: MediaStore.defaultRoot)
     }
 
     func createJob(
@@ -54,6 +59,19 @@ final class JobRepository {
             throw JobRepositoryError.noNextStatus
         }
 
+        if let phase = capturePhaseRequiringCompletion(for: job.status) {
+            let document: CaptureDocument
+            do {
+                document = try CaptureRepository(context: context, media: media).document(for: job)
+            } catch {
+                throw JobRepositoryError.corruptCapture(phase: phase)
+            }
+            let missingSlots = CaptureValidation.missingRequiredSlots(in: document, phase: phase)
+            guard missingSlots.isEmpty else {
+                throw JobRepositoryError.incompleteCapture(phase: phase, missingSlots: missingSlots)
+            }
+        }
+
         let previousStatus = job.status
         let previousUpdatedAt = job.updatedAt
         job.status = nextStatus
@@ -65,6 +83,14 @@ final class JobRepository {
             job.status = previousStatus
             job.updatedAt = previousUpdatedAt
             throw error
+        }
+    }
+
+    private func capturePhaseRequiringCompletion(for status: JobStatus) -> CapturePhase? {
+        switch status {
+        case .beforeCapture: .before
+        case .afterCapture: .after
+        default: nil
         }
     }
 
