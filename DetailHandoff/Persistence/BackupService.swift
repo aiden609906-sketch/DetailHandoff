@@ -18,11 +18,13 @@ final class BackupService {
     private let context: ModelContext
     private let media: MediaStore
     private let commit: (ModelContext, () throws -> Void) throws -> Void
+    private let readStagedAsset: (String) throws -> Data
 
-    init(context: ModelContext, media: MediaStore, commit: ((ModelContext, () throws -> Void) throws -> Void)? = nil) {
+    init(context: ModelContext, media: MediaStore, commit: ((ModelContext, () throws -> Void) throws -> Void)? = nil, readStagedAsset: ((String) throws -> Data)? = nil) {
         self.context = context
         self.media = media
         self.commit = commit ?? { context, changes in try context.transaction(block: changes) }
+        self.readStagedAsset = readStagedAsset ?? { try media.readRegularAsset(at: $0) }
     }
 
     func makeBackup() throws -> FileWrapper {
@@ -72,7 +74,8 @@ final class BackupService {
             }
             let rebasedGraph = try BackupGraph(manifest: rebased, context: replacement, media: media)
             var stagedFiles: [String: Data] = [:]
-            for path in paths.values { stagedFiles[path] = try media.readRegularAsset(at: path) }
+            for path in paths.values { stagedFiles[path] = try readStagedAsset(path) }
+            try BackupPackage.validateAssets(rebased.assets, files: stagedFiles)
             try rebasedGraph.validateFiles(stagedFiles)
             try commit(replacement) {
                 let importedIDs = Set(rebased.jobs.map(\.id))

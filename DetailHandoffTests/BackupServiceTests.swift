@@ -110,6 +110,57 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertEqual(try f.files(), files)
     }
 
+    // Catches accepting a different decodable staged image, including a same-size SHA mismatch.
+    @MainActor
+    func testChangedValidStagedImageFailsBeforeCommitAndRemovesOnlyStage() throws {
+        for preserveByteCount in [true, false] {
+            let f = try BackupFixture()
+            defer { f.cleanUp() }
+            let backup = try f.service.validate(f.service.makeBackup())
+            f.job.customerName = "Keep current evidence"
+            try f.context.save()
+            let originalRows = try f.context.fetch(FetchDescriptor<JobRecord>()).map(BackupJobDTO.init).sorted { $0.id.uuidString < $1.id.uuidString }
+            let originalProfile = BackupProfileDTO(f.business)
+            let originalFiles = try f.files()
+            let differentImage = UIGraphicsImageRenderer(size: CGSize(width: 16, height: 16)).jpegData(withCompressionQuality: 0.9) { renderer in
+                UIColor.red.setFill()
+                renderer.fill(CGRect(x: 0, y: 0, width: 16, height: 16))
+            }
+            var changedPath: String?
+            var reachedCommit = false
+            let service = BackupService(context: f.context, media: f.media, commit: { context, changes in
+                reachedCommit = true
+                try context.transaction(block: changes)
+            }, readStagedAsset: { path in
+                let bytes = try f.media.readRegularAsset(at: path)
+                if changedPath == nil, bytes.starts(with: [0xFF, 0xD8]) {
+                    var changed = differentImage
+                    if preserveByteCount {
+                        guard changed.count <= bytes.count else { throw CocoaError(.fileReadCorruptFile) }
+                        changed.append(Data(repeating: 0, count: bytes.count - changed.count))
+                        XCTAssertEqual(changed.count, bytes.count)
+                    } else {
+                        XCTAssertNotEqual(changed.count, bytes.count)
+                    }
+                    XCTAssertNotNil(UIImage(data: changed))
+                    XCTAssertNotEqual(changed, bytes)
+                    try changed.write(to: f.media.url(for: path), options: .atomic)
+                    changedPath = path
+                }
+                return try f.media.readRegularAsset(at: path)
+            })
+            XCTAssertThrowsError(try service.restore(backup))
+            XCTAssertNotNil(changedPath)
+            XCTAssertFalse(reachedCommit)
+            let fresh = ModelContext(f.container)
+            XCTAssertEqual(try fresh.fetch(FetchDescriptor<JobRecord>()).map(BackupJobDTO.init).sorted { $0.id.uuidString < $1.id.uuidString }, originalRows)
+            XCTAssertEqual(BackupProfileDTO(try XCTUnwrap(try fresh.fetch(FetchDescriptor<BusinessProfile>()).first)), originalProfile)
+            XCTAssertEqual(try f.files(), originalFiles)
+            let stagedURL = try f.media.url(for: XCTUnwrap(changedPath))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: stagedURL.deletingLastPathComponent().path))
+        }
+    }
+
     // Catches lowering reservations or failing to migrate old nil-ledger report histories.
     @MainActor
     func testOlderBackupMergesBothLedgersAndHistoriesWithoutReissuingNumbers() throws {

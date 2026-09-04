@@ -41,8 +41,14 @@ enum BackupPackage {
         guard manifest.schemaVersion == 1 else { throw BackupError.invalidPackage("unsupported schema version") }
         var files: [String: Data] = [:]
         try flatten(assets, prefix: "", into: &files)
+        try validateAssets(manifest.assets, files: files)
+        return (manifest, files)
+    }
+
+    /// Reused after staging: decodable media is not necessarily the original evidence bytes.
+    static func validateAssets(_ assets: [BackupAsset], files: [String: Data]) throws {
         var paths = Set<String>()
-        for asset in manifest.assets {
+        for asset in assets {
             try validatePath(asset.relativePath)
             guard paths.insert(asset.relativePath).inserted,
                   let bytes = files[asset.relativePath], asset.byteCount == bytes.count,
@@ -51,7 +57,6 @@ enum BackupPackage {
             }
         }
         guard paths == Set(files.keys) else { throw BackupError.invalidPackage("unlisted assets") }
-        return (manifest, files)
     }
 
     static func make(manifest: BackupManifest, files: [String: Data]) throws -> FileWrapper {
