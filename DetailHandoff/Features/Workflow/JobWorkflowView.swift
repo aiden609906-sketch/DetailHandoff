@@ -16,6 +16,8 @@ struct JobWorkflowView: View {
                 workflowProgress
                 WorkflowStepContent(status: job.status)
 
+                captureDestination
+
                 if job.status != .archived {
                     Button(action: advanceJob) {
                         Label(nextStepTitle, systemImage: "arrow.right.circle.fill")
@@ -91,6 +93,38 @@ struct JobWorkflowView: View {
 
     private var customerName: String {
         job.customerName.isEmpty ? "Not provided" : job.customerName
+    }
+
+    @ViewBuilder
+    private var captureDestination: some View {
+        switch job.status {
+        case .beforeCapture:
+            NavigationLink {
+                CaptureView(job: job, phase: .before)
+            } label: {
+                Label("Open Before capture", systemImage: "camera")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        case .afterCapture:
+            NavigationLink {
+                CaptureView(job: job, phase: .after)
+            } label: {
+                Label("Open After capture", systemImage: "camera")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        case .review, .finalized, .archived:
+            NavigationLink {
+                PhotoPairView(job: job)
+            } label: {
+                Label("Inspect photo pairs", systemImage: "rectangle.split.2x1")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+        default:
+            EmptyView()
+        }
     }
 
     private var nextStepTitle: String {
