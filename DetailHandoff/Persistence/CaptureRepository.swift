@@ -102,6 +102,8 @@ final class CaptureRepository {
         guard !document.findings.contains(where: { $0.photoIDs.contains(photoID) }) else {
             throw CaptureRepositoryError.photoLinkedToFinding(photoID)
         }
+        // Metadata unlink only: frozen ReportSnapshot references and backups retain both files.
+        // Physical cleanup belongs to an explicit reference-aware retention policy, not editing.
         document.photos.remove(at: index)
         try save(document, on: job)
     }

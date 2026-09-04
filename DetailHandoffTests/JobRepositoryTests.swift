@@ -106,7 +106,7 @@ final class JobRepositoryTests: XCTestCase {
     }
 
     @MainActor
-    func testAdvanceUpdatesTimestampForEveryTransition() throws {
+    func testAdvanceUpdatesTimestampForOrdinaryTransitionsBeforeSealing() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
             for: BusinessProfile.self, JobRecord.self,
@@ -122,7 +122,7 @@ final class JobRepositoryTests: XCTestCase {
             notes: ""
         )
 
-        for expectedStatus in JobStatus.allCases.dropFirst() {
+        for expectedStatus in JobStatus.allCases.dropFirst().prefix(5) {
             if job.status == .beforeCapture {
                 job.captureData = try JSONEncoder().encode(completedCaptureDocument(for: .before))
             } else if job.status == .awaitingAcknowledgment {

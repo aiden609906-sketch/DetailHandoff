@@ -8,6 +8,7 @@ final class BusinessProfile {
     var phone: String
     var email: String
     var disclaimer: String
+    var logoImagePath: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -17,6 +18,7 @@ final class BusinessProfile {
         phone: String = "",
         email: String = "",
         disclaimer: String = "This report records visible vehicle condition and the services selected at the time shown. It is not insurance, a warranty, or a guarantee.",
+        logoImagePath: String? = nil,
         createdAt: Date = Date(),
         updatedAt: Date? = nil
     ) {
@@ -25,6 +27,7 @@ final class BusinessProfile {
         self.phone = phone
         self.email = email
         self.disclaimer = disclaimer
+        self.logoImagePath = logoImagePath
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
     }

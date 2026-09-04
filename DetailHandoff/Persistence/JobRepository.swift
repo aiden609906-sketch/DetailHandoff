@@ -8,6 +8,7 @@ enum JobRepositoryError: Error, Equatable {
     case missingAcknowledgment
     case staleAcknowledgment
     case corruptAcknowledgment
+    case reportSealRequired
 }
 
 @MainActor
@@ -58,6 +59,7 @@ final class JobRepository {
     }
 
     func advance(_ job: JobRecord) throws {
+        guard job.status != .review else { throw JobRepositoryError.reportSealRequired }
         guard let nextStatus = job.status.next else {
             throw JobRepositoryError.noNextStatus
         }

@@ -196,6 +196,8 @@ struct JobWorkflowView: View {
                 advanceErrorMessage = "Before-service evidence changed. Review it and record a new acknowledgment before continuing."
             case .corruptAcknowledgment:
                 advanceErrorMessage = "The saved acknowledgment cannot be read. Record it again before continuing."
+            case .reportSealRequired:
+                advanceErrorMessage = "Generate and seal a report to finalize this job."
             }
         } catch {
             advanceErrorMessage = "The job could not move to the next step."
