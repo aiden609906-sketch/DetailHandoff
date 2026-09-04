@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
@@ -87,6 +88,7 @@ jobs:
         run: |
           echo "udid=${{ steps.simulators.outputs.phone_udid }}" >> "$GITHUB_OUTPUT"
       - name: Run full iOS unit-test target
+        timeout-minutes: 12
         run: >-
           xcodebuild
           test
@@ -97,6 +99,7 @@ jobs:
           -resultBundlePath UnitTestResults.xcresult
           CODE_SIGNING_ALLOWED=NO
       - name: Run UI tests on selected iPhone
+        timeout-minutes: 15
         run: >-
           xcodebuild
           test
@@ -104,10 +107,13 @@ jobs:
           -scheme DetailHandoff
           -destination 'platform=iOS Simulator,id=${{ steps.simulators.outputs.phone_udid }}'
           -only-testing:DetailHandoffUITests
+          -parallel-testing-enabled NO
+          -maximum-parallel-testing-workers 1
           -resultBundlePath UITestResults-iPhone.xcresult
           CODE_SIGNING_ALLOWED=NO
       - name: Run UI tests on selected iPad
         if: always()
+        timeout-minutes: 15
         run: >-
           xcodebuild
           test
@@ -115,16 +121,21 @@ jobs:
           -scheme DetailHandoff
           -destination 'platform=iOS Simulator,id=${{ steps.simulators.outputs.pad_udid }}'
           -only-testing:DetailHandoffUITests
+          -parallel-testing-enabled NO
+          -maximum-parallel-testing-workers 1
           -resultBundlePath UITestResults-iPad.xcresult
           CODE_SIGNING_ALLOWED=NO
       - name: Export test attachments for visual inspection
         if: always()
         run: |
           set -euo pipefail
-          for result in UITestResults-iPhone.xcresult UITestResults-iPad.xcresult; do
+          for result in UnitTestResults.xcresult UITestResults-iPhone.xcresult UITestResults-iPad.xcresult; do
             if [[ -f "$result/Info.plist" ]]; then
-              device="${result#UITestResults-}"
-              device="${device%.xcresult}"
+              case "$result" in
+                UnitTestResults.xcresult) device="Unit" ;;
+                UITestResults-iPhone.xcresult) device="iPhone" ;;
+                UITestResults-iPad.xcresult) device="iPad" ;;
+              esac
               xcrun xcresulttool export attachments --path "$result" --output-path "TestAttachments-$device"
             fi
           done
@@ -138,6 +149,7 @@ jobs:
             UnitTestResults.xcresult
             UITestResults-iPhone.xcresult
             UITestResults-iPad.xcresult
+            TestAttachments-Unit
             TestAttachments-iPhone
             TestAttachments-iPad
           if-no-files-found: ignore

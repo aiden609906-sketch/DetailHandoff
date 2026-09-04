@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class WorkflowUITests: XCTestCase {
     private let app = XCUIApplication()
 

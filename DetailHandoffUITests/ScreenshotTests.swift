@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class ScreenshotTests: XCTestCase {
     func testLargeAccessibilityTextKeepsWorkflowActionsVisible() throws {
         let app = XCUIApplication()
