@@ -1,0 +1,39 @@
+# Release Verification Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development task-by-task.
+
+**Goal:** Verify the integrated V1 code, export real simulator screenshots, and document the remaining external release gates without claiming publication.
+
+**Architecture:** XCTest protects domain/persistence/file operations, XCUITest runs isolated deterministic fixtures on iPhone/iPad and captures actual rendered screens. CI retains test results and screenshots; release documentation maps every PRD requirement to implementation, tests and physical verification still required.
+
+**Tech Stack:** XcodeGen, GitHub Actions macOS, XCTest/XCUITest, simulator screenshot/xcresult artifacts.
+
+**Spec:** `docs/superpowers/specs/2026-09-03-detailhandoff-design.md`
+
+## Global Constraints
+
+- iOS/iPadOS 17+, English-first, local-only, USD 9.99 paid download with no in-app paywall.
+- Test fixtures use isolated stores and generated sample assets, never user records. Fixture launch code is DEBUG-only.
+- Do not publish, sign with unknown credentials, invent contact details, claim real-device checks, or claim App Review acceptance.
+
+### Task 1: End-to-end UI verification and screenshot artifacts
+
+**Files:** project.yml; `.github/workflows/ios-build.yml`; `DetailHandoffUITests/WorkflowUITests.swift`, `ScreenshotTests.swift`; focused accessibility identifiers in production views; `DetailHandoff/Testing/UITestFixtures.swift` behind DEBUG.
+
+**Interfaces:** Launch arguments `--ui-testing` and `--screenshot-fixture` request isolated test state only in DEBUG. No test bypass is allowed in production transition validation. Generated image fixtures satisfy the same capture/import repository rules as production.
+
+- [ ] Tests first: clean launch setup → new job → search → workflow; complete fixture with valid capture and acknowledgment → draft PDF → seal → version/share UI; backup export/cancel; trash/restore; failing startup retry screen. Capture XCTAttachments for setup, list, new job, capture, findings, acknowledgment, report, settings, backup and trash.
+- [ ] Run XCUITest initially to record missing identifiers/flows (macOS CI). Implement identifiers and isolated fixture injection; never ship fabricated customer data as production records.
+- [ ] Add iPhone and iPad CI destinations chosen from available runtime inventories. Run UI tests and export PNG attachments from xcresult with supported Xcode tools; upload artifact paths and device/runtime names. If a screen cannot be automated, record exactly what failed and preserve the test failure rather than marking passed.
+- [ ] Inspect screenshots using available image tools; check narrow iPhone, iPad and accessibility text sizes for clipping, hidden actions and unreadable states. Fix each observed issue with a focused regression when possible.
+- [ ] Commit `test: verify V1 flows and publish simulator screenshots`.
+
+### Task 2: PRD traceability, privacy and release handoff
+
+**Files:** README.md, `docs/release/acceptance.md`, `docs/release/privacy.md`, `docs/release/app-store.md`; update plan checklists based only on actual evidence.
+
+- [ ] Build a requirement matrix covering every PRD V1 item, linking its production files, test names, CI run and remaining manual checks. Missing required functionality is a code gap, not an external gate; return it to implementation before declaring code complete.
+- [ ] Record actual full-test counts/results, iPhone/iPad destinations, screenshots, and performance fixture results for a 40-photo PDF and backup roundtrip. Confirm migration from Phase 1 with a stored fixture without wiping prior records.
+- [ ] Privacy document describes real on-device data, permissions, user-initiated export and any system backup behavior accurately. App Store document records USD 9.99 paid download, no IAP, English-first copy, camera usage and required images; never assert the name is legally cleared or available without verification.
+- [ ] Explicit pending gates: developer membership/account/team/signing, real support email and policy URL, physical iPhone+iPad camera/permissions/interruption tests, TestFlight users, business agreements/tax/banking and App Review. Do not treat CI as a substitute for these.
+- [ ] Full code review, macOS CI, GitHub sync. Commit `docs: record V1 verification and release gates`.
