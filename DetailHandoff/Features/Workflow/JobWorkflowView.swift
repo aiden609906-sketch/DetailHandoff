@@ -46,6 +46,14 @@ struct JobWorkflowView: View {
             LabeledContent("Customer", value: customerName)
             LabeledContent("Service", value: job.serviceName)
             LabeledContent("Current status", value: job.status.displayName)
+            if job.status != .finalized, job.status != .archived {
+                NavigationLink {
+                    EditJobView(job: job)
+                } label: {
+                    Label("Edit job details", systemImage: "pencil")
+                }
+                .padding(.top, AppTheme.spacing8)
+            }
         }
         .reportCard()
     }
@@ -223,6 +231,8 @@ struct JobWorkflowView: View {
                 advanceErrorMessage = "The saved acknowledgment cannot be read. Record it again before continuing."
             case .reportSealRequired:
                 advanceErrorMessage = "Generate and seal a report to finalize this job."
+            case .immutableJob, .blankVehicle, .blankService:
+                advanceErrorMessage = "The job details are invalid or can no longer be changed."
             }
         } catch {
             advanceErrorMessage = "The job could not move to the next step."

@@ -57,6 +57,17 @@ final class MediaStore {
         return stored
     }
 
+    /// Business logos remain private application-support assets and are compressed before storage.
+    func storeBusinessLogo(_ data: Data) throws -> String {
+        guard let image = UIImage(data: data) else { throw MediaStoreError.invalidImage }
+        let compressed = try jpegData(for: image, maximumDimension: 1024)
+        let path = "Branding/\(UUID().uuidString).jpg"
+        let destination = try url(for: path)
+        try fileManager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try compressed.write(to: destination, options: .atomic)
+        return path
+    }
+
     func url(for relativePath: String) throws -> URL {
         guard let components = safeRelativePathComponents(relativePath) else {
             throw MediaStoreError.unsafeRelativePath(relativePath)
@@ -78,6 +89,13 @@ final class MediaStore {
         if fileManager.fileExists(atPath: imageURL.path) { try fileManager.removeItem(at: imageURL) }
         if fileManager.fileExists(atPath: thumbnailURL.path) { try fileManager.removeItem(at: thumbnailURL) }
         try removeEmptyParentDirectories(startingAt: imageURL.deletingLastPathComponent())
+    }
+
+    func removeAsset(at relativePath: String) throws {
+        let assetURL = try url(for: relativePath)
+        if fileManager.fileExists(atPath: assetURL.path) {
+            try fileManager.removeItem(at: assetURL)
+        }
     }
 
     private func jpegData(for image: UIImage, maximumDimension: CGFloat) throws -> Data {

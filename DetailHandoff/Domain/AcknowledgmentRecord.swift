@@ -85,6 +85,9 @@ enum AcknowledgmentContentDigest {
             plate: job.plate,
             color: job.color,
             serviceName: job.serviceName,
+            customerPhone: job.customerPhone,
+            customerEmail: job.customerEmail,
+            serviceLocation: job.location,
             beforePhotos: beforePhotos,
             beforeSkips: beforeSkips,
             findings: findings
@@ -103,6 +106,9 @@ private struct PreServiceContent: Codable {
     var plate: String
     var color: String
     var serviceName: String
+    var customerPhone: String?
+    var customerEmail: String?
+    var serviceLocation: String?
     var beforePhotos: [PreServicePhoto]
     var beforeSkips: [PreServiceSkip]
     var findings: [PreServiceFinding]

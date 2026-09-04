@@ -1,3 +1,4 @@
+import CryptoKit
 import SwiftData
 import XCTest
 @testable import DetailHandoff
@@ -95,6 +96,41 @@ final class AcknowledgmentRepositoryTests: XCTestCase {
     }
 
     @MainActor
+    func testAcknowledgmentDigestPreservesLegacyNilContactsAndBecomesStaleWhenContactChanges() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        let repository = AcknowledgmentRepository(context: container.mainContext)
+        let legacyPayload = LegacyPreServiceContent(
+            jobID: job.id.uuidString,
+            customerName: job.customerName,
+            vehicleLabel: job.vehicleLabel,
+            plate: job.plate,
+            color: job.color,
+            serviceName: job.serviceName,
+            beforePhotos: [],
+            beforeSkips: [],
+            findings: []
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        let digest = SHA256.hash(data: try encoder.encode(legacyPayload)).map { String(format: "%02x", $0) }.joined()
+        job.acknowledgmentData = try JSONEncoder().encode(AcknowledgmentRecord(
+            method: .customerUnavailable,
+            customerName: job.customerName,
+            recordedAt: .now,
+            confirmationText: AcknowledgmentRecord.confirmationText,
+            unavailableReason: "Customer left keys with the office",
+            strokes: [],
+            contentDigest: digest
+        ))
+
+        XCTAssertTrue(try repository.isCurrent(job: job))
+
+        job.customerPhone = "555-0123"
+        XCTAssertFalse(try repository.isCurrent(job: job))
+    }
+
+    @MainActor
     func testFailedSaveRestoresAcknowledgmentPayloadAndTimestamp() throws {
         enum SaveFailure: Error { case simulated }
 
@@ -152,4 +188,16 @@ final class AcknowledgmentRepositoryTests: XCTestCase {
             CaptureSkip(slotID: $0.id, phase: .before, reason: "Not accessible")
         })
     }
+}
+
+private struct LegacyPreServiceContent: Codable {
+    var jobID: String
+    var customerName: String
+    var vehicleLabel: String
+    var plate: String
+    var color: String
+    var serviceName: String
+    var beforePhotos: [String]
+    var beforeSkips: [String]
+    var findings: [String]
 }

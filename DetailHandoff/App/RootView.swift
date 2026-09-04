@@ -22,30 +22,3 @@ struct RootView: View {
         }
     }
 }
-
-private struct SettingsView: View {
-    let businessProfile: BusinessProfile
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Business") {
-                    Text(businessProfile.businessName)
-
-                    if !businessProfile.phone.isEmpty {
-                        Text(businessProfile.phone)
-                    }
-
-                    if !businessProfile.email.isEmpty {
-                        Text(businessProfile.email)
-                    }
-                }
-
-                Section {
-                    Text("Records stay on this device.")
-                }
-            }
-            .navigationTitle("Settings")
-        }
-    }
-}

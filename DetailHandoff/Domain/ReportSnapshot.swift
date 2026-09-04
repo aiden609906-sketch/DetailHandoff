@@ -37,6 +37,9 @@ struct ReportSnapshot: Codable, Equatable {
         color = job.color
         serviceName = job.serviceName
         notes = job.notes
+        customerPhone = job.customerPhone
+        customerEmail = job.customerEmail
+        serviceLocation = job.location
         createdAt = job.createdAt
         serviceStartedAt = job.serviceStartedAt
         serviceFinishedAt = job.serviceFinishedAt
