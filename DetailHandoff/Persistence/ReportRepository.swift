@@ -125,6 +125,7 @@ final class ReportRepository {
     }
 
     func beginRevision(job: JobRecord) throws {
+        guard job.modelContext === context, !job.isDeleted else { throw ReportRepositoryError.invalidSaveContext }
         guard job.deletedAt == nil else { throw ReportRepositoryError.deletedJob }
         guard job.status == .finalized else { throw ReportRepositoryError.requiresFinalized }
         guard !(try versions(for: job)).isEmpty else { throw ReportRepositoryError.corruptHistory }

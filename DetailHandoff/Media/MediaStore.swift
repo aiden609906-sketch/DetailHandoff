@@ -17,6 +17,11 @@ struct StoredImage: Equatable {
     }
 }
 
+struct MediaAsset: Equatable {
+    let path: String
+    let bytes: Int64
+}
+
 final class MediaStore {
     static var defaultRoot: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -100,6 +105,7 @@ final class MediaStore {
 
     /// Backup never follows a symbolic link, even if its target happens to remain in the root.
     func readRegularAsset(at relativePath: String) throws -> Data {
+        try validatePrivateRoot()
         try BackupPackage.validatePath(relativePath)
         var candidate = root
         for component in relativePath.split(separator: "/") {
@@ -111,6 +117,44 @@ final class MediaStore {
             throw MediaStoreError.unsafeRelativePath(relativePath)
         }
         return try Data(contentsOf: url(for: relativePath))
+    }
+
+    /// Enumerates even unlinked capture files and media retained by a previous restore.
+    /// Refuse unsafe entries instead of following them or reporting an incomplete inventory.
+    func assetInventory() throws -> [MediaAsset] {
+        guard fileManager.fileExists(atPath: root.path) else { return [] }
+        try validatePrivateRoot()
+        var assets: [MediaAsset] = []
+        func visit(_ directory: URL, prefix: String) throws {
+            for entry in try fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isSymbolicLinkKey, .isDirectoryKey, .isRegularFileKey, .fileSizeKey]) {
+                let path = prefix + entry.lastPathComponent
+                try BackupPackage.validatePath(path)
+                let values = try entry.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey, .isRegularFileKey, .fileSizeKey])
+                guard values.isSymbolicLink != true else { throw MediaStoreError.unsafeRelativePath(path) }
+                if values.isDirectory == true {
+                    try visit(entry, prefix: path + "/")
+                } else {
+                    guard values.isRegularFile == true, let bytes = values.fileSize else {
+                        throw MediaStoreError.unsafeRelativePath(path)
+                    }
+                    assets.append(MediaAsset(path: path, bytes: Int64(bytes)))
+                }
+            }
+        }
+        try visit(root, prefix: "")
+        return assets.sorted { $0.path < $1.path }
+    }
+
+    /// Cleanup may only unlink a regular file whose complete path was checked without symlinks.
+    func removeRegularAsset(at relativePath: String) throws {
+        _ = try readRegularAsset(at: relativePath)
+        try fileManager.removeItem(at: url(for: relativePath))
+    }
+
+    private func validatePrivateRoot() throws {
+        guard try root.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true else {
+            throw MediaStoreError.unsafeRelativePath(root.path)
+        }
     }
 
     private func jpegData(for image: UIImage, maximumDimension: CGFloat) throws -> Data {

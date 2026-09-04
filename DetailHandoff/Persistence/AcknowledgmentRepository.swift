@@ -102,6 +102,7 @@ final class AcknowledgmentRepository {
     }
 
     private func validateMutable(_ job: JobRecord) throws {
+        guard job.modelContext === context, !job.isDeleted, job.deletedAt == nil else { throw AcknowledgmentRepositoryError.immutableJob }
         guard job.status != .finalized, job.status != .archived else {
             throw AcknowledgmentRepositoryError.immutableJob
         }

@@ -21,6 +21,7 @@ struct JobsListView: View {
 
     @State private var searchText = ""
     @State private var isShowingNewJob = false
+    @State private var deletionError: String?
 
     private var activeJobs: [JobRecord] {
         jobs.filter { $0.deletedAt == nil }
@@ -63,6 +64,15 @@ struct JobsListView: View {
                         } label: {
                             JobRow(job: job)
                         }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                do {
+                                    try TrashService(context: modelContext, media: MediaStore(root: MediaStore.defaultRoot)).softDelete(job)
+                                } catch { deletionError = error.localizedDescription }
+                            } label: {
+                                Label("Move to Recently deleted", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }
@@ -78,6 +88,9 @@ struct JobsListView: View {
             .sheet(isPresented: $isShowingNewJob) {
                 NewJobView()
             }
+            .alert("Couldn’t move job to Recently deleted", isPresented: Binding(get: { deletionError != nil }, set: { if !$0 { deletionError = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: { Text(deletionError ?? "") }
         }
     }
 }

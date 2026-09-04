@@ -18,6 +18,8 @@ struct SettingsView: View {
                 }
                 Section("Data safety") {
                     NavigationLink("Backup and restore") { BackupView() }
+                    NavigationLink("Storage") { StorageView() }
+                    NavigationLink("Recently deleted") { RecentlyDeletedView() }
                 }
                 Section("Privacy") {
                     Text("Records stay on this device.")

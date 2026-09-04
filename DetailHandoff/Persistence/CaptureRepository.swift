@@ -78,8 +78,8 @@ final class CaptureRepository {
     }
 
     func addPhoto(to job: JobRecord, data: Data, slotID: String, phase: CapturePhase) throws {
-        var document = try document(for: job)
         try validateMutable(job)
+        var document = try document(for: job)
         try validateSlot(slotID, in: document)
         let stored = try media.storeImage(data, jobID: job.id)
         document.photos.append(CapturedPhoto(slotID: slotID, phase: phase, imagePath: stored.imagePath, thumbnailPath: stored.thumbnailPath))
@@ -96,8 +96,8 @@ final class CaptureRepository {
     }
 
     func removePhoto(from job: JobRecord, photoID: UUID) throws {
-        var document = try document(for: job)
         try validateMutable(job)
+        var document = try document(for: job)
         guard let index = document.photos.firstIndex(where: { $0.id == photoID }) else { throw CaptureRepositoryError.unknownPhoto(photoID) }
         guard !document.findings.contains(where: { $0.photoIDs.contains(photoID) }) else {
             throw CaptureRepositoryError.photoLinkedToFinding(photoID)
@@ -109,8 +109,8 @@ final class CaptureRepository {
     }
 
     func setSkip(on job: JobRecord, slotID: String, phase: CapturePhase, reason: String) throws {
-        var document = try document(for: job)
         try validateMutable(job)
+        var document = try document(for: job)
         try validateSlot(slotID, in: document)
         let trimmedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedReason.isEmpty else { throw CaptureRepositoryError.blankSkipReason }
@@ -120,16 +120,16 @@ final class CaptureRepository {
     }
 
     func clearSkip(on job: JobRecord, slotID: String, phase: CapturePhase) throws {
-        var document = try document(for: job)
         try validateMutable(job)
+        var document = try document(for: job)
         try validateSlot(slotID, in: document)
         document.skips.removeAll { $0.slotID == slotID && $0.phase == phase }
         try save(document, on: job)
     }
 
     func saveFinding(on job: JobRecord, finding: VehicleFinding) throws {
-        var document = try document(for: job)
         try validateMutable(job)
+        var document = try document(for: job)
         try validateSlot(finding.slotID, in: document)
         try validatePhotoOwnership(of: finding, in: document)
         if let index = document.findings.firstIndex(where: { $0.id == finding.id }) {
@@ -141,8 +141,8 @@ final class CaptureRepository {
     }
 
     func removeFinding(from job: JobRecord, findingID: UUID) throws {
-        var document = try document(for: job)
         try validateMutable(job)
+        var document = try document(for: job)
         guard let index = document.findings.firstIndex(where: { $0.id == findingID }) else { throw CaptureRepositoryError.unknownFinding(findingID) }
         document.findings.remove(at: index)
         try save(document, on: job)
@@ -164,6 +164,7 @@ final class CaptureRepository {
     }
 
     private func validateMutable(_ job: JobRecord) throws {
+        guard job.modelContext === context, !job.isDeleted, job.deletedAt == nil else { throw CaptureRepositoryError.immutableJob }
         guard job.status != .finalized, job.status != .archived else { throw CaptureRepositoryError.immutableJob }
     }
 

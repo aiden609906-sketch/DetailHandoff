@@ -81,6 +81,7 @@ final class JobRepository {
         location: String?,
         notes: String
     ) throws {
+        guard job.modelContext === context, !job.isDeleted, job.deletedAt == nil else { throw JobRepositoryError.immutableJob }
         guard job.status != .finalized, job.status != .archived else { throw JobRepositoryError.immutableJob }
         let vehicle = vehicleLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         let service = serviceName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -123,6 +124,7 @@ final class JobRepository {
     }
 
     func advance(_ job: JobRecord) throws {
+        guard job.modelContext === context, !job.isDeleted, job.deletedAt == nil else { throw JobRepositoryError.immutableJob }
         guard job.status != .review else { throw JobRepositoryError.reportSealRequired }
         guard let nextStatus = job.status.next else {
             throw JobRepositoryError.noNextStatus
