@@ -10,6 +10,13 @@ struct CaptureSlotPair: Equatable, Identifiable {
     var id: String { slot.id }
 }
 
+struct CapturePhasePresentation: Equatable {
+    let photos: [CapturedPhoto]
+    let skipReason: String?
+
+    var showsEmptyState: Bool { photos.isEmpty && skipReason == nil }
+}
+
 enum CaptureStorageDecision: Equatable {
     case ready
     case warning(availableBytes: Int64)
@@ -34,5 +41,9 @@ enum CapturePresentationState {
     static func storageDecision(availableBytes: Int64?) -> CaptureStorageDecision {
         guard let availableBytes else { return .unavailable }
         return availableBytes < lowStorageThreshold ? .warning(availableBytes: availableBytes) : .ready
+    }
+
+    static func phasePresentation(photos: [CapturedPhoto], skip: CaptureSkip?) -> CapturePhasePresentation {
+        CapturePhasePresentation(photos: photos, skipReason: skip?.reason)
     }
 }

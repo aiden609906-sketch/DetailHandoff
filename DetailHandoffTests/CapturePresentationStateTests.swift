@@ -60,4 +60,24 @@ final class CapturePresentationStateTests: XCTestCase {
             .ready
         )
     }
+
+    // A review renderer must preserve both kinds of saved evidence when a skipped view later gains a photo.
+    func testPhasePresentationRetainsPhotosAndSkipReasonTogether() {
+        let photo = CapturedPhoto(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000004")!,
+            slotID: "front",
+            phase: .before,
+            imagePath: "front-before.jpg",
+            thumbnailPath: "front-before-thumb.jpg"
+        )
+
+        let presentation = CapturePresentationState.phasePresentation(
+            photos: [photo],
+            skip: CaptureSkip(slotID: "front", phase: .before, reason: "Vehicle blocked")
+        )
+
+        XCTAssertEqual(presentation.photos.map(\.id), [photo.id])
+        XCTAssertEqual(presentation.skipReason, "Vehicle blocked")
+        XCTAssertFalse(presentation.showsEmptyState)
+    }
 }

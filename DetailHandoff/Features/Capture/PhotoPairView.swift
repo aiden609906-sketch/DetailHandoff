@@ -46,22 +46,25 @@ struct PhotoPairView: View {
     }
 
     private func phaseColumn(_ title: String, photos: [CapturedPhoto], skip: CaptureSkip?) -> some View {
+        let presentation = CapturePresentationState.phasePresentation(photos: photos, skip: skip)
         VStack(alignment: .leading, spacing: AppTheme.spacing8) {
             Text(title).font(.subheadline.weight(.semibold))
-            if !photos.isEmpty {
+            if !presentation.photos.isEmpty {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: AppTheme.spacing8)], spacing: AppTheme.spacing8) {
-                    ForEach(photos) { photo in
+                    ForEach(presentation.photos) { photo in
                         ThumbnailImage(photo: photo)
                             .frame(height: 76)
                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                             .onTapGesture { selectedPhoto = photo }
                     }
                 }
-            } else if let skip {
-                Label(skip.reason, systemImage: "exclamationmark.circle")
+            }
+            if let skipReason = presentation.skipReason {
+                Label(skipReason, systemImage: "exclamationmark.circle")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            } else {
+            }
+            if presentation.showsEmptyState {
                 Text("No photo")
                     .font(.caption)
                     .foregroundStyle(.secondary)
