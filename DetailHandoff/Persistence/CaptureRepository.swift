@@ -1,8 +1,22 @@
 import Foundation
 import SwiftData
 
+enum CaptureDocumentCorruption: Error, Equatable {
+    case duplicateSlotID(String)
+    case duplicatePhotoID(UUID)
+    case unknownPhotoSlot(String)
+    case invalidMediaPath(String)
+    case duplicateSkip(slotID: String, phase: CapturePhase)
+    case unknownSkipSlot(String)
+    case duplicateFindingID(UUID)
+    case unknownFindingSlot(String)
+    case duplicateFindingPhoto(UUID)
+    case findingPhotoDoesNotBelongToSlot(UUID)
+}
+
 enum CaptureRepositoryError: Error, Equatable {
     case unsupportedSchemaVersion(Int)
+    case corruptDocument(CaptureDocumentCorruption)
     case immutableJob
     case unknownSlot(String)
     case blankSkipReason
@@ -13,22 +27,42 @@ enum CaptureRepositoryError: Error, Equatable {
     case duplicateFindingPhoto(UUID)
 }
 
+struct CaptureRepositoryRollbackError: Error {
+    let saveError: any Error
+    let cleanupError: any Error
+}
+
 @MainActor
 final class CaptureRepository {
     private let context: ModelContext
     private let media: MediaStore
     private let saveChanges: () throws -> Void
+    private let removeStoredImage: (StoredImage) throws -> Void
 
     init(context: ModelContext, media: MediaStore) {
         self.context = context
         self.media = media
         self.saveChanges = { try context.save() }
+        self.removeStoredImage = { try media.remove($0) }
     }
 
     init(context: ModelContext, media: MediaStore, saveChanges: @escaping () throws -> Void) {
         self.context = context
         self.media = media
         self.saveChanges = saveChanges
+        self.removeStoredImage = { try media.remove($0) }
+    }
+
+    init(
+        context: ModelContext,
+        media: MediaStore,
+        saveChanges: @escaping () throws -> Void,
+        removeStoredImage: @escaping (StoredImage) throws -> Void
+    ) {
+        self.context = context
+        self.media = media
+        self.saveChanges = saveChanges
+        self.removeStoredImage = removeStoredImage
     }
 
     func document(for job: JobRecord) throws -> CaptureDocument {
@@ -37,6 +71,7 @@ final class CaptureRepository {
         guard document.schemaVersion == CaptureDocument.currentSchemaVersion else {
             throw CaptureRepositoryError.unsupportedSchemaVersion(document.schemaVersion)
         }
+        try validateDocument(document)
         return document
     }
 
@@ -48,9 +83,13 @@ final class CaptureRepository {
         document.photos.append(CapturedPhoto(slotID: slotID, phase: phase, imagePath: stored.imagePath, thumbnailPath: stored.thumbnailPath))
         do {
             try save(document, on: job)
-        } catch {
-            try? media.remove(stored)
-            throw error
+        } catch let saveError {
+            do {
+                try removeStoredImage(stored)
+            } catch let cleanupError {
+                throw CaptureRepositoryRollbackError(saveError: saveError, cleanupError: cleanupError)
+            }
+            throw saveError
         }
     }
 
@@ -61,10 +100,8 @@ final class CaptureRepository {
         guard !document.findings.contains(where: { $0.photoIDs.contains(photoID) }) else {
             throw CaptureRepositoryError.photoLinkedToFinding(photoID)
         }
-        let removed = document.photos.remove(at: index)
+        document.photos.remove(at: index)
         try save(document, on: job)
-        let stillReferenced = document.photos.contains { $0.imagePath == removed.imagePath || $0.thumbnailPath == removed.thumbnailPath }
-        if !stillReferenced { try media.remove(StoredImage(imagePath: removed.imagePath, thumbnailPath: removed.thumbnailPath)) }
     }
 
     func setSkip(on job: JobRecord, slotID: String, phase: CapturePhase, reason: String) throws {
@@ -136,6 +173,63 @@ final class CaptureRepository {
             guard seenPhotoIDs.insert(photoID).inserted else { throw CaptureRepositoryError.duplicateFindingPhoto(photoID) }
             guard document.photos.contains(where: { $0.id == photoID && $0.slotID == finding.slotID }) else {
                 throw CaptureRepositoryError.findingPhotoDoesNotBelongToSlot(photoID)
+            }
+        }
+    }
+
+    private func validateDocument(_ document: CaptureDocument) throws {
+        var slotIDs = Set<String>()
+        for slot in document.slots {
+            guard slotIDs.insert(slot.id).inserted else {
+                throw CaptureRepositoryError.corruptDocument(.duplicateSlotID(slot.id))
+            }
+        }
+
+        var photoIDs = Set<UUID>()
+        var photosByID = [UUID: CapturedPhoto]()
+        for photo in document.photos {
+            guard photoIDs.insert(photo.id).inserted else {
+                throw CaptureRepositoryError.corruptDocument(.duplicatePhotoID(photo.id))
+            }
+            guard slotIDs.contains(photo.slotID) else {
+                throw CaptureRepositoryError.corruptDocument(.unknownPhotoSlot(photo.slotID))
+            }
+            do {
+                _ = try media.url(for: photo.imagePath)
+                _ = try media.url(for: photo.thumbnailPath)
+            } catch {
+                throw CaptureRepositoryError.corruptDocument(.invalidMediaPath(photo.imagePath))
+            }
+            photosByID[photo.id] = photo
+        }
+
+        var skipKeys = Set<String>()
+        for skip in document.skips {
+            guard slotIDs.contains(skip.slotID) else {
+                throw CaptureRepositoryError.corruptDocument(.unknownSkipSlot(skip.slotID))
+            }
+            let key = "\(skip.slotID)\u{0}\(skip.phase.rawValue)"
+            guard skipKeys.insert(key).inserted else {
+                throw CaptureRepositoryError.corruptDocument(.duplicateSkip(slotID: skip.slotID, phase: skip.phase))
+            }
+        }
+
+        var findingIDs = Set<UUID>()
+        for finding in document.findings {
+            guard findingIDs.insert(finding.id).inserted else {
+                throw CaptureRepositoryError.corruptDocument(.duplicateFindingID(finding.id))
+            }
+            guard slotIDs.contains(finding.slotID) else {
+                throw CaptureRepositoryError.corruptDocument(.unknownFindingSlot(finding.slotID))
+            }
+            var linkedPhotoIDs = Set<UUID>()
+            for photoID in finding.photoIDs {
+                guard linkedPhotoIDs.insert(photoID).inserted else {
+                    throw CaptureRepositoryError.corruptDocument(.duplicateFindingPhoto(photoID))
+                }
+                guard photosByID[photoID]?.slotID == finding.slotID else {
+                    throw CaptureRepositoryError.corruptDocument(.findingPhotoDoesNotBelongToSlot(photoID))
+                }
             }
         }
     }

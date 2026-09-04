@@ -35,6 +35,43 @@ final class CaptureDocumentTests: XCTestCase {
         job.captureData = try JSONEncoder().encode(CaptureDocument(schemaVersion: 2, slots: [], photos: [], skips: [], findings: []))
         XCTAssertThrowsError(try repository.document(for: job))
     }
+
+    @MainActor
+    func testDocumentRejectsUnknownPhotoSlotAndUnsafeMediaPathAsCorruption() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        let repository = CaptureRepository(context: container.mainContext, media: MediaStore(root: makeTemporaryRoot()))
+        let unknownSlotPhoto = CapturedPhoto(slotID: "missing", phase: .before, imagePath: "job/photo.jpg", thumbnailPath: "job/thumb.jpg")
+        job.captureData = try JSONEncoder().encode(CaptureDocument(photos: [unknownSlotPhoto]))
+
+        XCTAssertThrowsError(try repository.document(for: job)) { error in
+            XCTAssertEqual(error as? CaptureRepositoryError, .corruptDocument(.unknownPhotoSlot("missing")))
+        }
+
+        let unsafePathPhoto = CapturedPhoto(slotID: "front", phase: .before, imagePath: "../outside.jpg", thumbnailPath: "job/thumb.jpg")
+        job.captureData = try JSONEncoder().encode(CaptureDocument(photos: [unsafePathPhoto]))
+        XCTAssertThrowsError(try repository.document(for: job)) { error in
+            XCTAssertEqual(error as? CaptureRepositoryError, .corruptDocument(.invalidMediaPath("../outside.jpg")))
+        }
+    }
+
+    @MainActor
+    func testDocumentRejectsDanglingAndWrongSlotFindingPhotoReferences() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        let repository = CaptureRepository(context: container.mainContext, media: MediaStore(root: makeTemporaryRoot()))
+        let photo = CapturedPhoto(slotID: "front", phase: .before, imagePath: "job/photo.jpg", thumbnailPath: "job/thumb.jpg")
+        let wrongSlot = VehicleFinding(slotID: "rear", kind: "Scratch", severity: "Low", notes: "", photoIDs: [photo.id])
+        job.captureData = try JSONEncoder().encode(CaptureDocument(photos: [photo], findings: [wrongSlot]))
+
+        XCTAssertThrowsError(try repository.document(for: job)) { error in
+            XCTAssertEqual(error as? CaptureRepositoryError, .corruptDocument(.findingPhotoDoesNotBelongToSlot(photo.id)))
+        }
+
+        let dangling = VehicleFinding(slotID: "front", kind: "Scratch", severity: "Low", notes: "", photoIDs: [UUID()])
+        job.captureData = try JSONEncoder().encode(CaptureDocument(photos: [photo], findings: [dangling]))
+        XCTAssertThrowsError(try repository.document(for: job))
+    }
 }
 
 @MainActor

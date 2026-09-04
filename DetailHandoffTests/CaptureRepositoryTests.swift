@@ -42,6 +42,8 @@ final class CaptureRepositoryTests: XCTestCase {
         XCTAssertThrowsError(try repository.addPhoto(to: job, data: try jpegData(), slotID: "unknown", phase: .before))
         job.status = .finalized
         XCTAssertThrowsError(try repository.addPhoto(to: job, data: try jpegData(), slotID: "front", phase: .before))
+        job.status = .archived
+        XCTAssertThrowsError(try repository.addPhoto(to: job, data: try jpegData(), slotID: "front", phase: .before))
     }
 
     @MainActor
@@ -71,7 +73,81 @@ final class CaptureRepositoryTests: XCTestCase {
         try repository.removeFinding(from: job, findingID: finding.id)
         try repository.removePhoto(from: job, photoID: photo.id)
         XCTAssertTrue(try repository.document(for: job).photos.isEmpty)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: try MediaStore(root: root).url(for: photo.imagePath).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try MediaStore(root: root).url(for: photo.imagePath).path))
+    }
+
+    @MainActor
+    func testRemovePhotoUnlinksMetadataButRetainsEvidenceFilesAcrossFreshContext() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        let repository = CaptureRepository(context: container.mainContext, media: MediaStore(root: root))
+        let store = MediaStore(root: root)
+        try repository.addPhoto(to: job, data: try jpegData(), slotID: "front", phase: .before)
+        let photo = try XCTUnwrap(try repository.document(for: job).photos.first)
+
+        try repository.removePhoto(from: job, photoID: photo.id)
+        let reloadedContext = ModelContext(container)
+        let reloadedJob = try fetchJob(addedTo: reloadedContext, id: job.id)
+
+        XCTAssertTrue(try CaptureRepository(context: reloadedContext, media: store).document(for: reloadedJob).photos.isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try store.url(for: photo.imagePath).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try store.url(for: photo.thumbnailPath).path))
+    }
+
+    @MainActor
+    func testRemovePhotoFailedSavePreservesMetadataTimestampAndEvidenceFiles() throws {
+        enum SaveFailure: Error, Equatable { case simulated }
+
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        let store = MediaStore(root: root)
+        let writer = CaptureRepository(context: container.mainContext, media: store)
+        try writer.addPhoto(to: job, data: try jpegData(), slotID: "front", phase: .before)
+        let photo = try XCTUnwrap(try writer.document(for: job).photos.first)
+        let originalData = job.captureData
+        let originalTimestamp = job.updatedAt
+        let repository = CaptureRepository(context: container.mainContext, media: store) { throw SaveFailure.simulated }
+
+        XCTAssertThrowsError(try repository.removePhoto(from: job, photoID: photo.id)) { error in
+            XCTAssertEqual(error as? SaveFailure, .simulated)
+        }
+        XCTAssertEqual(job.captureData, originalData)
+        XCTAssertEqual(job.updatedAt, originalTimestamp)
+        XCTAssertEqual(try repository.document(for: job).photos, [photo])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try store.url(for: photo.imagePath).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try store.url(for: photo.thumbnailPath).path))
+    }
+
+    @MainActor
+    func testAddPhotoSurfacesSaveAndCleanupErrorsWithoutChangingMetadata() throws {
+        enum SaveFailure: Error, Equatable { case simulated }
+        enum CleanupFailure: Error, Equatable { case simulated }
+
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        let originalTimestamp = job.updatedAt
+        var uncommittedImage: StoredImage?
+        let repository = CaptureRepository(
+            context: container.mainContext,
+            media: MediaStore(root: root),
+            saveChanges: { throw SaveFailure.simulated },
+            removeStoredImage: { image in
+                uncommittedImage = image
+                throw CleanupFailure.simulated
+            }
+        )
+
+        XCTAssertThrowsError(try repository.addPhoto(to: job, data: try jpegData(), slotID: "front", phase: .before)) { error in
+            let rollback = error as? CaptureRepositoryRollbackError
+            XCTAssertEqual(rollback?.saveError as? SaveFailure, .simulated)
+            XCTAssertEqual(rollback?.cleanupError as? CleanupFailure, .simulated)
+        }
+        XCTAssertNil(job.captureData)
+        XCTAssertEqual(job.updatedAt, originalTimestamp)
+        let stored = try XCTUnwrap(uncommittedImage)
+        let store = MediaStore(root: root)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try store.url(for: stored.imagePath).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try store.url(for: stored.thumbnailPath).path))
     }
 
     @MainActor

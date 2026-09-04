@@ -34,8 +34,8 @@ final class MediaStore {
 
     func storeImage(_ data: Data, jobID: UUID) throws -> StoredImage {
         guard let image = UIImage(data: data) else { throw MediaStoreError.invalidImage }
-        let imageData = try jpegData(for: image, maximumDimension: 2048)
-        let thumbnailData = try jpegData(for: image, maximumDimension: 480)
+        let imageData = try jpegData(for: image, maximumDimension: 2560)
+        let thumbnailData = try jpegData(for: image, maximumDimension: 320)
         let directory = jobID.uuidString
         let filename = UUID().uuidString
         let stored = StoredImage(
@@ -58,11 +58,16 @@ final class MediaStore {
     }
 
     func url(for relativePath: String) throws -> URL {
-        guard isSafeRelativePath(relativePath) else { throw MediaStoreError.unsafeRelativePath(relativePath) }
-        let resolvedRoot = root.resolvingSymlinksInPath().standardizedFileURL
-        let candidate = resolvedRoot.appendingPathComponent(relativePath).standardizedFileURL.resolvingSymlinksInPath()
-        guard candidate.path.hasPrefix(resolvedRoot.path + "/") else {
+        guard let components = safeRelativePathComponents(relativePath) else {
             throw MediaStoreError.unsafeRelativePath(relativePath)
+        }
+        let resolvedRoot = root.resolvingSymlinksInPath().standardizedFileURL
+        var candidate = resolvedRoot
+        for component in components {
+            candidate = candidate.appendingPathComponent(component).resolvingSymlinksInPath().standardizedFileURL
+            guard candidate.path.hasPrefix(resolvedRoot.path + "/") else {
+                throw MediaStoreError.unsafeRelativePath(relativePath)
+            }
         }
         return candidate
     }
@@ -77,8 +82,14 @@ final class MediaStore {
 
     private func jpegData(for image: UIImage, maximumDimension: CGFloat) throws -> Data {
         guard image.size.width > 0, image.size.height > 0 else { throw MediaStoreError.invalidImage }
-        let scale = min(1, maximumDimension / max(image.size.width, image.size.height))
-        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let sourceWidth = image.cgImage?.width ?? Int((image.size.width * image.scale).rounded(.down))
+        let sourceHeight = image.cgImage?.height ?? Int((image.size.height * image.scale).rounded(.down))
+        guard sourceWidth > 0, sourceHeight > 0 else { throw MediaStoreError.invalidImage }
+        let longestSide = max(sourceWidth, sourceHeight)
+        let targetLongestSide = min(Int(maximumDimension), longestSide)
+        let targetWidth = max(1, Int((Double(sourceWidth) * Double(targetLongestSide) / Double(longestSide)).rounded(.down)))
+        let targetHeight = max(1, Int((Double(sourceHeight) * Double(targetLongestSide) / Double(longestSide)).rounded(.down)))
+        let size = CGSize(width: CGFloat(targetWidth), height: CGFloat(targetHeight))
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.opaque = true
@@ -89,13 +100,16 @@ final class MediaStore {
         return data
     }
 
-    private func isSafeRelativePath(_ relativePath: String) -> Bool {
+    private func safeRelativePathComponents(_ relativePath: String) -> [String]? {
         let normalized = relativePath.replacingOccurrences(of: "\\", with: "/")
         guard !normalized.isEmpty, !normalized.hasPrefix("/"), !normalized.hasPrefix("\\"), !normalized.contains(":") else {
-            return false
+            return nil
         }
         let components = normalized.split(separator: "/", omittingEmptySubsequences: false)
-        return !components.isEmpty && components.allSatisfy { !$0.isEmpty && $0 != "." && $0 != ".." }
+        guard !components.isEmpty, components.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }) else {
+            return nil
+        }
+        return components.map(String.init)
     }
 
     private func removeFileIfPresent(at url: URL) {

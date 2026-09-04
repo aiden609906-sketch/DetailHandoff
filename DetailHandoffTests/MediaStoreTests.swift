@@ -31,8 +31,8 @@ final class MediaStoreTests: XCTestCase {
         let thumbnail = try XCTUnwrap(UIImage(data: Data(contentsOf: try store.url(for: stored.thumbnailPath))))
         XCTAssertFalse(stored.imagePath.hasPrefix("/"))
         XCTAssertFalse(stored.thumbnailPath.hasPrefix("/"))
-        XCTAssertLessThanOrEqual(max(fullImage.size.width, fullImage.size.height), 2048)
-        XCTAssertLessThanOrEqual(max(thumbnail.size.width, thumbnail.size.height), 480)
+        XCTAssertLessThanOrEqual(max(fullImage.size.width, fullImage.size.height), 2560)
+        XCTAssertLessThanOrEqual(max(thumbnail.size.width, thumbnail.size.height), 320)
     }
 
     func testInvalidImageDoesNotCreateEvidenceFiles() throws {
