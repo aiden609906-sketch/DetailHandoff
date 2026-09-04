@@ -14,6 +14,7 @@ final class JobRecord {
     var createdAt: Date
     var updatedAt: Date
     var deletedAt: Date?
+    var captureData: Data?
 
     var status: JobStatus {
         get { JobStatus(rawValue: statusRawValue) ?? .draft }
@@ -31,7 +32,8 @@ final class JobRecord {
         status: JobStatus = .draft,
         createdAt: Date = Date(),
         updatedAt: Date? = nil,
-        deletedAt: Date? = nil
+        deletedAt: Date? = nil,
+        captureData: Data? = nil
     ) {
         self.id = id
         self.customerName = customerName
@@ -44,5 +46,6 @@ final class JobRecord {
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
         self.deletedAt = deletedAt
+        self.captureData = captureData
     }
 }
