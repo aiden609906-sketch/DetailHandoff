@@ -32,15 +32,17 @@ final class TrashServiceTests: XCTestCase {
     // Catches metadata/ledger partial deletion and any physical cleanup before the commit succeeds.
     @MainActor
     func testFailedSavesPreserveMetadataLedgerAndFiles() throws {
-        enum Failure: Error { case save }
+        enum Failure: Error, Equatable { case save }
         let f = try TrashFixture()
         defer { f.cleanUp() }
         let originalFiles = try f.files()
         let originalTimestamp = f.job.updatedAt
         let failing = TrashService(context: f.context, media: f.media, now: { f.clock }, saveChanges: { throw Failure.save })
-        XCTAssertThrowsError(try failing.softDelete(f.job))
+        XCTAssertThrowsError(try failing.softDelete(f.job)) { XCTAssertEqual($0 as? Failure, .save) }
         XCTAssertNil(f.job.deletedAt)
         XCTAssertEqual(f.job.updatedAt, originalTimestamp)
+        XCTAssertTrue(f.job.modelContext === f.context)
+        XCTAssertFalse(f.context.hasChanges)
         XCTAssertNil(try XCTUnwrap(f.savedJobs().first).deletedAt)
         _ = try f.seal()
         f.profile.reportNumberLedgerData = nil
@@ -55,6 +57,71 @@ final class TrashServiceTests: XCTestCase {
         let fresh = ModelContext(f.container)
         XCTAssertNil(try XCTUnwrap(fresh.fetch(FetchDescriptor<BusinessProfile>()).first).reportNumberLedgerData)
         XCTAssertTrue(originalFiles.keys.allSatisfy { withReport[$0] == originalFiles[$0] })
+    }
+
+    // Catches cached restore mutations surviving rollback, independently of a prior soft-delete failure.
+    @MainActor
+    func testFailedRestorePreservesCachedAndSavedDeletionStateAndCanRetry() throws {
+        enum Failure: Error, Equatable { case save }
+        let f = try TrashFixture()
+        defer { f.cleanUp() }
+        try f.service.softDelete(f.job)
+        let deletedAt = f.job.deletedAt
+        let updatedAt = f.job.updatedAt
+        let files = try f.files()
+        f.clock += 86400
+        let failing = TrashService(context: f.context, media: f.media, now: { f.clock }, saveChanges: { throw Failure.save })
+
+        XCTAssertThrowsError(try failing.restore(f.job)) { XCTAssertEqual($0 as? Failure, .save) }
+
+        XCTAssertEqual(f.job.deletedAt, deletedAt)
+        XCTAssertEqual(f.job.updatedAt, updatedAt)
+        XCTAssertTrue(f.job.modelContext === f.context)
+        XCTAssertFalse(f.job.isDeleted)
+        XCTAssertFalse(f.context.hasChanges)
+        let saved = try XCTUnwrap(f.savedJobs().first)
+        XCTAssertEqual(saved.deletedAt, deletedAt)
+        XCTAssertEqual(saved.updatedAt, updatedAt)
+        XCTAssertEqual(try f.files(), files)
+        try f.service.restore(f.job)
+        XCTAssertNil(f.job.deletedAt)
+        XCTAssertNil(try XCTUnwrap(f.savedJobs().first).deletedAt)
+    }
+
+    // Catches cached ledger changes or pending deletion surviving a failed purge, without a preceding failure.
+    @MainActor
+    func testFailedPurgePreservesCachedLedgerAndJobAndCanRetry() throws {
+        enum Failure: Error, Equatable { case save }
+        let f = try TrashFixture()
+        defer { f.cleanUp() }
+        let report = try f.seal()
+        f.profile.reportNumberLedgerData = nil
+        try f.context.save()
+        try f.service.softDelete(f.job)
+        let deletedAt = f.job.deletedAt
+        let reports = f.job.reportsData
+        let files = try f.files()
+        let failing = TrashService(context: f.context, media: f.media, now: { f.clock }, saveChanges: { throw Failure.save })
+
+        XCTAssertThrowsError(try failing.permanentlyDelete(f.job)) { XCTAssertEqual($0 as? Failure, .save) }
+
+        XCTAssertTrue(f.job.modelContext === f.context)
+        XCTAssertFalse(f.job.isDeleted)
+        XCTAssertEqual(f.job.deletedAt, deletedAt)
+        XCTAssertEqual(f.job.reportsData, reports)
+        XCTAssertTrue(f.profile.modelContext === f.context)
+        XCTAssertNil(f.profile.reportNumberLedgerData)
+        XCTAssertFalse(f.context.hasChanges)
+        let fresh = ModelContext(f.container)
+        let saved = try XCTUnwrap(fresh.fetch(FetchDescriptor<JobRecord>()).first)
+        XCTAssertEqual(saved.deletedAt, deletedAt)
+        XCTAssertEqual(saved.reportsData, reports)
+        XCTAssertNil(try XCTUnwrap(fresh.fetch(FetchDescriptor<BusinessProfile>()).first).reportNumberLedgerData)
+        XCTAssertEqual(try f.files(), files)
+        try f.service.permanentlyDelete(f.job)
+        XCTAssertTrue(try f.savedJobs().isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: try f.media.url(for: report.pdfPath).path))
+        XCTAssertEqual(try ReportNumberLedger.decode(f.profile.reportNumberLedgerData).highWaterByDay, ["20260904": 1])
     }
 
     // Catches deleting original/thumbnail/PDF/logo assets still referenced by a different retained row.
@@ -208,6 +275,25 @@ final class TrashServiceTests: XCTestCase {
         XCTAssertThrowsError(try f.service.purgeExpired())
         XCTAssertEqual(try f.files(), prior)
         XCTAssertEqual(try f.savedJobs().count, 1)
+    }
+
+    // Catches probing a declared report as an image and silently accepting the wrong evidence kind.
+    @MainActor
+    func testAutomaticPurgeDoesNotAcceptAnImageDisguisedAsPDF() throws {
+        let f = try TrashFixture()
+        defer { f.cleanUp() }
+        let path = "Reports/\(f.job.id.uuidString)/damaged.pdf"
+        try f.write(TrashFixture.image(), at: path)
+        try f.service.softDelete(f.job)
+        f.clock += 30 * 86400
+        let files = try f.files()
+
+        XCTAssertThrowsError(try f.service.purgeExpired()) {
+            XCTAssertEqual($0 as? TrashServiceError, .unreadableAsset(path))
+        }
+
+        XCTAssertEqual(try f.savedJobs().count, 1)
+        XCTAssertEqual(try f.files(), files)
     }
 
     // Catches a job purge leaking unlinked image pairs or indiscriminately deleting other orphan folders.

@@ -64,9 +64,14 @@ final class TrashService {
         try requireSavedJob(job)
         guard job.deletedAt == nil else { return }
         let timestamp = now()
+        let previousDeletedAt = job.deletedAt
+        let previousUpdatedAt = job.updatedAt
         try commit {
             job.deletedAt = timestamp
             job.updatedAt = timestamp
+        } restoring: {
+            job.deletedAt = previousDeletedAt
+            job.updatedAt = previousUpdatedAt
         }
         EvidenceImport.invalidatePendingLoads()
     }
@@ -75,9 +80,13 @@ final class TrashService {
         try requireSavedJob(job)
         guard let deletedAt = job.deletedAt else { throw TrashServiceError.notDeleted }
         guard now() < Self.expiresAt(deletedAt) else { throw TrashServiceError.expired }
+        let previousUpdatedAt = job.updatedAt
         try commit {
             job.deletedAt = nil
             job.updatedAt = now()
+        } restoring: {
+            job.deletedAt = deletedAt
+            job.updatedAt = previousUpdatedAt
         }
     }
 
@@ -152,9 +161,12 @@ final class TrashService {
         let encodedLedger: Data?
         if ledger == originalLedger { encodedLedger = profile?.reportNumberLedgerData }
         else { encodedLedger = try JSONEncoder().encode(ledger) }
+        let previousLedgerData = profile?.reportNumberLedgerData
         try commit {
             profile?.reportNumberLedgerData = encodedLedger
             for job in targets { context.delete(job) }
+        } restoring: {
+            profile?.reportNumberLedgerData = previousLedgerData
         }
         EvidenceImport.invalidatePendingLoads()
         try cleanup(candidates)
@@ -185,8 +197,12 @@ final class TrashService {
 
     private func validateReadableEvidence(_ path: String) throws {
         let bytes = try media.readRegularAsset(at: path)
-        if UIImage(data: bytes) != nil { return }
-        if let pdf = PDFDocument(data: bytes), !pdf.isLocked, pdf.pageCount > 0 { return }
+        let isPDF = (path as NSString).pathExtension.lowercased() == "pdf" || bytes.starts(with: Data("%PDF-".utf8))
+        if isPDF {
+            if let pdf = PDFDocument(data: bytes), !pdf.isLocked, pdf.pageCount > 0 { return }
+        } else if UIImage(data: bytes) != nil {
+            return
+        }
         throw TrashServiceError.unreadableAsset(path)
     }
 
@@ -204,13 +220,19 @@ final class TrashService {
         guard !context.hasChanges else { throw TrashServiceError.unsavedChanges }
     }
 
-    private func commit(_ mutation: () -> Void) throws {
-        // No unrelated pending edits enter this save; rollback restores job + ledger together.
+    private func commit(_ mutation: () -> Void, restoring restoreCachedValues: () -> Void) throws {
+        // SwiftData rollback alone can leave already-held @Model values stale on a synchronous
+        // failed save. Restore touched fields first, then cancel pending deletes/change tracking.
+        // No unrelated pending edits enter this save, and no compensating database save is needed.
         let autosave = context.autosaveEnabled
         context.autosaveEnabled = false
         defer { context.autosaveEnabled = autosave }
         mutation()
         do { try saveChanges() }
-        catch { context.rollback(); throw error }
+        catch {
+            restoreCachedValues()
+            context.rollback()
+            throw error
+        }
     }
 }
