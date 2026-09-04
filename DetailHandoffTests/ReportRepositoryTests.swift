@@ -56,6 +56,7 @@ final class ReportRepositoryTests: XCTestCase {
         XCTAssertNil(fixture.job.reportsData)
         XCTAssertEqual(fixture.job.updatedAt, timestamp)
         XCTAssertEqual(fixture.files(), files)
+        XCTAssertNil(fixture.business.reportNumberLedgerData)
         let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "com.adobe.pdf")
         attachment.name = "DetailHandoff-unavailable-draft.pdf"
         attachment.lifetime = .keepAlways
@@ -111,6 +112,139 @@ final class ReportRepositoryTests: XCTestCase {
         }
         XCTAssertEqual(exhausted.status, .review)
         XCTAssertNil(exhausted.reportsData)
+    }
+
+    // Catches reuse after purging only the highest report, then purging every report.
+    @MainActor
+    func testNumberLedgerSurvivesPermanentPurgeAndFreshContexts() throws {
+        let fixture = try ReportFixture()
+        defer { fixture.cleanUp() }
+        _ = try fixture.repository.seal(job: fixture.job, business: fixture.business)
+        let secondJob = try fixture.makeAdditionalJob()
+        XCTAssertEqual(try fixture.repository.seal(job: secondJob, business: fixture.business).reportNumber, "DH-20260904-0002")
+        fixture.container.mainContext.delete(secondJob)
+        try fixture.container.mainContext.save()
+        let thirdJob = try fixture.makeAdditionalJob()
+        XCTAssertEqual(try fixture.repository.seal(job: thirdJob, business: fixture.business).reportNumber, "DH-20260904-0003")
+        for job in try fixture.container.mainContext.fetch(FetchDescriptor<JobRecord>()) {
+            fixture.container.mainContext.delete(job)
+        }
+        try fixture.container.mainContext.save()
+
+        let fresh = ModelContext(fixture.container)
+        fresh.autosaveEnabled = false
+        let business = try XCTUnwrap(try fresh.fetch(FetchDescriptor<BusinessProfile>()).first)
+        let fourthJob = JobRecord(customerName: "Lee", vehicleLabel: "Accord", plate: "ABC", color: "White", serviceName: "Wash", notes: "", status: .review)
+        fourthJob.captureData = try JSONEncoder().encode(fixture.document)
+        fresh.insert(fourthJob)
+        try AcknowledgmentRepository(context: fresh).markUnavailable(job: fourthJob, reason: "Customer away")
+        let repository = ReportRepository(context: fresh, media: fixture.media, now: { fixture.now }, calendar: fixture.calendar)
+        XCTAssertEqual(try repository.seal(job: fourthJob, business: business).reportNumber, "DH-20260904-0004")
+        let secondFresh = ModelContext(fixture.container)
+        let savedBusiness = try XCTUnwrap(try secondFresh.fetch(FetchDescriptor<BusinessProfile>()).first)
+        let ledger = try ReportNumberLedger.decode(savedBusiness.reportNumberLedgerData)
+        XCTAssertEqual(ledger.highWaterByDay, ["20260904": 4])
+    }
+
+    // Catches failed seals burning or losing a reservation, including legacy nil rollback.
+    @MainActor
+    func testFailedSealRestoresLedgerAlongsideJobAndFiles() throws {
+        enum Failure: Error { case save }
+        for previousMaximum in [nil, 7] as [Int?] {
+            let fixture = try ReportFixture()
+            defer { fixture.cleanUp() }
+            if let previousMaximum {
+                fixture.business.reportNumberLedgerData = Data("{\"schemaVersion\":1,\"highWaterByDay\":{\"20260904\":\(previousMaximum)}}".utf8)
+                try fixture.container.mainContext.save()
+            }
+            let originalLedger = fixture.business.reportNumberLedgerData
+            let timestamp = fixture.job.updatedAt
+            let files = fixture.files()
+            let failing = ReportRepository(context: fixture.container.mainContext, media: fixture.media, now: { fixture.now }, calendar: fixture.calendar, saveChanges: { throw Failure.save })
+            XCTAssertThrowsError(try failing.seal(job: fixture.job, business: fixture.business))
+            XCTAssertEqual(fixture.business.reportNumberLedgerData, originalLedger)
+            XCTAssertEqual(fixture.job.status, .review)
+            XCTAssertNil(fixture.job.reportsData)
+            XCTAssertEqual(fixture.job.updatedAt, timestamp)
+            XCTAssertEqual(fixture.files(), files)
+            let fresh = ModelContext(fixture.container)
+            let savedBusiness = try XCTUnwrap(try fresh.fetch(FetchDescriptor<BusinessProfile>()).first)
+            let savedJob = try XCTUnwrap(try fresh.fetch(FetchDescriptor<JobRecord>()).first)
+            XCTAssertEqual(savedBusiness.reportNumberLedgerData, originalLedger)
+            XCTAssertNil(savedJob.reportsData)
+            XCTAssertEqual(savedJob.status, .review)
+            let next = try fixture.repository.seal(job: fixture.job, business: fixture.business)
+            XCTAssertEqual(next.reportNumber, previousMaximum == nil ? "DH-20260904-0001" : "DH-20260904-0008")
+        }
+    }
+
+    // Catches dropping historical dates when upgrading a nil ledger or lowering a prior maximum.
+    @MainActor
+    func testLegacyLedgerSeedsAllHistoricalDatesAndPreservesHigherReservations() throws {
+        let fixture = try ReportFixture()
+        defer { fixture.cleanUp() }
+        var historical = try fixture.repository.seal(job: fixture.job, business: fixture.business)
+        historical.reportNumber = "DH-20260903-0042"
+        fixture.job.reportsData = try JSONEncoder().encode([historical])
+        fixture.business.reportNumberLedgerData = nil
+        try fixture.container.mainContext.save()
+        let next = try fixture.makeAdditionalJob()
+        XCTAssertEqual(try fixture.repository.seal(job: next, business: fixture.business).reportNumber, "DH-20260904-0001")
+        XCTAssertEqual(try ReportNumberLedger.decode(fixture.business.reportNumberLedgerData).highWaterByDay, ["20260903": 42, "20260904": 1])
+        fixture.business.reportNumberLedgerData = Data("{\"schemaVersion\":1,\"highWaterByDay\":{\"20260903\":70,\"20260904\":8}}".utf8)
+        try fixture.repository.beginRevision(job: next)
+        let revision = try fixture.repository.seal(job: next, business: fixture.business)
+        XCTAssertEqual(revision.reportNumber, "DH-20260904-0001")
+        XCTAssertEqual(revision.version, 2)
+        XCTAssertEqual(try ReportNumberLedger.decode(fixture.business.reportNumberLedgerData).highWaterByDay, ["20260903": 70, "20260904": 8])
+    }
+
+    // Catches treating malformed/unsupported/out-of-range reservations as an empty ledger.
+    @MainActor
+    func testCorruptLedgerFailsClosedWithoutMutation() throws {
+        for payload in ["not json", "{}", "{\"schemaVersion\":2,\"highWaterByDay\":{}}", "{\"schemaVersion\":1,\"highWaterByDay\":{\"20260230\":1}}", "{\"schemaVersion\":1,\"highWaterByDay\":{\"20260904\":0}}", "{\"schemaVersion\":1,\"highWaterByDay\":{\"20260904\":10000}}", "{\"schemaVersion\":1,\"highWaterByDay\":{\"bad-date\":1}}"] {
+            let fixture = try ReportFixture()
+            defer { fixture.cleanUp() }
+            let corrupt = Data(payload.utf8)
+            fixture.business.reportNumberLedgerData = corrupt
+            try fixture.container.mainContext.save()
+            XCTAssertThrowsError(try fixture.repository.seal(job: fixture.job, business: fixture.business))
+            XCTAssertEqual(fixture.business.reportNumberLedgerData, corrupt)
+            XCTAssertEqual(fixture.job.status, .review)
+            XCTAssertNil(fixture.job.reportsData)
+            XCTAssertTrue(fixture.files().isEmpty)
+        }
+    }
+
+    // Catches issuing a 10000th number after all evidence rows have been purged.
+    @MainActor
+    func testLedgerExhaustionRemainsAfterReportsAreGone() throws {
+        let fixture = try ReportFixture()
+        defer { fixture.cleanUp() }
+        fixture.business.reportNumberLedgerData = Data("{\"schemaVersion\":1,\"highWaterByDay\":{\"20260904\":9999}}".utf8)
+        try fixture.container.mainContext.save()
+        let previous = fixture.business.reportNumberLedgerData
+        XCTAssertThrowsError(try fixture.repository.seal(job: fixture.job, business: fixture.business)) {
+            XCTAssertEqual($0 as? ReportRepositoryError, .numberExhausted)
+        }
+        XCTAssertEqual(fixture.business.reportNumberLedgerData, previous)
+        XCTAssertNil(fixture.job.reportsData)
+        XCTAssertEqual(fixture.job.status, .review)
+    }
+
+    // Catches saving the job while its ledger is detached or owned by another context.
+    @MainActor
+    func testSealRequiresBusinessLedgerInItsOwnSaveContext() throws {
+        let fixture = try ReportFixture()
+        defer { fixture.cleanUp() }
+        let otherContext = ModelContext(fixture.container)
+        let foreign = try XCTUnwrap(try otherContext.fetch(FetchDescriptor<BusinessProfile>()).first)
+        for business in [BusinessProfile(businessName: "Detached"), foreign] {
+            XCTAssertThrowsError(try fixture.repository.seal(job: fixture.job, business: business))
+            XCTAssertNil(fixture.job.reportsData)
+            XCTAssertNil(business.reportNumberLedgerData)
+            XCTAssertEqual(fixture.job.status, .review)
+        }
     }
 
     // Catches failed-save PDF leaks, partial metadata and destruction of prior evidence.
@@ -187,6 +321,7 @@ final class ReportRepositoryTests: XCTestCase {
         XCTAssertEqual(fixture.job.updatedAt, timestamp)
         XCTAssertNil(fixture.job.reportsData)
         XCTAssertEqual(fixture.files(), files)
+        XCTAssertNil(fixture.business.reportNumberLedgerData)
     }
 
     // Catches UTC-based numbering when the user's local date has already changed.

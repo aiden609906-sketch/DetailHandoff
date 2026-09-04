@@ -13,6 +13,7 @@ enum ReportRepositoryError: Error, Equatable {
     case staleAcknowledgment
     case numberExhausted
     case versionExhausted
+    case invalidSaveContext
 }
 
 struct ReportRepositoryRollbackError: Error {
@@ -70,10 +71,16 @@ final class ReportRepository {
     }
 
     func seal(job: JobRecord, business: BusinessProfile) throws -> ReportVersion {
+        guard job.modelContext === context, business.modelContext === context else {
+            throw ReportRepositoryError.invalidSaveContext
+        }
         let snapshot = try validatedSnapshot(job: job, business: business)
         var history = try versions(for: job)
         let sealedAt = now()
-        let number = try history.first?.reportNumber ?? allocateNumber(at: sealedAt)
+        var ledger = try seededLedger(for: business)
+        let number = try history.first?.reportNumber ?? allocateNumber(at: sealedAt, ledger: ledger)
+        try ledger.observe(reportNumber: number)
+        let encodedLedger = try JSONEncoder().encode(ledger)
         let version = try nextVersion(history)
         let pdf = try ReportRenderer.render(snapshot: snapshot, number: number, version: version, sealedAt: sealedAt, media: media)
         let id = UUID()
@@ -83,6 +90,7 @@ final class ReportRepository {
         let encoded = try JSONEncoder().encode(history)
         let url = try media.url(for: path)
         let previousData = job.reportsData
+        let previousLedgerData = business.reportNumberLedgerData
         let previousStatus = job.status
         let previousUpdatedAt = job.updatedAt
         let fileManager = FileManager.default
@@ -100,11 +108,13 @@ final class ReportRepository {
             job.reportsData = encoded
             job.status = .finalized
             job.updatedAt = sealedAt
+            business.reportNumberLedgerData = encodedLedger
             try saveChanges()
         } catch let operationError {
             job.reportsData = previousData
             job.status = previousStatus
             job.updatedAt = previousUpdatedAt
+            business.reportNumberLedgerData = previousLedgerData
             do { try fileManager.removeItem(at: versionDirectory) }
             catch let cleanupError {
                 throw ReportRepositoryRollbackError(operationError: operationError, cleanupError: cleanupError)
@@ -152,21 +162,27 @@ final class ReportRepository {
         return latest + 1
     }
 
-    private func allocateNumber(at date: Date) throws -> String {
+    private func seededLedger(for business: BusinessProfile) throws -> ReportNumberLedger {
+        var ledger = try ReportNumberLedger.decode(business.reportNumberLedgerData)
+        // Seed every historical date for legacy nil payloads and floor existing counters after
+        // an import. Purging these jobs later must not release any already observed number.
+        for job in try context.fetch(FetchDescriptor<JobRecord>()) {
+            for report in try versions(for: job) {
+                try ledger.observe(reportNumber: report.reportNumber)
+            }
+        }
+        return ledger
+    }
+
+    private func allocateNumber(at date: Date, ledger: ReportNumberLedger) throws -> String {
         // Gregorian digits with the user's local calendar time zone, independent of display locale.
         var numberingCalendar = Calendar(identifier: .gregorian)
         numberingCalendar.timeZone = calendar.timeZone
         let components = numberingCalendar.dateComponents([.year, .month, .day], from: date)
-        let prefix = String(format: "DH-%04d%02d%02d-", components.year ?? 0, components.month ?? 0, components.day ?? 0)
-        var highest = 0
-        // Do not filter deleted/archived jobs: their numbers remain permanently reserved.
-        for job in try context.fetch(FetchDescriptor<JobRecord>()) {
-            for report in try versions(for: job) where report.reportNumber.hasPrefix(prefix) {
-                highest = max(highest, Int(report.reportNumber.suffix(4)) ?? 0)
-            }
-        }
+        let day = String(format: "%04d%02d%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
+        let highest = ledger.highWaterByDay[day] ?? 0
         guard highest < 9999 else { throw ReportRepositoryError.numberExhausted }
-        return prefix + String(format: "%04d", highest + 1)
+        return "DH-\(day)-" + String(format: "%04d", highest + 1)
     }
 
     private func validNumber(_ value: String) -> Bool {
