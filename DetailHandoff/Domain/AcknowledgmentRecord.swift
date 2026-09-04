@@ -45,28 +45,39 @@ enum AcknowledgmentContentDigest {
                 if lhs.capturedAt != rhs.capturedAt { return lhs.capturedAt < rhs.capturedAt }
                 return lhs.id < rhs.id
             }
-        let beforeSkips = document.skips
-            .filter { $0.phase == .before }
-            .map { PreServiceSkip(slotID: $0.slotID, reason: $0.reason) }
-            .sorted { lhs, rhs in
-                lhs.slotID == rhs.slotID ? lhs.reason < rhs.reason : lhs.slotID < rhs.slotID
+        var beforeSkips: [PreServiceSkip] = []
+        var beforePhotoIDs = Set<UUID>()
+        for photo in document.photos where photo.phase == .before {
+            beforePhotoIDs.insert(photo.id)
+        }
+        for skip in document.skips where skip.phase == .before {
+            beforeSkips.append(PreServiceSkip(slotID: skip.slotID, reason: skip.reason))
+        }
+        beforeSkips.sort { lhs, rhs in
+            lhs.slotID == rhs.slotID ? lhs.reason < rhs.reason : lhs.slotID < rhs.slotID
+        }
+
+        var findings: [PreServiceFinding] = []
+        for finding in document.findings {
+            guard !finding.photoIDs.isEmpty,
+                  finding.photoIDs.allSatisfy({ beforePhotoIDs.contains($0) }) else {
+                continue
             }
-        let beforePhotoIDs = Set(document.photos.filter { $0.phase == .before }.map(\.id))
-        let findings = document.findings
-            .filter { !$0.photoIDs.isEmpty && $0.photoIDs.allSatisfy(beforePhotoIDs.contains) }
-            .map {
+            let photoIDs: [String] = finding.photoIDs.map(\.uuidString).sorted()
+            findings.append(
                 PreServiceFinding(
-                    id: $0.id.uuidString,
-                    slotID: $0.slotID,
-                    kind: $0.kind,
-                    severity: $0.severity,
-                    notes: $0.notes,
-                    photoIDs: $0.photoIDs.map(\.uuidString).sorted()
+                    id: finding.id.uuidString,
+                    slotID: finding.slotID,
+                    kind: finding.kind,
+                    severity: finding.severity,
+                    notes: finding.notes,
+                    photoIDs: photoIDs
                 )
-            }
-            .sorted { lhs, rhs in
-                lhs.slotID == rhs.slotID ? lhs.id < rhs.id : lhs.slotID < rhs.slotID
-            }
+            )
+        }
+        findings.sort { lhs, rhs in
+            lhs.slotID == rhs.slotID ? lhs.id < rhs.id : lhs.slotID < rhs.slotID
+        }
         let content = PreServiceContent(
             jobID: job.id.uuidString,
             customerName: job.customerName,

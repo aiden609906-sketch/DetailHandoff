@@ -110,6 +110,26 @@ final class AcknowledgmentRepositoryTests: XCTestCase {
     }
 
     @MainActor
+    func testFailedSaveRestoresExistingAcknowledgmentPayloadAndTimestamp() throws {
+        enum SaveFailure: Error { case simulated }
+
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        try AcknowledgmentRepository(context: container.mainContext).markUnavailable(
+            job: job,
+            reason: "Customer left keys with the office"
+        )
+        let previousData = try XCTUnwrap(job.acknowledgmentData)
+        let oldTimestamp = Date(timeIntervalSince1970: 1)
+        job.updatedAt = oldTimestamp
+        let repository = AcknowledgmentRepository(context: container.mainContext) { throw SaveFailure.simulated }
+
+        XCTAssertThrowsError(try repository.markUnavailable(job: job, reason: "Customer is unavailable"))
+        XCTAssertEqual(job.acknowledgmentData, previousData)
+        XCTAssertEqual(job.updatedAt, oldTimestamp)
+    }
+
+    @MainActor
     func testRecordRejectsCorruptStoredPayload() throws {
         let container = try makeContainer()
         let job = try makeSavedJob(in: container)
