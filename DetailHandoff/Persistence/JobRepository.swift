@@ -5,6 +5,9 @@ enum JobRepositoryError: Error, Equatable {
     case noNextStatus
     case incompleteCapture(phase: CapturePhase, missingSlots: [CaptureSlot])
     case corruptCapture(phase: CapturePhase)
+    case missingAcknowledgment
+    case staleAcknowledgment
+    case corruptAcknowledgment
 }
 
 @MainActor
@@ -72,23 +75,44 @@ final class JobRepository {
             }
         }
 
+        if job.status == .awaitingAcknowledgment {
+            do {
+                guard try AcknowledgmentRepository(context: context).record(for: job) != nil else {
+                    throw JobRepositoryError.missingAcknowledgment
+                }
+                guard try AcknowledgmentRepository(context: context).isCurrent(job: job) else {
+                    throw JobRepositoryError.staleAcknowledgment
+                }
+            } catch let error as JobRepositoryError {
+                throw error
+            } catch {
+                throw JobRepositoryError.corruptAcknowledgment
+            }
+        }
+
         let previousStatus = job.status
         let previousUpdatedAt = job.updatedAt
+        let previousServiceStartedAt = job.serviceStartedAt
+        let previousServiceFinishedAt = job.serviceFinishedAt
         job.status = nextStatus
         job.updatedAt = Date()
+        if nextStatus == .inProgress { job.serviceStartedAt = Date() }
+        if nextStatus == .afterCapture { job.serviceFinishedAt = Date() }
 
         do {
             try saveChanges()
         } catch {
             job.status = previousStatus
             job.updatedAt = previousUpdatedAt
+            job.serviceStartedAt = previousServiceStartedAt
+            job.serviceFinishedAt = previousServiceFinishedAt
             throw error
         }
     }
 
     private func capturePhaseRequiringCompletion(for status: JobStatus) -> CapturePhase? {
         switch status {
-        case .beforeCapture: .before
+        case .beforeCapture, .awaitingAcknowledgment: .before
         case .afterCapture: .after
         default: nil
         }

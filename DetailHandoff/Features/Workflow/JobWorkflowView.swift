@@ -100,6 +100,14 @@ struct JobWorkflowView: View {
         switch job.status {
         case .beforeCapture:
             captureActions(phase: .before)
+        case .awaitingAcknowledgment:
+            NavigationLink {
+                AcknowledgmentView(job: job)
+            } label: {
+                Label("Record customer acknowledgment", systemImage: "signature")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
         case .afterCapture:
             captureActions(phase: .after)
         case .review, .finalized, .archived:
@@ -182,6 +190,12 @@ struct JobWorkflowView: View {
                 advanceErrorMessage = "The saved \(phaseName) capture record is invalid. Open capture to review it before continuing."
             case .noNextStatus:
                 advanceErrorMessage = "This job has no later workflow step."
+            case .missingAcknowledgment:
+                advanceErrorMessage = "Record a customer acknowledgment before service begins."
+            case .staleAcknowledgment:
+                advanceErrorMessage = "Before-service evidence changed. Review it and record a new acknowledgment before continuing."
+            case .corruptAcknowledgment:
+                advanceErrorMessage = "The saved acknowledgment cannot be read. Record it again before continuing."
             }
         } catch {
             advanceErrorMessage = "The job could not move to the next step."

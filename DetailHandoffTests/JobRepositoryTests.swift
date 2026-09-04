@@ -125,6 +125,11 @@ final class JobRepositoryTests: XCTestCase {
         for expectedStatus in JobStatus.allCases.dropFirst() {
             if job.status == .beforeCapture {
                 job.captureData = try JSONEncoder().encode(completedCaptureDocument(for: .before))
+            } else if job.status == .awaitingAcknowledgment {
+                try AcknowledgmentRepository(context: container.mainContext).markUnavailable(
+                    job: job,
+                    reason: "Customer left keys with the office"
+                )
             } else if job.status == .afterCapture {
                 job.captureData = try JSONEncoder().encode(completedCaptureDocument(for: .after))
             }
@@ -203,6 +208,56 @@ final class JobRepositoryTests: XCTestCase {
 
         XCTAssertEqual(job.status, .draft)
         XCTAssertEqual(job.updatedAt, oldUpdatedAt)
+    }
+
+    @MainActor
+    func testAdvanceFromAwaitingAcknowledgmentRequiresCurrentRecordAndSetsServiceStart() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        job.status = .awaitingAcknowledgment
+        job.captureData = try JSONEncoder().encode(completedCaptureDocument(for: .before))
+        XCTAssertThrowsError(try JobRepository(context: container.mainContext).advance(job)) { error in
+            XCTAssertEqual(error as? JobRepositoryError, .missingAcknowledgment)
+        }
+        try AcknowledgmentRepository(context: container.mainContext).markUnavailable(job: job, reason: "Customer left keys with the office")
+
+        try JobRepository(context: container.mainContext).advance(job)
+
+        XCTAssertEqual(job.status, .inProgress)
+        XCTAssertNotNil(job.serviceStartedAt)
+    }
+
+    @MainActor
+    func testAdvanceFromAwaitingAcknowledgmentRejectsStaleRecordWithoutChangingWorkflowTimes() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        job.status = .awaitingAcknowledgment
+        job.captureData = try JSONEncoder().encode(completedCaptureDocument(for: .before))
+        try AcknowledgmentRepository(context: container.mainContext).markUnavailable(job: job, reason: "Customer left keys with the office")
+        var alteredDocument = completedCaptureDocument(for: .before)
+        alteredDocument.skips[0].reason = "Covered by a parked vehicle"
+        job.captureData = try JSONEncoder().encode(alteredDocument)
+        let oldUpdatedAt = Date(timeIntervalSince1970: 1)
+        job.updatedAt = oldUpdatedAt
+
+        XCTAssertThrowsError(try JobRepository(context: container.mainContext).advance(job)) { error in
+            XCTAssertEqual(error as? JobRepositoryError, .staleAcknowledgment)
+        }
+        XCTAssertEqual(job.status, .awaitingAcknowledgment)
+        XCTAssertNil(job.serviceStartedAt)
+        XCTAssertEqual(job.updatedAt, oldUpdatedAt)
+    }
+
+    @MainActor
+    func testAdvanceFromInProgressSetsServiceFinish() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        job.status = .inProgress
+
+        try JobRepository(context: container.mainContext).advance(job)
+
+        XCTAssertEqual(job.status, .afterCapture)
+        XCTAssertNotNil(job.serviceFinishedAt)
     }
 
     @MainActor
