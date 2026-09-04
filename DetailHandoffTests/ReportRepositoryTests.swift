@@ -63,6 +63,52 @@ final class ReportRepositoryTests: XCTestCase {
         add(attachment)
     }
 
+    // Catches the preview/share UI opening a regenerated or tampered file instead of the sealed original.
+    @MainActor
+    func testPreparingStoredVersionForPreviewOrCancelledShareLeavesFinalizedRecordUntouched() throws {
+        let fixture = try ReportFixture()
+        defer { fixture.cleanUp() }
+        let version = try fixture.repository.seal(job: fixture.job, business: fixture.business)
+        let timestamp = fixture.job.updatedAt
+        let history = fixture.job.reportsData
+
+        let asset = try ReportAssetLoader.load(version: version, media: fixture.media)
+
+        XCTAssertEqual(asset.url, try fixture.media.url(for: version.pdfPath))
+        XCTAssertEqual(asset.data, try Data(contentsOf: asset.url))
+        XCTAssertEqual(fixture.job.status, .finalized)
+        XCTAssertEqual(fixture.job.updatedAt, timestamp)
+        XCTAssertEqual(fixture.job.reportsData, history)
+    }
+
+    // Catches a corrupt retained PDF being presented as though it were a sealed report.
+    @MainActor
+    func testTamperedStoredVersionFailsBeforePreviewOrShare() throws {
+        let fixture = try ReportFixture()
+        defer { fixture.cleanUp() }
+        let version = try fixture.repository.seal(job: fixture.job, business: fixture.business)
+        try Data("tampered".utf8).write(to: fixture.media.url(for: version.pdfPath), options: .atomic)
+
+        XCTAssertThrowsError(try ReportAssetLoader.load(version: version, media: fixture.media)) {
+            XCTAssertEqual($0 as? ReportAssetLoaderError, .checksumMismatch)
+        }
+        XCTAssertEqual(fixture.job.status, .finalized)
+    }
+
+    // Catches a missing retained PDF reaching a blank preview or native share sheet.
+    @MainActor
+    func testMissingStoredVersionFailsBeforePreviewOrShare() throws {
+        let fixture = try ReportFixture()
+        defer { fixture.cleanUp() }
+        let version = try fixture.repository.seal(job: fixture.job, business: fixture.business)
+        try FileManager.default.removeItem(at: fixture.media.url(for: version.pdfPath))
+
+        XCTAssertThrowsError(try ReportAssetLoader.load(version: version, media: fixture.media)) {
+            XCTAssertEqual($0 as? ReportAssetLoaderError, .unavailable)
+        }
+        XCTAssertEqual(fixture.job.status, .finalized)
+    }
+
     // Catches mutable snapshots, overwritten PDFs, missing hash and revision persistence.
     @MainActor
     func testSealingAndRevisionPersistFrozenVersionsAndMatchingHash() throws {

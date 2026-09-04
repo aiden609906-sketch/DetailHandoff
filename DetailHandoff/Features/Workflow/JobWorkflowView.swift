@@ -110,8 +110,15 @@ struct JobWorkflowView: View {
             .buttonStyle(.borderedProminent)
         case .afterCapture:
             captureActions(phase: .after)
-        case .review, .finalized, .archived:
+        case .review:
             VStack(spacing: AppTheme.spacing8) {
+                NavigationLink {
+                    ReportView(job: job)
+                } label: {
+                    Label("Review report", systemImage: "doc.text")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
                 NavigationLink {
                     PhotoPairView(job: job)
                 } label: {
@@ -123,6 +130,24 @@ struct JobWorkflowView: View {
                     FindingsView(job: job)
                 } label: {
                     Label("Inspect findings", systemImage: "magnifyingglass")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+        case .finalized, .archived:
+            VStack(spacing: AppTheme.spacing8) {
+                NavigationLink {
+                    ReportView(job: job)
+                } label: {
+                    Label(job.status == .archived ? "View archived report" : "View sealed report", systemImage: "doc.text")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier(job.status == .archived ? "workflow.archivedReport" : "workflow.sealedReport")
+                NavigationLink {
+                    PhotoPairView(job: job)
+                } label: {
+                    Label("Inspect photo pairs", systemImage: "rectangle.split.2x1")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
