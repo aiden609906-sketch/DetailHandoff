@@ -24,7 +24,7 @@ struct ReportView: View {
                     reviewActions
                 }
 
-                if ReportPresentationPolicy.canOpenStoredVersion(for: job.status) {
+                if !history.isEmpty && ReportPresentationPolicy.canOpenStoredVersion(for: job.status) {
                     storedVersions
                 }
 

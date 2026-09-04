@@ -15,7 +15,7 @@ enum ReportPresentationPolicy {
     }
 
     static func canOpenStoredVersion(for status: JobStatus) -> Bool {
-        status == .finalized || status == .archived
+        status == .review || status == .finalized || status == .archived
     }
 
     static func canShareStoredVersion(for status: JobStatus) -> Bool {

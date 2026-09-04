@@ -2,16 +2,21 @@ import XCTest
 @testable import DetailHandoff
 
 final class ReportPresentationPolicyTests: XCTestCase {
-    // Catches exposing a new draft or seal control after a report has already become immutable.
-    func testReviewAndFinalizedStatesExposeOnlyTheirPermittedReportActions() {
+    // Catches hiding immutable historical reports while a new revision is under review.
+    func testReviewKeepsHistoricalVersionsAvailableWhileAllowingDraftActions() {
         XCTAssertTrue(ReportPresentationPolicy.canPreviewDraft(for: .review))
         XCTAssertTrue(ReportPresentationPolicy.canSeal(for: .review))
         XCTAssertFalse(ReportPresentationPolicy.canCreateRevision(for: .review))
-        XCTAssertFalse(ReportPresentationPolicy.canShareStoredVersion(for: .review))
+        XCTAssertTrue(ReportPresentationPolicy.canOpenStoredVersion(for: .review))
+        XCTAssertTrue(ReportPresentationPolicy.canShareStoredVersion(for: .review))
+    }
 
+    // Catches exposing a new draft or seal control after a report has already become immutable.
+    func testFinalizedStateExposesOnlyItsPermittedReportActions() {
         XCTAssertFalse(ReportPresentationPolicy.canPreviewDraft(for: .finalized))
         XCTAssertFalse(ReportPresentationPolicy.canSeal(for: .finalized))
         XCTAssertTrue(ReportPresentationPolicy.canCreateRevision(for: .finalized))
+        XCTAssertTrue(ReportPresentationPolicy.canOpenStoredVersion(for: .finalized))
         XCTAssertTrue(ReportPresentationPolicy.canShareStoredVersion(for: .finalized))
     }
 

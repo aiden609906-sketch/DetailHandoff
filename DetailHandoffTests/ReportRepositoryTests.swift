@@ -63,9 +63,9 @@ final class ReportRepositoryTests: XCTestCase {
         add(attachment)
     }
 
-    // Catches the preview/share UI opening a regenerated or tampered file instead of the sealed original.
+    // Catches preview/share preparation opening a regenerated or tampered file instead of the sealed original.
     @MainActor
-    func testPreparingStoredVersionForPreviewOrCancelledShareLeavesFinalizedRecordUntouched() throws {
+    func testPreparingStoredVersionForPreviewOrShareLeavesFinalizedRecordUntouched() throws {
         let fixture = try ReportFixture()
         defer { fixture.cleanUp() }
         let version = try fixture.repository.seal(job: fixture.job, business: fixture.business)
@@ -79,6 +79,25 @@ final class ReportRepositoryTests: XCTestCase {
         XCTAssertEqual(fixture.job.status, .finalized)
         XCTAssertEqual(fixture.job.updatedAt, timestamp)
         XCTAssertEqual(fixture.job.reportsData, history)
+    }
+
+    // Catches a finalized-to-review revision transition making an immutable prior version unreadable.
+    @MainActor
+    func testRevisionKeepsHistoricalStoredVersionReadableAndUnchanged() throws {
+        let fixture = try ReportFixture()
+        defer { fixture.cleanUp() }
+        let original = try fixture.repository.seal(job: fixture.job, business: fixture.business)
+        let originalBytes = try Data(contentsOf: fixture.media.url(for: original.pdfPath))
+
+        try fixture.repository.beginRevision(job: fixture.job)
+        let history = try fixture.repository.versions(for: fixture.job)
+        let stored = try ReportAssetLoader.load(version: try XCTUnwrap(history.first), media: fixture.media)
+
+        XCTAssertEqual(fixture.job.status, .review)
+        XCTAssertEqual(history, [original])
+        XCTAssertEqual(stored.url, try fixture.media.url(for: original.pdfPath))
+        XCTAssertEqual(stored.data, originalBytes)
+        XCTAssertEqual(try Data(contentsOf: stored.url), originalBytes)
     }
 
     // Catches a corrupt retained PDF being presented as though it were a sealed report.
