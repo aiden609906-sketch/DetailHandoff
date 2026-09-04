@@ -18,6 +18,12 @@ struct JobWorkflowView: View {
 
                 captureDestination
 
+                NavigationLink {
+                    PhotoExportView(job: job)
+                } label: {
+                    Label("Export job photos", systemImage: "square.and.arrow.up")
+                }
+
                 if job.status != .archived {
                     Button(action: advanceJob) {
                         Label(nextStepTitle, systemImage: "arrow.right.circle.fill")

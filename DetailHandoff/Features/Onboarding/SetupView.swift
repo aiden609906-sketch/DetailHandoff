@@ -50,6 +50,9 @@ struct SetupView: View {
                     Text("Your reports and photos are stored only on this device. Back up the device regularly; deleting the app or losing the device can permanently lose local records.")
                         .foregroundStyle(.secondary)
                 }
+                Section("Already have a backup?") {
+                    NavigationLink("Restore existing backup") { BackupView(canExport: false) }
+                }
             }
             .navigationTitle("Set up your business")
             .toolbar {

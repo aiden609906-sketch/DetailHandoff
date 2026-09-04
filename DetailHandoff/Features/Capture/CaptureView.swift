@@ -68,9 +68,10 @@ struct CaptureView: View {
             maxSelectionCount: 20,
             matching: .images
         )
-        .onChange(of: selectedImports) { _, items in
+        .task(id: selectedImports) {
+            let items = selectedImports
             guard !items.isEmpty else { return }
-            Task { @MainActor in await importPhotos(items) }
+            await importPhotos(items)
         }
         .fullScreenCover(isPresented: $isCameraPresented) {
             ZStack {
@@ -304,13 +305,13 @@ struct CaptureView: View {
         }
         for item in items {
             do {
-                guard let data = try await item.loadTransferable(type: Data.self) else {
-                    throw CocoaError(.fileReadCorruptFile)
-                }
-                try CaptureRepository(context: modelContext, media: MediaStore(root: MediaStore.defaultRoot))
-                    .addPhoto(to: job, data: data, slotID: slotID, phase: phase)
+                try await EvidenceImport.loadAndSave(load: { try await item.loadTransferable(type: Data.self) }, save: { data in
+                    try CaptureRepository(context: modelContext, media: MediaStore(root: MediaStore.defaultRoot))
+                        .addPhoto(to: job, data: data, slotID: slotID, phase: phase)
+                })
                 reloadDocument()
             } catch {
+                guard !Task.isCancelled, !(error is CancellationError) else { return }
                 errorMessage = "This photo could not be saved. No workflow step was advanced. \(error.localizedDescription)"
                 break
             }

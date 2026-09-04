@@ -16,6 +16,9 @@ struct SettingsView: View {
                         ServicesAndTemplatesView(profile: businessProfile)
                     }
                 }
+                Section("Data safety") {
+                    NavigationLink("Backup and restore") { BackupView() }
+                }
                 Section("Privacy") {
                     Text("Records stay on this device.")
                     Text("No account, analytics, or cloud service is used.")
@@ -71,7 +74,7 @@ private struct BusinessDetailsView: View {
         }
         .navigationTitle("Business details")
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) } }
-        .onChange(of: selectedLogo) { importLogo() }
+        .task(id: selectedLogo) { await importLogo() }
         .alert("Couldn’t save business details", isPresented: showingError) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "") }
     }
 
@@ -88,15 +91,16 @@ private struct BusinessDetailsView: View {
         }
     }
 
-    private func importLogo() {
+    private func importLogo() async {
         guard let selectedLogo else { return }
-        Task {
-            do {
-                guard let data = try await selectedLogo.loadTransferable(type: Data.self) else { return }
+        defer { if self.selectedLogo == selectedLogo { self.selectedLogo = nil } }
+        do {
+            try await EvidenceImport.loadAndSave(load: { try await selectedLogo.loadTransferable(type: Data.self) }, save: { data in
                 try BusinessRepository(context: modelContext).importLogo(data, for: profile)
-            } catch {
-                errorMessage = "The logo couldn’t be saved. Try a different image."
-            }
+            })
+        } catch {
+            guard !Task.isCancelled, !(error is CancellationError) else { return }
+            errorMessage = "The logo couldn’t be saved. Try a different image."
         }
     }
 }

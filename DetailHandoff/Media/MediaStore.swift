@@ -98,6 +98,21 @@ final class MediaStore {
         }
     }
 
+    /// Backup never follows a symbolic link, even if its target happens to remain in the root.
+    func readRegularAsset(at relativePath: String) throws -> Data {
+        try BackupPackage.validatePath(relativePath)
+        var candidate = root
+        for component in relativePath.split(separator: "/") {
+            candidate.appendPathComponent(String(component))
+            let values = try candidate.resourceValues(forKeys: [.isSymbolicLinkKey])
+            guard values.isSymbolicLink != true else { throw MediaStoreError.unsafeRelativePath(relativePath) }
+        }
+        guard try candidate.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true else {
+            throw MediaStoreError.unsafeRelativePath(relativePath)
+        }
+        return try Data(contentsOf: url(for: relativePath))
+    }
+
     private func jpegData(for image: UIImage, maximumDimension: CGFloat) throws -> Data {
         guard image.size.width > 0, image.size.height > 0 else { throw MediaStoreError.invalidImage }
         let sourceWidth = image.cgImage?.width ?? Int((image.size.width * image.scale).rounded(.down))
