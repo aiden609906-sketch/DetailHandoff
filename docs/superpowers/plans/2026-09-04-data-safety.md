@@ -78,6 +78,7 @@ struct BackupAsset: Codable, Equatable {
 - [ ] Attempt focused tests, then implement.
 - [ ] Use FileWrapper directory package with JSON manifest and regular-file assets, exposed through custom UTType and FileDocument. Stage imported media under a fresh namespace, remap paths consistently across live capture, logo and frozen report snapshots, preserve original report bytes/digests. Validate required images/PDFs and relationships before deleting/inserting database records. Commit replacement through one isolated ModelContext transaction; on failure rollback and delete only staged assets. Do not overwrite active root assets. On success notify/reload the UI so stale object references are not reused. Confirm replacement before restore; security-scoped Files access must be closed on all paths.
 - [ ] Export/share via Files/system sheet only on user action; cancellation changes nothing. Show clear complete/failed result; no silent partial restore. Keep database/live WAL out of backups.
+- [ ] Preserve the Reports subsystem's durable number high-water ledger in backup DTOs. During restore, merge validated per-date maxima from current and incoming ledgers/history in the same transaction; an older backup must not reissue numbers already exported on this device. Profile edits and permanent job purge preserve this ledger.
 - [ ] Full CI; commit `feat: back up restore and export local evidence safely`.
 
 ### Task 3: Recently deleted and storage lifecycle
