@@ -28,11 +28,22 @@ targets:
     scheme:
       testTargets:
         - DetailHandoffTests
+        - DetailHandoffUITests
   DetailHandoffTests:
     type: bundle.unit-test
     platform: iOS
     sources:
       - path: DetailHandoffTests
+    dependencies:
+      - target: DetailHandoff
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+  DetailHandoffUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: DetailHandoffUITests
     dependencies:
       - target: DetailHandoff
     settings:
