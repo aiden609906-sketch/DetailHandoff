@@ -90,6 +90,7 @@ struct SetupView: View {
         do {
             var configuration = BusinessConfiguration.standard
             configuration.defaultTemplateID = selectedTemplateID
+            configuration = configuration.makingServiceDefault(selectedServiceID)
             _ = try BusinessRepository(context: modelContext).createProfile(
                 businessName: trimmedBusinessName,
                 phone: phone,

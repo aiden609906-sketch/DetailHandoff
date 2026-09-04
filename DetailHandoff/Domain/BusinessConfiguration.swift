@@ -41,7 +41,7 @@ struct BusinessConfiguration: Codable, Equatable {
     static let standard: BusinessConfiguration = {
         let template = CaptureTemplateOption(name: "Standard Detail", slots: CaptureSlot.standard)
         return BusinessConfiguration(
-            services: [ServiceOption(name: "Full Detail")],
+            services: [ServiceOption(name: "Full Detail"), ServiceOption(name: "Exterior Detail")],
             templates: [template],
             defaultTemplateID: template.id
         )
@@ -69,5 +69,14 @@ struct BusinessConfiguration: Codable, Equatable {
             }
         }
         return self
+    }
+
+    /// Service order is the durable default: New Job preselects the first saved option.
+    func makingServiceDefault(_ serviceID: UUID) -> BusinessConfiguration {
+        guard let index = services.firstIndex(where: { $0.id == serviceID }) else { return self }
+        var updated = self
+        let selected = updated.services.remove(at: index)
+        updated.services.insert(selected, at: 0)
+        return updated
     }
 }

@@ -37,6 +37,21 @@ final class BusinessRepositoryTests: XCTestCase {
         }
     }
 
+    func testSelectingDefaultServiceMovesItToTheNewJobDefaultPosition() {
+        let fullDetail = ServiceOption(name: "Full Detail")
+        let exteriorDetail = ServiceOption(name: "Exterior Detail")
+        let template = CaptureTemplateOption(name: "Standard Detail", slots: CaptureSlot.standard)
+        let configuration = BusinessConfiguration(
+            services: [fullDetail, exteriorDetail],
+            templates: [template],
+            defaultTemplateID: template.id
+        )
+
+        let updated = configuration.makingServiceDefault(exteriorDetail.id)
+
+        XCTAssertEqual(updated.services.map(\.id), [exteriorDetail.id, fullDetail.id])
+    }
+
     @MainActor
     func testUpdateDetailsPreservesReportLedgerAndPersistsConfigurationThroughFreshContext() throws {
         let container = try makeContainer()

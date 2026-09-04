@@ -16,7 +16,6 @@ struct EditJobView: View {
     @State private var location: String
     @State private var notes: String
     @State private var saveError: String?
-    @State private var saveTask: Task<Void, Never>?
     @State private var isSaving = false
 
     init(job: JobRecord) {
@@ -62,29 +61,18 @@ struct EditJobView: View {
             }
         }
         .navigationTitle("Edit job")
-        .onChange(of: customerName) { scheduleSave() }
-        .onChange(of: customerPhone) { scheduleSave() }
-        .onChange(of: customerEmail) { scheduleSave() }
-        .onChange(of: vehicleLabel) { scheduleSave() }
-        .onChange(of: plate) { scheduleSave() }
-        .onChange(of: color) { scheduleSave() }
-        .onChange(of: serviceName) { scheduleSave() }
-        .onChange(of: location) { scheduleSave() }
-        .onChange(of: notes) { scheduleSave() }
-        .onDisappear { saveTask?.cancel() }
-    }
-
-    private func scheduleSave() {
-        saveTask?.cancel()
-        saveTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(450))
-            guard !Task.isCancelled else { return }
-            saveNow()
-        }
+        .onChange(of: customerName) { saveNow() }
+        .onChange(of: customerPhone) { saveNow() }
+        .onChange(of: customerEmail) { saveNow() }
+        .onChange(of: vehicleLabel) { saveNow() }
+        .onChange(of: plate) { saveNow() }
+        .onChange(of: color) { saveNow() }
+        .onChange(of: serviceName) { saveNow() }
+        .onChange(of: location) { saveNow() }
+        .onChange(of: notes) { saveNow() }
     }
 
     private func saveNow() {
-        saveTask?.cancel()
         isSaving = true
         do {
             try JobRepository(context: modelContext).updateDetails(

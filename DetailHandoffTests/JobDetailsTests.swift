@@ -50,6 +50,21 @@ final class JobDetailsTests: XCTestCase {
     }
 
     @MainActor
+    func testLatestImmediateDetailsUpdatePersistsWhenNavigatingAway() throws {
+        let container = try makeContainer()
+        let repository = JobRepository(context: container.mainContext)
+        let job = try repository.createJob(customerName: "Avery", vehicleLabel: "Roadster", plate: "EV1", color: "Blue", serviceName: "Wash", notes: "")
+        let jobID = job.id
+
+        try repository.updateDetails(job, customerName: "Avery", customerPhone: "", customerEmail: "", vehicleLabel: "Roadster", plate: "EV1", color: "Blue", serviceName: "Wash", location: "", notes: "First edit")
+        try repository.updateDetails(job, customerName: "Avery", customerPhone: "", customerEmail: "", vehicleLabel: "Roadster", plate: "EV1", color: "Blue", serviceName: "Wash", location: "", notes: "Final edit before navigation")
+
+        let fresh = ModelContext(container)
+        let saved = try XCTUnwrap(try fresh.fetch(FetchDescriptor<JobRecord>(predicate: #Predicate { $0.id == jobID })).first)
+        XCTAssertEqual(saved.notes, "Final edit before navigation")
+    }
+
+    @MainActor
     func testUpdateDetailsRestoresFieldsWhenSaveFailsAndRejectsFinalizedJob() throws {
         enum SaveFailure: Error { case simulated }
         let container = try makeContainer()
