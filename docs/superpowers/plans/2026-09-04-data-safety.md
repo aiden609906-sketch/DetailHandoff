@@ -89,6 +89,7 @@ struct BackupAsset: Codable, Equatable {
 - [ ] Tests first: 29 days recoverable, exactly 30 days expired, boundary clock injected; shared asset references preserved; report version files removed only when owning deleted job is purged and no other record references them; failed DB save leaves metadata/assets; path protection applies to imported records too.
 - [ ] Attempt focused tests; implement soft delete as saved deletedAt with rollback. Active queries exclude deleted jobs. Restore before expiry clears deletedAt; after expiry show expired state. Permanent deletion is gated by UI confirmation containing job identity, then save metadata removal before physical cleanup. Cleanup failures remain visible/retryable, not data-corrupting; never delete outside private media root.
 - [ ] Settings shows bytes used and per-job storage, export/backup before cleanup guidance and Recently deleted. Run retention purge at a safe startup/foreground point; serialise against imports/restores and do not automatically wipe unreadable assets. A full backup includes retained trash until expiry.
+- [ ] Capture photo removal retains unlinked files for safety. Count these in disk usage, show reclaimable space, and provide confirmed orphan cleanup; retain every asset referenced by a live job or frozen report. Job purge also cleans that job's unreferenced retained images. Cleanup failures must be retryable without removing referenced evidence.
 - [ ] Full CI; commit `feat: add recoverable deletion and storage management`.
 
 ## Acceptance boundary
