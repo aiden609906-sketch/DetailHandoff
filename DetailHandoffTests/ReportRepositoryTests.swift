@@ -283,35 +283,42 @@ private final class ReportFixture {
     }
 
     init(photoCount: Int = 0, signed: Bool = false) throws {
-        container = try makeContainer()
-        container.mainContext.autosaveEnabled = false
-        root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        media = MediaStore(root: root)
+        let fixtureContainer = try makeContainer()
+        fixtureContainer.mainContext.autosaveEnabled = false
+        let fixtureRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let fixtureMedia = MediaStore(root: fixtureRoot)
+        let fixtureDate = Date(timeIntervalSince1970: 1_788_480_000)
         var localCalendar = Calendar(identifier: .gregorian)
         localCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        calendar = localCalendar
-        business = BusinessProfile(businessName: "North Star Detail", phone: "555-0100", email: "office@example.test", disclaimer: "Evidence only")
-        job = JobRecord(customerName: "Marcus Lee", vehicleLabel: "2021 Honda Accord", plate: "7HKL248", color: "Pearl White", serviceName: "Full detail", notes: "Original notes", status: .review, serviceStartedAt: now.addingTimeInterval(-3600), serviceFinishedAt: now)
-        document = CaptureDocument(skips: CapturePhase.allCases.flatMap { phase in
+        let fixtureBusiness = BusinessProfile(businessName: "North Star Detail", phone: "555-0100", email: "office@example.test", disclaimer: "Evidence only")
+        let fixtureJob = JobRecord(customerName: "Marcus Lee", vehicleLabel: "2021 Honda Accord", plate: "7HKL248", color: "Pearl White", serviceName: "Full detail", notes: "Original notes", status: .review, serviceStartedAt: fixtureDate.addingTimeInterval(-3600), serviceFinishedAt: fixtureDate)
+        var fixtureDocument = CaptureDocument(skips: CapturePhase.allCases.flatMap { phase in
             CaptureSlot.standard.map { CaptureSkip(slotID: $0.id, phase: phase, reason: "Not accessible") }
         })
         for index in 0..<photoCount {
-            let stored = try media.storeImage(Self.imageData(index: index), jobID: job.id)
-            document.photos.append(CapturedPhoto(slotID: CaptureSlot.standard[index % 12].id, phase: index < 20 ? .before : .after, imagePath: stored.imagePath, thumbnailPath: stored.thumbnailPath, capturedAt: now))
+            let stored = try fixtureMedia.storeImage(Self.imageData(index: index), jobID: fixtureJob.id)
+            fixtureDocument.photos.append(CapturedPhoto(slotID: CaptureSlot.standard[index % 12].id, phase: index < 20 ? .before : .after, imagePath: stored.imagePath, thumbnailPath: stored.thumbnailPath, capturedAt: fixtureDate))
         }
-        if let photo = document.photos.first {
-            document.findings = [VehicleFinding(slotID: photo.slotID, kind: "Scratch", severity: "Minor", notes: "Door edge mark", photoIDs: [photo.id])]
+        if let photo = fixtureDocument.photos.first {
+            fixtureDocument.findings = [VehicleFinding(slotID: photo.slotID, kind: "Scratch", severity: "Minor", notes: "Door edge mark", photoIDs: [photo.id])]
         }
-        job.captureData = try JSONEncoder().encode(document)
-        container.mainContext.insert(job)
-        container.mainContext.insert(business)
-        try container.mainContext.save()
-        let acknowledgment = AcknowledgmentRepository(context: container.mainContext)
+        fixtureJob.captureData = try JSONEncoder().encode(fixtureDocument)
+        fixtureContainer.mainContext.insert(fixtureJob)
+        fixtureContainer.mainContext.insert(fixtureBusiness)
+        try fixtureContainer.mainContext.save()
+        let acknowledgment = AcknowledgmentRepository(context: fixtureContainer.mainContext)
         if signed {
-            try acknowledgment.sign(job: job, name: "Marcus Lee", strokes: [SignatureStroke(points: [SignaturePoint(x: 0.1, y: 0.5), SignaturePoint(x: 0.3, y: 0.2), SignaturePoint(x: 0.6, y: 0.8), SignaturePoint(x: 0.9, y: 0.3)])])
+            try acknowledgment.sign(job: fixtureJob, name: "Marcus Lee", strokes: [SignatureStroke(points: [SignaturePoint(x: 0.1, y: 0.5), SignaturePoint(x: 0.3, y: 0.2), SignaturePoint(x: 0.6, y: 0.8), SignaturePoint(x: 0.9, y: 0.3)])])
         } else {
-            try acknowledgment.markUnavailable(job: job, reason: "Keys left with office")
+            try acknowledgment.markUnavailable(job: fixtureJob, reason: "Keys left with office")
         }
+        container = fixtureContainer
+        root = fixtureRoot
+        media = fixtureMedia
+        calendar = localCalendar
+        business = fixtureBusiness
+        job = fixtureJob
+        document = fixtureDocument
     }
 
     func makeAdditionalJob() throws -> JobRecord {
