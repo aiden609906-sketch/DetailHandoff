@@ -69,10 +69,10 @@ final class WorkflowUITests: XCTestCase {
         let share = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "report.share.")).firstMatch
         require(share)
         share.tap()
-        XCTAssertTrue(app.sheets.firstMatch.waitForExistence(timeout: 8), "Share must present the system activity sheet.")
+        let sharePresentation = requireSharePresentation()
         capture("share-sheet")
-        dismissPresentedSheet()
-        XCTAssertFalse(app.sheets.firstMatch.exists, "Cancelling share should dismiss the real system activity sheet.")
+        dismissSharePresentation(sharePresentation)
+        requireDismissed(sharePresentation, message: "Cancelling share should dismiss the system activity presentation.")
         XCTAssertTrue(version.exists, "Cancelling share must leave the sealed report version available.")
         require(app.staticTexts["Sealed versions"])
     }
@@ -100,9 +100,10 @@ final class WorkflowUITests: XCTestCase {
         app.staticTexts["Backup and restore"].tap()
         require(app.navigationBars["Backup and restore"])
         app.buttons["backup.export"].tap()
-        XCTAssertTrue(app.sheets.firstMatch.waitForExistence(timeout: 8), "Backup export must open the system save panel.")
+        let fileExporterPresentation = requireFileExporterPresentation()
         capture("backup")
-        dismissPresentedSheet()
+        dismissFileExporterPresentation(fileExporterPresentation)
+        requireDismissed(fileExporterPresentation, message: "Cancelling backup export should dismiss the document picker.")
 
         app.navigationBars.buttons.firstMatch.tap()
         app.staticTexts["Recently deleted"].tap()
@@ -145,7 +146,7 @@ final class WorkflowUITests: XCTestCase {
         captureButton.tap()
         require(app.navigationBars["Before photos"])
         capture("capture")
-        app.navigationBars.buttons.firstMatch.tap()
+        returnToJobs()
     }
 
     private func openFindingsScreen() {
@@ -173,23 +174,65 @@ final class WorkflowUITests: XCTestCase {
         XCTAssertTrue(element.isHittable, "Expected \(element) to be reachable after scrolling.", file: file, line: line)
     }
 
-    private func dismissPresentedSheet() {
-        let close = app.buttons["Close"]
-        if close.waitForExistence(timeout: 2) {
-            close.tap()
-            return
+    private func returnToJobs() {
+        for _ in 0..<3 where !app.navigationBars["Jobs"].exists {
+            let back = app.navigationBars.buttons.firstMatch
+            require(back)
+            back.tap()
         }
-        let done = app.buttons["Done"]
-        if done.waitForExistence(timeout: 2) {
-            done.tap()
-            return
+        require(app.navigationBars["Jobs"])
+    }
+
+    private func requireSharePresentation() -> XCUIElement {
+        let sheet = app.sheets.firstMatch
+        if sheet.waitForExistence(timeout: 4) { return sheet }
+        let popover = app.popovers.firstMatch
+        if popover.waitForExistence(timeout: 4) { return popover }
+        XCTFail("Share must present a system activity sheet on iPhone or a popover on iPad.")
+        return app.otherElements.firstMatch
+    }
+
+    private func requireFileExporterPresentation() -> XCUIElement {
+        let sheet = app.sheets.firstMatch
+        if sheet.waitForExistence(timeout: 4) { return sheet }
+        let popover = app.popovers.firstMatch
+        if popover.waitForExistence(timeout: 4) { return popover }
+        let documentPicker = app.navigationBars["Save to Files"]
+        if documentPicker.waitForExistence(timeout: 4) { return documentPicker }
+        XCTFail("Backup export must present the Files document picker on iPhone or iPad.")
+        return app.otherElements.firstMatch
+    }
+
+    private func dismissSharePresentation(_ presentation: XCUIElement) {
+        dismissSystemPresentation(presentation, controls: ["Close", "Cancel"])
+    }
+
+    private func dismissFileExporterPresentation(_ presentation: XCUIElement) {
+        dismissSystemPresentation(presentation, controls: ["Cancel", "Close"])
+    }
+
+    private func dismissSystemPresentation(_ presentation: XCUIElement, controls: [String]) {
+        for title in controls {
+            let withinPresentation = presentation.buttons[title]
+            if withinPresentation.waitForExistence(timeout: 2) {
+                withinPresentation.tap()
+                return
+            }
+            let applicationButton = app.buttons[title]
+            if applicationButton.waitForExistence(timeout: 1) {
+                applicationButton.tap()
+                return
+            }
         }
-        let cancel = app.buttons["Cancel"]
-        if cancel.waitForExistence(timeout: 2) {
-            cancel.tap()
-            return
-        }
-        XCTFail("No dismissal control was available for the presented system sheet.")
+        XCTFail("No supported cancellation control was available for the system presentation.")
+    }
+
+    private func requireDismissed(_ presentation: XCUIElement, message: String) {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: presentation
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 8), .completed, message)
     }
 
     private func require(_ element: XCUIElement, timeout: TimeInterval = 8, file: StaticString = #filePath, line: UInt = #line) {
