@@ -19,7 +19,7 @@ final class AppStartup: ObservableObject {
                 return container
             }
             #endif
-            try ModelContainer(for: BusinessProfile.self, JobRecord.self)
+            return try ModelContainer(for: BusinessProfile.self, JobRecord.self)
         }
     }
 
