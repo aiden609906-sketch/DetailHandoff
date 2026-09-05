@@ -45,6 +45,7 @@ struct RootView: View {
 
 private struct RootContentView: View {
     @Query(sort: \BusinessProfile.createdAt) private var businessProfiles: [BusinessProfile]
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         if let businessProfile = businessProfiles.first {
@@ -59,8 +60,27 @@ private struct RootContentView: View {
                         Label("Settings", systemImage: "gearshape")
                     }
             }
+            .accessibilityIdentifier("ui.dynamicType.\(dynamicTypeIdentifier)")
         } else {
             SetupView()
+        }
+    }
+
+    private var dynamicTypeIdentifier: String {
+        switch dynamicTypeSize {
+        case .xSmall: "xSmall"
+        case .small: "small"
+        case .medium: "medium"
+        case .large: "large"
+        case .xLarge: "xLarge"
+        case .xxLarge: "xxLarge"
+        case .xxxLarge: "xxxLarge"
+        case .accessibility1: "accessibility1"
+        case .accessibility2: "accessibility2"
+        case .accessibility3: "accessibility3"
+        case .accessibility4: "accessibility4"
+        case .accessibility5: "accessibility5"
+        @unknown default: "unknown"
         }
     }
 }

@@ -24,6 +24,11 @@ struct MediaAsset: Equatable {
 
 final class MediaStore {
     static var defaultRoot: URL {
+        #if DEBUG
+        if let root = UITestFixtures.mediaRoot {
+            return root
+        }
+        #endif
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("DetailHandoff", isDirectory: true)
             .appendingPathComponent("CaptureMedia", isDirectory: true)

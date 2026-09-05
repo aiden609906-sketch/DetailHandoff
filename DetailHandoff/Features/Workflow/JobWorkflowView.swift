@@ -122,6 +122,7 @@ struct JobWorkflowView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("workflow.acknowledgment")
         case .afterCapture:
             captureActions(phase: .after)
         case .review:
@@ -147,6 +148,7 @@ struct JobWorkflowView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("workflow.findings")
             }
         case .finalized, .archived:
             VStack(spacing: AppTheme.spacing8) {
@@ -180,6 +182,7 @@ struct JobWorkflowView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier(phase == .before ? "workflow.openBeforeCapture" : "workflow.openAfterCapture")
             NavigationLink {
                 FindingsView(job: job)
             } label: {
@@ -187,6 +190,7 @@ struct JobWorkflowView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
+            .accessibilityIdentifier("workflow.findings")
             NavigationLink {
                 PhotoPairView(job: job)
             } label: {

@@ -23,7 +23,10 @@ final class WorkflowUITests: XCTestCase {
         capture("new-job")
         app.textFields["Vehicle"].tap()
         app.textFields["Vehicle"].typeText("QA-17 Sedan")
-        app.buttons["Create job"].tap()
+        dismissKeyboard()
+        let create = app.buttons["newJob.create"]
+        scrollUntilHittable(create)
+        create.tap()
 
         require(app.staticTexts["QA-17 Sedan"])
         capture("list")
@@ -38,11 +41,18 @@ final class WorkflowUITests: XCTestCase {
     func testCompleteFixturePreviewsSealsAndCancelsRealShareSheet() throws {
         launch(arguments: ["--ui-testing", "--screenshot-fixture", "complete"])
 
+        openCaptureScreen()
         openFixtureWorkflow(named: "Complete Fixture Sedan")
+        openFindingsScreen()
         require(app.buttons["Review report"])
         app.buttons["Review report"].tap()
         require(app.navigationBars["Report"])
         capture("report")
+
+        app.buttons["report.acknowledgment"].tap()
+        require(app.navigationBars["Acknowledgment"])
+        capture("acknowledgment")
+        app.navigationBars.buttons.firstMatch.tap()
 
         app.buttons["report.previewDraft"].tap()
         require(app.navigationBars["Draft preview"])
@@ -63,6 +73,8 @@ final class WorkflowUITests: XCTestCase {
         capture("share-sheet")
         dismissPresentedSheet()
         XCTAssertFalse(app.sheets.firstMatch.exists, "Cancelling share should dismiss the real system activity sheet.")
+        XCTAssertTrue(version.exists, "Cancelling share must leave the sealed report version available.")
+        require(app.staticTexts["Sealed versions"])
     }
 
     func testCompleteFixtureAllowsHistoryAccessWhileCreatingRevision() throws {
@@ -111,7 +123,7 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func launch(arguments: [String]) {
-        app.launchArguments = arguments
+        app.launchArguments = arguments + ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launchEnvironment = ["XCUI_TESTING": "1"]
         app.launch()
     }
@@ -121,7 +133,44 @@ final class WorkflowUITests: XCTestCase {
         capture("fixture-list")
         app.staticTexts[vehicle].tap()
         require(app.navigationBars[vehicle])
+        capture("workflow")
+    }
+
+    private func openCaptureScreen() {
+        require(app.staticTexts["Capture Fixture Coupe"])
+        app.staticTexts["Capture Fixture Coupe"].tap()
+        require(app.navigationBars["Capture Fixture Coupe"])
+        let captureButton = app.buttons["workflow.openBeforeCapture"]
+        scrollUntilHittable(captureButton)
+        captureButton.tap()
+        require(app.navigationBars["Before photos"])
         capture("capture")
+        app.navigationBars.buttons.firstMatch.tap()
+    }
+
+    private func openFindingsScreen() {
+        let findings = app.buttons["workflow.findings"]
+        scrollUntilHittable(findings)
+        findings.tap()
+        require(app.navigationBars["Condition findings"])
+        capture("findings")
+        app.navigationBars.buttons.firstMatch.tap()
+    }
+
+    private func dismissKeyboard() {
+        let done = app.keyboards.buttons["Done"]
+        if done.waitForExistence(timeout: 1) {
+            done.tap()
+        } else {
+            app.navigationBars["New job"].tap()
+        }
+    }
+
+    private func scrollUntilHittable(_ element: XCUIElement, attempts: Int = 4, file: StaticString = #filePath, line: UInt = #line) {
+        for _ in 0..<attempts where !element.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(element.isHittable, "Expected \(element) to be reachable after scrolling.", file: file, line: line)
     }
 
     private func dismissPresentedSheet() {

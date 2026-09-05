@@ -65,6 +65,7 @@ struct NewJobView: View {
                 Section {
                     Button("Create job", action: createJob)
                         .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("newJob.create")
                 }
             }
             .formStyle(.grouped)
