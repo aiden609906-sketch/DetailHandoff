@@ -48,6 +48,11 @@ struct ReportView: View {
                 PDFPreview(data: item.data)
                     .navigationTitle(item.title)
                     .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { presentedPDF = nil }
+                        }
+                    }
             }
         }
         .sheet(item: $shareItem) { item in

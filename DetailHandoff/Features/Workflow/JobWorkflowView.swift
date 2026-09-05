@@ -21,13 +21,12 @@ struct JobWorkflowView: View {
                 NavigationLink {
                     PhotoExportView(job: job)
                 } label: {
-                    Label("Export job photos", systemImage: "square.and.arrow.up")
+                    WorkflowActionLabel("Export job photos", systemImage: "square.and.arrow.up")
                 }
 
                 if job.status != .archived {
                     Button(action: advanceJob) {
-                        Label(nextStepTitle, systemImage: "arrow.right.circle.fill")
-                            .frame(maxWidth: .infinity)
+                        WorkflowActionLabel(nextStepTitle, systemImage: "arrow.right.circle.fill")
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
@@ -118,8 +117,7 @@ struct JobWorkflowView: View {
             NavigationLink {
                 AcknowledgmentView(job: job)
             } label: {
-                Label("Record customer acknowledgment", systemImage: "signature")
-                    .frame(maxWidth: .infinity)
+                WorkflowActionLabel("Record customer acknowledgment", systemImage: "signature")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("workflow.acknowledgment")
@@ -130,22 +128,19 @@ struct JobWorkflowView: View {
                 NavigationLink {
                     ReportView(job: job)
                 } label: {
-                    Label("Review report", systemImage: "doc.text")
-                        .frame(maxWidth: .infinity)
+                    WorkflowActionLabel("Review report", systemImage: "doc.text")
                 }
                 .buttonStyle(.borderedProminent)
                 NavigationLink {
                     PhotoPairView(job: job)
                 } label: {
-                    Label("Inspect photo pairs", systemImage: "rectangle.split.2x1")
-                        .frame(maxWidth: .infinity)
+                    WorkflowActionLabel("Inspect photo pairs", systemImage: "rectangle.split.2x1")
                 }
                 .buttonStyle(.bordered)
                 NavigationLink {
                     FindingsView(job: job)
                 } label: {
-                    Label("Inspect findings", systemImage: "magnifyingglass")
-                        .frame(maxWidth: .infinity)
+                    WorkflowActionLabel("Inspect findings", systemImage: "magnifyingglass")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("workflow.findings")
@@ -155,16 +150,14 @@ struct JobWorkflowView: View {
                 NavigationLink {
                     ReportView(job: job)
                 } label: {
-                    Label(job.status == .archived ? "View archived report" : "View sealed report", systemImage: "doc.text")
-                        .frame(maxWidth: .infinity)
+                    WorkflowActionLabel(job.status == .archived ? "View archived report" : "View sealed report", systemImage: "doc.text")
                 }
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier(job.status == .archived ? "workflow.archivedReport" : "workflow.sealedReport")
                 NavigationLink {
                     PhotoPairView(job: job)
                 } label: {
-                    Label("Inspect photo pairs", systemImage: "rectangle.split.2x1")
-                        .frame(maxWidth: .infinity)
+                    WorkflowActionLabel("Inspect photo pairs", systemImage: "rectangle.split.2x1")
                 }
                 .buttonStyle(.bordered)
             }
@@ -178,24 +171,21 @@ struct JobWorkflowView: View {
             NavigationLink {
                 CaptureView(job: job, phase: phase)
             } label: {
-                Label("Open \(phase == .before ? "Before" : "After") capture", systemImage: "camera")
-                    .frame(maxWidth: .infinity)
+                WorkflowActionLabel("Open \(phase == .before ? "Before" : "After") capture", systemImage: "camera")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier(phase == .before ? "workflow.openBeforeCapture" : "workflow.openAfterCapture")
             NavigationLink {
                 FindingsView(job: job)
             } label: {
-                Label("Record findings", systemImage: "magnifyingglass")
-                    .frame(maxWidth: .infinity)
+                WorkflowActionLabel("Record findings", systemImage: "magnifyingglass")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("workflow.findings")
             NavigationLink {
                 PhotoPairView(job: job)
             } label: {
-                Label("Inspect photo pairs", systemImage: "rectangle.split.2x1")
-                    .frame(maxWidth: .infinity)
+                WorkflowActionLabel("Inspect photo pairs", systemImage: "rectangle.split.2x1")
             }
             .buttonStyle(.bordered)
         }
@@ -251,5 +241,44 @@ struct JobWorkflowView: View {
 
     private func progressColor(for stepState: WorkflowProgressStepState) -> Color {
         stepState == .upcoming ? .secondary.opacity(0.25) : .accentColor
+    }
+}
+
+private struct WorkflowActionLabel: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    let title: String
+    let systemImage: String
+
+    init(_ title: String, systemImage: String) {
+        self.title = title
+        self.systemImage = systemImage
+    }
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .labelStyle(WorkflowActionLabelStyle(vertical: dynamicTypeSize.isAccessibilitySize))
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity)
+    }
+}
+
+private struct WorkflowActionLabelStyle: LabelStyle {
+    let vertical: Bool
+
+    @ViewBuilder
+    func makeBody(configuration: Configuration) -> some View {
+        if vertical {
+            VStack(spacing: AppTheme.spacing8) {
+                configuration.icon
+                configuration.title
+            }
+        } else {
+            HStack(spacing: AppTheme.spacing8) {
+                configuration.icon
+                configuration.title
+            }
+        }
     }
 }

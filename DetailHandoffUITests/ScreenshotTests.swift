@@ -12,16 +12,25 @@ final class ScreenshotTests: XCTestCase {
         app.launchEnvironment = ["XCUI_TESTING": "1"]
         app.launch()
 
-        XCTAssertTrue(app.tabBars["ui.dynamicType.accessibility5"].waitForExistence(timeout: 8), "The requested accessibility text category must be applied to the app process.")
+        let appliedCategory = app.descendants(matching: .any)["ui.dynamicType.accessibility5"]
+        XCTAssertTrue(appliedCategory.waitForExistence(timeout: 20), "The requested accessibility text category must be applied to the app process.")
         let vehicle = app.staticTexts["Complete Fixture Sedan"]
-        XCTAssertTrue(vehicle.waitForExistence(timeout: 8))
+        for _ in 0..<12 where !vehicle.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(vehicle.isHittable, "The complete fixture must remain reachable at accessibility text sizes.")
         vehicle.tap()
         let report = app.buttons["Review report"]
-        XCTAssertTrue(report.waitForExistence(timeout: 8))
-        for _ in 0..<4 where !report.isHittable {
+        for _ in 0..<12 where !report.isHittable {
             app.swipeUp()
         }
         XCTAssertTrue(report.isHittable, "The primary workflow action must remain visible and reachable at accessibility text sizes.")
+        let photoPairLabel = app.staticTexts["Inspect photo pairs"]
+        XCTAssertTrue(photoPairLabel.waitForExistence(timeout: 8))
+        XCTAssertTrue(
+            app.windows.firstMatch.frame.contains(photoPairLabel.frame),
+            "Accessibility-sized workflow action text must wrap inside the visible window instead of clipping horizontally."
+        )
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "accessibility-text-workflow"

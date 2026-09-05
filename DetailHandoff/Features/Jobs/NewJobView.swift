@@ -18,12 +18,16 @@ struct NewJobView: View {
     @State private var location = ""
     @State private var notes = ""
     @State private var errorMessage: String?
+    @FocusState private var focusedField: Field?
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Vehicle") {
                     TextField("Vehicle", text: $vehicleLabel)
+                        .focused($focusedField, equals: .vehicle)
+                        .submitLabel(.done)
+                        .onSubmit { focusedField = nil }
                     TextField("Plate", text: $plate)
                     TextField("Color", text: $color)
                 }
@@ -140,5 +144,9 @@ struct NewJobView: View {
     private var configuration: BusinessConfiguration {
         guard let profile = businessProfiles.first else { return .standard }
         return (try? BusinessRepository(context: modelContext).configuration(for: profile)) ?? .standard
+    }
+
+    private enum Field: Hashable {
+        case vehicle
     }
 }

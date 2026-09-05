@@ -23,15 +23,16 @@ final class WorkflowUITests: XCTestCase {
         capture("new-job")
         app.textFields["Vehicle"].tap()
         app.textFields["Vehicle"].typeText("QA-17 Sedan")
-        dismissKeyboard()
+        require(app.keyboards.buttons["Done"])
+        app.keyboards.buttons["Done"].tap()
         let create = app.buttons["newJob.create"]
         scrollUntilHittable(create)
         create.tap()
 
         require(app.staticTexts["QA-17 Sedan"])
         capture("list")
-        app.searchFields["Customer, vehicle, or plate"].tap()
-        app.searchFields["Customer, vehicle, or plate"].typeText("QA-17")
+        let search = activateSearch()
+        search.typeText("QA-17")
         require(app.staticTexts["QA-17 Sedan"])
         app.staticTexts["QA-17 Sedan"].tap()
         require(app.navigationBars["QA-17 Sedan"])
@@ -62,7 +63,7 @@ final class WorkflowUITests: XCTestCase {
         app.buttons["report.seal"].tap()
         require(app.buttons["report.confirmSeal"])
         app.buttons["report.confirmSeal"].tap()
-        let version = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH %@", "report.version.")).firstMatch
+        let version = reportVersion()
         XCTAssertTrue(version.waitForExistence(timeout: 12), "Sealing a valid fixture should create a stored version.")
         capture("sealed-version")
 
@@ -83,7 +84,7 @@ final class WorkflowUITests: XCTestCase {
         openFixtureWorkflow(named: "Revision Fixture SUV")
         app.buttons["workflow.sealedReport"].tap()
         require(app.navigationBars["Report"])
-        let version = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH %@", "report.version.")).firstMatch
+        let version = reportVersion()
         require(version)
         app.buttons["report.createRevision"].tap()
         require(app.navigationBars["Report"])
@@ -94,7 +95,8 @@ final class WorkflowUITests: XCTestCase {
     func testBackupExportCanBeCancelledAndTrashCanBeRestored() throws {
         launch(arguments: ["--ui-testing", "--screenshot-fixture", "trash"])
 
-        app.tabBars.buttons["Settings"].tap()
+        require(app.buttons["Settings"].firstMatch)
+        app.buttons["Settings"].firstMatch.tap()
         require(app.navigationBars["Settings"])
         capture("settings")
         app.staticTexts["Backup and restore"].tap()
@@ -110,7 +112,8 @@ final class WorkflowUITests: XCTestCase {
         require(app.navigationBars["Recently deleted"])
         capture("trash")
         app.buttons["Restore"].tap()
-        app.tabBars.buttons["Jobs"].tap()
+        require(app.buttons["Jobs"].firstMatch)
+        app.buttons["Jobs"].firstMatch.tap()
         require(app.staticTexts["Trash Fixture Hatchback"])
     }
 
@@ -124,7 +127,10 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func launch(arguments: [String]) {
-        app.launchArguments = arguments + ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchArguments = arguments + [
+            "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"
+        ]
         app.launchEnvironment = ["XCUI_TESTING": "1"]
         app.launch()
     }
@@ -158,13 +164,21 @@ final class WorkflowUITests: XCTestCase {
         app.navigationBars.buttons.firstMatch.tap()
     }
 
-    private func dismissKeyboard() {
-        let done = app.keyboards.buttons["Done"]
-        if done.waitForExistence(timeout: 1) {
-            done.tap()
-        } else {
-            app.navigationBars["New job"].tap()
+    private func activateSearch() -> XCUIElement {
+        let search = app.searchFields["Customer, vehicle, or plate"]
+        if !search.exists {
+            require(app.buttons["Search"].firstMatch)
+            app.buttons["Search"].firstMatch.tap()
         }
+        require(search)
+        search.tap()
+        return search
+    }
+
+    private func reportVersion() -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "report.version."))
+            .firstMatch
     }
 
     private func scrollUntilHittable(_ element: XCUIElement, attempts: Int = 4, file: StaticString = #filePath, line: UInt = #line) {
@@ -200,13 +214,11 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func requireFileExporterPresentation() -> XCUIElement {
-        let sheet = app.sheets.firstMatch
-        if sheet.waitForExistence(timeout: 4) { return sheet }
-        let popover = app.popovers.firstMatch
-        if popover.waitForExistence(timeout: 4) { return popover }
-        let documentPicker = app.navigationBars["Save to Files"]
-        if documentPicker.waitForExistence(timeout: 4) { return documentPicker }
-        XCTFail("Backup export must present the Files document picker on iPhone or iPad.")
+        let picker = app.descendants(matching: .any)["Browse View (Picker)"]
+        if picker.waitForExistence(timeout: 8) { return picker }
+        let navigationBar = app.navigationBars["FullDocumentManagerViewControllerNavigationBar"]
+        if navigationBar.waitForExistence(timeout: 4) { return navigationBar }
+        XCTFail("Backup export must present the real Files document picker process on iPhone or iPad.")
         return app.otherElements.firstMatch
     }
 
@@ -215,7 +227,11 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func dismissFileExporterPresentation(_ presentation: XCUIElement) {
-        dismissSystemPresentation(presentation, controls: ["Cancel", "Close"])
+        let cancel = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "Cancel"))
+            .firstMatch
+        require(cancel)
+        cancel.tap()
     }
 
     private func dismissSystemPresentation(_ presentation: XCUIElement, controls: [String]) {
