@@ -29,7 +29,7 @@ final class MediaStore {
             return root
         }
         #endif
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("DetailHandoff", isDirectory: true)
             .appendingPathComponent("CaptureMedia", isDirectory: true)
     }
