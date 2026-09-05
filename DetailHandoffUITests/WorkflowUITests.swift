@@ -57,7 +57,7 @@ final class WorkflowUITests: XCTestCase {
         app.buttons["report.previewDraft"].tap()
         require(app.navigationBars["Draft preview"])
         capture("draft-pdf")
-        dismissPresentedSheet()
+        dismissDraftPreview()
 
         app.buttons["report.seal"].tap()
         require(app.buttons["report.confirmSeal"])
@@ -181,6 +181,13 @@ final class WorkflowUITests: XCTestCase {
             back.tap()
         }
         require(app.navigationBars["Jobs"])
+    }
+
+    private func dismissDraftPreview() {
+        let close = app.navigationBars["Draft preview"].buttons["Close"]
+        require(close)
+        close.tap()
+        require(app.navigationBars["Report"])
     }
 
     private func requireSharePresentation() -> XCUIElement {
