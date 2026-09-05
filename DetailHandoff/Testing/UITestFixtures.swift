@@ -6,17 +6,16 @@ import UIKit
 @MainActor
 enum UITestFixtures {
     private enum FixtureError: Error { case unknownFixture }
-    private static let testArgument = "--ui-testing"
     private static let fixtureArgument = "--screenshot-fixture"
     private static let startupFailureArgument = "--startup-failure"
     private static var didPrepareStore = false
     private static var didFailStartup = false
 
-    static var isEnabled: Bool {
-        ProcessInfo.processInfo.arguments.contains(testArgument)
+    nonisolated static var isEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-testing")
     }
 
-    static var mediaRoot: URL? {
+    nonisolated static var mediaRoot: URL? {
         guard isEnabled else { return nil }
         return root.appendingPathComponent("CaptureMedia", isDirectory: true)
     }
@@ -41,7 +40,7 @@ enum UITestFixtures {
         return container
     }
 
-    private static var root: URL {
+    private nonisolated static var root: URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("DetailHandoffUITests", isDirectory: true)
     }
