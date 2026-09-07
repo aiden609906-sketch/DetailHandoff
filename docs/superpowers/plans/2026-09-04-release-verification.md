@@ -28,6 +28,13 @@
 - [ ] Inspect screenshots using available image tools; check narrow iPhone, iPad and accessibility text sizes for clipping, hidden actions and unreadable states. Fix each observed issue with a focused regression when possible.
 - [ ] Commit `test: verify V1 flows and publish simulator screenshots`.
 
+Evidence update, 2026-09-07:
+
+- [x] UI fixtures/tests and iPhone/iPad attachment export ran at `d4f9556`; app build and 133 unit tests passed.
+- [x] The 13 iPhone and 14 iPad PNGs were inspected and their runtime failures were retained as release blockers.
+- [x] Evidence-based corrections were committed at `f2c5f2a` without bypassing production guards or system cancellation surfaces.
+- [ ] Obtain a green current iPhone and iPad UI run and inspect the replacement screenshots. Run `34074499737` started zero steps because of a GitHub Actions billing/spending-limit block.
+
 ### Task 2: PRD traceability, privacy and release handoff
 
 **Files:** README.md, `docs/release/acceptance.md`, `docs/release/privacy.md`, `docs/release/app-store.md`; update plan checklists based only on actual evidence.
@@ -37,3 +44,12 @@
 - [ ] Privacy document describes real on-device data, permissions, user-initiated export and any system backup behavior accurately. App Store document records USD 9.99 paid download, no IAP, English-first copy, camera usage and required images; never assert the name is legally cleared or available without verification.
 - [ ] Explicit pending gates: developer membership/account/team/signing, real support email and policy URL, physical iPhone+iPad camera/permissions/interruption tests, TestFlight users, business agreements/tax/banking and App Review. Do not treat CI as a substitute for these.
 - [ ] Full code review, macOS CI, GitHub sync. Commit `docs: record V1 verification and release gates`.
+
+Evidence update, 2026-09-07:
+
+- [x] The 17 V1 requirements, cross-cutting PRD sections, and 14 core acceptance criteria are mapped to source, tests, executed CI, and remaining checks in `docs/release/acceptance.md`.
+- [x] Historical 40-photo PDF and backup-roundtrip evidence is recorded without moving the stable PDF samples.
+- [x] A real Phase 1 disk-store fixture test is committed at `4c76018` and checks all baseline fields without deleting the store before migration.
+- [x] Privacy, paid-download/no-IAP, App Store metadata, and external release gates are documented without asserting unavailable credentials, URLs, devices, signing, TestFlight, or review.
+- [ ] Run the current 134-test unit target and Phase 1 migration test on macOS; follow-up CI is blocked before execution by GitHub Actions account billing/spending limits.
+- [ ] Complete full code review, green current iPhone/iPad UI CI, GitHub sync, and all applicable physical/external gates before marking either task complete.

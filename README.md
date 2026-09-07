@@ -2,12 +2,19 @@
 
 DetailHandoff is an offline-first iPhone and iPad app for mobile auto detailers to capture before-and-after photos, document visible vehicle condition, collect a pre-service acknowledgment, and export a branded PDF report.
 
-## Product status
+## Verification status
 
-Phase 1 foundation contains the local SwiftData schema, first-run business setup,
-draft-job creation and search, and the eight-stage workflow navigation skeleton.
-Camera capture, customer signatures, PDF reports, report sealing, backup/restore,
-and release verification are intentionally deferred to later phases.
+The integrated V1 source is **not yet release-ready**. The latest executed run
+built the app and passed 133 unit tests, but its iPhone and iPad UI suites failed.
+Focused corrections and a new disk-migration test are committed, but the follow-up
+GitHub Actions run did not start because of an account billing/spending-limit block.
+The corrected UI paths, current 134-test unit target, migration test, and release
+screenshots therefore remain unverified.
+
+See the evidence-backed [acceptance record](docs/release/acceptance.md),
+[privacy behavior](docs/release/privacy.md), and
+[App Store handoff](docs/release/app-store.md). None claims signing,
+physical-device testing, TestFlight distribution, or App Review.
 
 ## Product decisions
 
@@ -15,12 +22,22 @@ and release verification are intentionally deferred to later phases.
 - English-first interface
 - iPhone-first, iPad-compatible
 - USD 9.99 paid download with lifetime access
-- No account, subscription, ads, cloud backend, or AI in V1
-- Local jobs, guided photos, manual findings, customer signature, PDF reports, and backups
+- No account, subscription, in-app purchase, ads, cloud backend, or AI in V1
+- Local jobs, guided photos, manual findings, customer acknowledgment, immutable report versions, backup/restore, photo export, recent deletion, and storage cleanup
+
+Business records and metadata use SwiftData. Photos, thumbnails, signatures,
+generated PDFs, and user-created backup/export packages use local files. Data leaves
+the app through user-initiated system share/export interfaces; operating-system
+device backups may also include the app container according to the user's settings.
+Reinstalling or losing the device can lose local data without a usable backup.
 
 ## Documentation
 
 - [Product design and PRD](docs/superpowers/specs/2026-09-03-detailhandoff-design.md)
+- [Implementation plans](docs/superpowers/plans/)
+- [V1 acceptance and evidence](docs/release/acceptance.md)
+- [Privacy behavior](docs/release/privacy.md)
+- [App Store handoff](docs/release/app-store.md)
 
 ## Build and test
 
@@ -38,24 +55,22 @@ To build for a generic iOS Simulator destination without code signing:
 xcodebuild -project DetailHandoff.xcodeproj -scheme DetailHandoff -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
-To run the complete unit-test target:
+To run the complete scheme on an installed simulator:
 
 ```bash
-xcodebuild test -project DetailHandoff.xcodeproj -scheme DetailHandoff -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest'
-```
-
-For a focused workflow-state test run:
-
-```bash
-xcodebuild test -project DetailHandoff.xcodeproj -scheme DetailHandoff -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' -only-testing:DetailHandoffTests/JobStatusTests
+xcodebuild test -project DetailHandoff.xcodeproj -scheme DetailHandoff -destination 'platform=iOS Simulator,name=<installed device>,OS=<installed runtime>'
 ```
 
 Windows can edit and inspect this repository, but cannot run Xcode, XcodeGen,
-`xcodebuild`, or the iOS Simulator. Build and test results must therefore be
-collected on macOS (locally or through the repository's macOS GitHub Actions
-workflow).
+`xcodebuild`, or the iOS Simulator. The current follow-up verification must run
+on macOS after the GitHub Actions account block is resolved.
 
-Phase 1 is offline and local-only: it contains no networking, analytics,
-subscription, AI, or account/login integration. Later-phase capabilities are
-not verified or claimed here.
+## Remaining release gates
+
+At minimum: a green macOS build/unit/iPhone UI/iPad UI run with inspected
+screenshots; a passing Phase 1 disk-migration test; physical iPhone and iPad
+camera, permission, interruption, offline, and performance checks; Apple Developer
+membership, account/team/signing configuration; verified product-name clearance;
+real support and privacy-policy URLs; App Store assets and metadata; TestFlight
+users; business agreements, tax, and banking; and App Review.
 
