@@ -16,15 +16,8 @@ final class SchemaMigrationTests: XCTestCase {
         let jobID = UUID(uuidString: "0E7FD6C5-98E7-4FA0-9DA1-9EAA54705EF1")!
         let createdAt = Date(timeIntervalSince1970: 1_725_523_200)
         let updatedAt = createdAt.addingTimeInterval(3_600)
-
-        XCTAssertEqual(
-            Schema.entityName(for: Phase1DiskSchema.BusinessProfile.self),
-            Schema.entityName(for: BusinessProfile.self)
-        )
-        XCTAssertEqual(
-            Schema.entityName(for: Phase1DiskSchema.JobRecord.self),
-            Schema.entityName(for: JobRecord.self)
-        )
+        var phase1ProfilePersistentID: PersistentIdentifier?
+        var phase1JobPersistentID: PersistentIdentifier?
 
         try autoreleasepool {
             let phase1Container = try ModelContainer(
@@ -32,7 +25,7 @@ final class SchemaMigrationTests: XCTestCase {
                 configurations: ModelConfiguration(url: storeURL)
             )
             let context = phase1Container.mainContext
-            context.insert(Phase1DiskSchema.BusinessProfile(
+            let phase1Profile = Phase1DiskSchema.BusinessProfile(
                 id: profileID,
                 businessName: "Phase 1 Detail",
                 phone: "555-0101",
@@ -40,8 +33,8 @@ final class SchemaMigrationTests: XCTestCase {
                 disclaimer: "Phase 1 disclaimer",
                 createdAt: createdAt,
                 updatedAt: updatedAt
-            ))
-            context.insert(Phase1DiskSchema.JobRecord(
+            )
+            let phase1Job = Phase1DiskSchema.JobRecord(
                 id: jobID,
                 customerName: "Morgan",
                 vehicleLabel: "Phase 1 Roadster",
@@ -53,8 +46,12 @@ final class SchemaMigrationTests: XCTestCase {
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: nil
-            ))
+            )
+            context.insert(phase1Profile)
+            context.insert(phase1Job)
             try context.save()
+            phase1ProfilePersistentID = phase1Profile.persistentModelID
+            phase1JobPersistentID = phase1Job.persistentModelID
         }
 
         let migratedContainer = try ModelContainer(
@@ -66,7 +63,9 @@ final class SchemaMigrationTests: XCTestCase {
         let jobs = try migratedContext.fetch(FetchDescriptor<JobRecord>())
 
         let profile = try XCTUnwrap(profiles.first)
+        let phase1ProfilePersistentID = try XCTUnwrap(phase1ProfilePersistentID)
         XCTAssertEqual(profiles.count, 1)
+        XCTAssertEqual(phase1ProfilePersistentID.entityName, profile.persistentModelID.entityName)
         XCTAssertEqual(profile.id, profileID)
         XCTAssertEqual(profile.businessName, "Phase 1 Detail")
         XCTAssertEqual(profile.phone, "555-0101")
@@ -76,7 +75,9 @@ final class SchemaMigrationTests: XCTestCase {
         XCTAssertEqual(profile.updatedAt, updatedAt)
 
         let job = try XCTUnwrap(jobs.first)
+        let phase1JobPersistentID = try XCTUnwrap(phase1JobPersistentID)
         XCTAssertEqual(jobs.count, 1)
+        XCTAssertEqual(phase1JobPersistentID.entityName, job.persistentModelID.entityName)
         XCTAssertEqual(job.id, jobID)
         XCTAssertEqual(job.customerName, "Morgan")
         XCTAssertEqual(job.vehicleLabel, "Phase 1 Roadster")
