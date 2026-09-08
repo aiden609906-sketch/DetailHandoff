@@ -14,9 +14,11 @@ final class ScreenshotTests: XCTestCase {
 
         let appliedCategory = app.descendants(matching: .any)["ui.dynamicType.accessibility5"]
         XCTAssertTrue(appliedCategory.waitForExistence(timeout: 20), "The requested accessibility text category must be applied to the app process.")
+        let jobsList = app.collectionViews.firstMatch
+        XCTAssertTrue(jobsList.waitForExistence(timeout: 8), "The Jobs list must expose its scrollable collection at accessibility text sizes.")
         let vehicle = app.staticTexts["Complete Fixture Sedan"]
         for _ in 0..<12 where !vehicle.isHittable {
-            app.swipeUp()
+            jobsList.swipeUp()
         }
         XCTAssertTrue(vehicle.isHittable, "The complete fixture must remain reachable at accessibility text sizes.")
         vehicle.tap()

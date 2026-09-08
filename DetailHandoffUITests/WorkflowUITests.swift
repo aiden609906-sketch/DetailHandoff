@@ -73,7 +73,7 @@ final class WorkflowUITests: XCTestCase {
             remove.tap()
             XCTAssertEqual(app.staticTexts["capture.count.rear"].label, "0 photos")
             let skip = app.buttons["capture.skip.rear"]
-            scrollUntilHittable(skip)
+            scrollUntilHittable(skip, preferredDirection: .down)
             skip.tap()
             let prompt = app.alerts["Skip this view"]
             require(prompt)
@@ -86,8 +86,7 @@ final class WorkflowUITests: XCTestCase {
             scrollUntilHittable(review)
             review.tap()
             app.buttons["report.seal"].tap()
-            require(app.buttons["report.confirmSeal"])
-            app.buttons["report.confirmSeal"].tap()
+            confirmSeal()
             require(app.alerts["Report issue"])
             app.alerts.buttons["Open acknowledgment"].tap()
             require(app.navigationBars["Acknowledgment"])
@@ -103,8 +102,7 @@ final class WorkflowUITests: XCTestCase {
             app.navigationBars.buttons.firstMatch.tap()
             require(app.navigationBars["Report"])
             app.buttons["report.seal"].tap()
-            require(app.buttons["report.confirmSeal"])
-            app.buttons["report.confirmSeal"].tap()
+            confirmSeal()
             require(reportVersion())
             let expectedVersion = revision ? "Version 2" : "Version 1"
             require(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", expectedVersion)).firstMatch)
@@ -171,7 +169,7 @@ final class WorkflowUITests: XCTestCase {
         let editedService = app.switches
             .matching(NSPredicate(format: "label CONTAINS %@", "Mobile"))
             .firstMatch
-        require(editedService)
+        scrollUntilHittable(editedService)
         XCTAssertEqual(editedService.value as? String, "1", "The edited onboarding default service should be selected for a new job.")
         capture("new-job")
         app.textFields["Vehicle"].tap()
@@ -198,8 +196,7 @@ final class WorkflowUITests: XCTestCase {
         openCaptureScreen()
         openFixtureWorkflow(named: "Complete Fixture Sedan")
         openFindingsScreen()
-        require(app.buttons["Review report"])
-        app.buttons["Review report"].tap()
+        tapReachable(app.buttons["Review report"], preferredDirection: .down)
         require(app.navigationBars["Report"])
         capture("report")
 
@@ -214,8 +211,7 @@ final class WorkflowUITests: XCTestCase {
         dismissDraftPreview()
 
         app.buttons["report.seal"].tap()
-        require(app.buttons["report.confirmSeal"])
-        app.buttons["report.confirmSeal"].tap()
+        confirmSeal()
         let version = reportVersion()
         XCTAssertTrue(version.waitForExistence(timeout: 12), "Sealing a valid fixture should create a stored version.")
         capture("sealed-version")
@@ -259,6 +255,7 @@ final class WorkflowUITests: XCTestCase {
         capture("backup")
         dismissFileExporterPresentation(fileExporterPresentation)
         requireDismissed(fileExporterPresentation, message: "Cancelling backup export should dismiss the document picker.")
+        require(app.navigationBars["Backup and restore"])
 
         app.navigationBars.buttons.firstMatch.tap()
         app.staticTexts["Recently deleted"].tap()
@@ -342,20 +339,47 @@ final class WorkflowUITests: XCTestCase {
             .firstMatch
     }
 
-    private func scrollUntilHittable(_ element: XCUIElement, attempts: Int = 4, file: StaticString = #filePath, line: UInt = #line) {
+    private enum ScrollDirection {
+        case up
+        case down
+    }
+
+    private func scrollUntilHittable(
+        _ element: XCUIElement,
+        preferredDirection: ScrollDirection = .up,
+        attempts: Int = 12,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let window = app.windows.firstMatch
         for _ in 0..<attempts where !element.isHittable {
-            app.swipeUp()
-        }
-        // Back preserves a parent's scroll position; an earlier action can now be above the viewport.
-        for _ in 0..<(attempts * 2) where !element.isHittable {
-            app.swipeDown()
+            let direction: ScrollDirection
+            if element.exists, window.exists, !element.frame.isEmpty {
+                direction = element.frame.midY < window.frame.midY ? .down : .up
+            } else {
+                direction = preferredDirection
+            }
+
+            switch direction {
+            case .up: app.swipeUp()
+            case .down: app.swipeDown()
+            }
         }
         XCTAssertTrue(element.isHittable, "Expected \(element) to be reachable after scrolling.", file: file, line: line)
     }
 
-    private func tapReachable(_ element: XCUIElement) {
-        scrollUntilHittable(element)
+    private func tapReachable(_ element: XCUIElement, preferredDirection: ScrollDirection = .up) {
+        scrollUntilHittable(element, preferredDirection: preferredDirection)
         element.tap()
+    }
+
+    private func confirmSeal() {
+        let confirmation = app.buttons
+            .matching(NSPredicate(format: "identifier == %@", "report.confirmSeal"))
+            .firstMatch
+        require(confirmation)
+        XCTAssertTrue(confirmation.isHittable, "The visible seal confirmation action must be hittable.")
+        confirmation.tap()
     }
 
     private func returnToJobs() {
@@ -384,12 +408,16 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func requireFileExporterPresentation() -> XCUIElement {
-        let picker = app.descendants(matching: .any)["Browse View (Picker)"]
-        if picker.waitForExistence(timeout: 8) { return picker }
-        let navigationBar = app.navigationBars["FullDocumentManagerViewControllerNavigationBar"]
-        if navigationBar.waitForExistence(timeout: 4) { return navigationBar }
-        XCTFail("Backup export must present the real Files document picker process on iPhone or iPad.")
-        return app.otherElements.firstMatch
+        let cancel = app.buttons
+            .matching(NSPredicate(format: "label == %@", "Cancel"))
+            .firstMatch
+        let save = app.buttons
+            .matching(NSPredicate(format: "label == %@", "Save"))
+            .firstMatch
+        require(cancel, timeout: 12)
+        require(save)
+        XCTAssertTrue(cancel.isHittable, "The real Files exporter must expose a hittable Cancel action.")
+        return cancel
     }
 
     private func dismissSharePresentation(_ presentation: XCUIElement) {
@@ -397,11 +425,7 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func dismissFileExporterPresentation(_ presentation: XCUIElement) {
-        let cancel = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@", "Cancel"))
-            .firstMatch
-        require(cancel)
-        cancel.tap()
+        presentation.tap()
     }
 
     private func dismissSystemPresentation(_ presentation: XCUIElement, controls: [String]) {
