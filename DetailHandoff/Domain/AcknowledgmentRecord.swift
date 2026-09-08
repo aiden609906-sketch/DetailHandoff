@@ -25,10 +25,22 @@ struct AcknowledgmentRecord: Codable, Equatable {
     var unavailableReason: String
     var strokes: [SignatureStroke]
     var contentDigest: String
+    // Absent in legacy records. Version 2 includes the Before portion of mixed-phase findings.
+    var contentDigestVersion: Int? = nil
 }
 
 enum AcknowledgmentContentDigest {
     static func make(for job: JobRecord, document: CaptureDocument) throws -> String {
+        try make(for: job, document: document, includesMixedFindings: true)
+    }
+
+    /// Historical snapshots keep the scope actually acknowledged at the time they were sealed.
+    /// Never use the legacy scope to authorize mutable jobs or new seals.
+    static func makeForFrozenRecord(_ record: AcknowledgmentRecord, job: JobRecord, document: CaptureDocument) throws -> String {
+        try make(for: job, document: document, includesMixedFindings: record.contentDigestVersion == 2)
+    }
+
+    private static func make(for job: JobRecord, document: CaptureDocument, includesMixedFindings: Bool) throws -> String {
         let beforePhotos = document.photos
             .filter { $0.phase == .before }
             .map {
@@ -59,11 +71,10 @@ enum AcknowledgmentContentDigest {
 
         var findings: [PreServiceFinding] = []
         for finding in document.findings {
-            guard !finding.photoIDs.isEmpty,
-                  finding.photoIDs.allSatisfy({ beforePhotoIDs.contains($0) }) else {
-                continue
-            }
-            let photoIDs: [String] = finding.photoIDs.map(\.uuidString).sorted()
+            let linkedBeforeIDs = finding.photoIDs.filter { beforePhotoIDs.contains($0) }
+            guard !linkedBeforeIDs.isEmpty else { continue }
+            if !includesMixedFindings, linkedBeforeIDs.count != finding.photoIDs.count { continue }
+            let photoIDs = linkedBeforeIDs.map(\.uuidString).sorted()
             findings.append(
                 PreServiceFinding(
                     id: finding.id.uuidString,

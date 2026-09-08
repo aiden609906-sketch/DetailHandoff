@@ -1,6 +1,6 @@
 # App Store handoff
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
 
 ## Submission status
 
@@ -55,7 +55,8 @@ The 27 PNGs from CI `33936741128` are failure diagnostics, not store assets: ins
 
 ## Metadata and account checklist
 
-- [ ] Resolve GitHub Actions billing/spending limits and obtain a green current macOS build, 137/0 unit target, iPhone UI, and iPad UI run with inspected attachments.
+- [ ] Resolve GitHub Actions billing/spending limits and obtain a green current macOS build, all 149 unit-test methods, and all 9 UI-test methods on both iPhone and iPad with inspected attachments. These counts describe source, not test results.
+- [ ] Verify the bundled and archived `PrivacyInfo.xcprivacy` declares DiskSpace reason `E174.1` for the actual capture/import storage check, without tracking or collected-data claims beyond the implementation.
 - [ ] Pass the Phase 1 on-disk migration fixture without losing baseline records.
 - [ ] Complete physical iPhone and iPad camera, permissions, interruption, offline, accessibility, performance, Files/share, backup/restore, deletion, and low-storage checks.
 - [ ] Confirm Apple Developer Program membership, legal account holder, team, bundle identifier, certificates, provisioning profiles, signing, entitlements, release archive, and upload validation.

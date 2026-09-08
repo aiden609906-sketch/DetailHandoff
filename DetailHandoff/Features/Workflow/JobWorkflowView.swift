@@ -144,6 +144,8 @@ struct JobWorkflowView: View {
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("workflow.findings")
+                captureCorrection(phase: .before)
+                captureCorrection(phase: .after)
             }
         case .finalized, .archived:
             VStack(spacing: AppTheme.spacing8) {
@@ -164,6 +166,16 @@ struct JobWorkflowView: View {
         default:
             EmptyView()
         }
+    }
+
+    private func captureCorrection(phase: CapturePhase) -> some View {
+        NavigationLink {
+            CaptureView(job: job, phase: phase)
+        } label: {
+            WorkflowActionLabel("Edit \(phase == .before ? "Before" : "After") photos", systemImage: "camera")
+        }
+        .buttonStyle(.bordered)
+        .accessibilityIdentifier(phase == .before ? "workflow.editBeforeCapture" : "workflow.editAfterCapture")
     }
 
     private func captureActions(phase: CapturePhase) -> some View {

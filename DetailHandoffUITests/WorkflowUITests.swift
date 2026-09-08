@@ -8,6 +8,148 @@ final class WorkflowUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // Catches parent onAppear reloading both edited and newly inserted templates after child Back.
+    func testNestedTemplateEditsSurviveBackSaveAndReopen() throws {
+        launch(arguments: ["--ui-testing", "--screenshot-fixture", "trash"])
+        app.buttons["Settings"].firstMatch.tap()
+        require(app.navigationBars["Settings"])
+        app.staticTexts["Services and capture templates"].tap()
+        require(app.navigationBars["Services and templates"])
+        app.staticTexts["Standard Detail"].firstMatch.tap()
+        require(app.navigationBars["Capture template"])
+        replaceText(in: app.textFields["Template name"], with: "Revised Standard")
+        replaceText(in: app.textFields["Position name"].firstMatch, with: "Front revised")
+        app.navigationBars.buttons.firstMatch.tap()
+        require(app.staticTexts["Revised Standard"].firstMatch)
+        scrollUntilHittable(app.buttons["Add template"])
+        app.buttons["Add template"].tap()
+        scrollUntilHittable(app.staticTexts["Untitled template"].firstMatch)
+        app.staticTexts["Untitled template"].firstMatch.tap()
+        replaceText(in: app.textFields["Template name"], with: "Express Walkaround")
+        app.navigationBars.buttons.firstMatch.tap()
+        require(app.staticTexts["Express Walkaround"].firstMatch)
+        app.navigationBars.buttons["Save"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
+        require(app.navigationBars["Settings"])
+        app.staticTexts["Services and capture templates"].tap()
+        scrollUntilHittable(app.staticTexts["Revised Standard"].firstMatch)
+        app.staticTexts["Revised Standard"].firstMatch.tap()
+        XCTAssertEqual(app.textFields["Template name"].value as? String, "Revised Standard")
+        XCTAssertEqual(app.textFields["Position name"].firstMatch.value as? String, "Front revised")
+        app.navigationBars.buttons.firstMatch.tap()
+        scrollUntilHittable(app.staticTexts["Express Walkaround"].firstMatch)
+        app.staticTexts["Express Walkaround"].firstMatch.tap()
+        XCTAssertEqual(app.textFields["Template name"].value as? String, "Express Walkaround")
+    }
+
+    // Complete evidence must remain editable in review and revision; edits must block stale resealing.
+    func testReviewAndRevisionExposePhotoCorrectionAndRequireNewAcknowledgment() throws {
+        for revision in [false, true] {
+            let vehicle = revision ? "Revision Fixture SUV" : "Complete Fixture Sedan"
+            launch(arguments: ["--ui-testing", "--screenshot-fixture", revision ? "revision" : "complete"])
+            openFixtureWorkflow(named: vehicle)
+            if revision {
+                app.buttons["workflow.sealedReport"].tap()
+                require(reportVersion())
+                app.buttons["report.createRevision"].tap()
+                app.navigationBars.buttons.firstMatch.tap()
+            }
+            let afterRoute = app.buttons["workflow.editAfterCapture"]
+            scrollUntilHittable(afterRoute)
+            afterRoute.tap()
+            require(app.navigationBars["After photos"])
+            let afterRetake = app.buttons["capture.camera.front"]
+            scrollUntilHittable(afterRetake)
+            XCTAssertTrue(afterRetake.isEnabled)
+            app.navigationBars.buttons.firstMatch.tap()
+            let beforeRoute = app.buttons["workflow.editBeforeCapture"]
+            scrollUntilHittable(beforeRoute)
+            beforeRoute.tap()
+            require(app.navigationBars["Before photos"])
+            XCTAssertTrue(app.buttons["capture.camera.front"].isEnabled)
+            let remove = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "capture.remove.rear.")).firstMatch
+            scrollUntilHittable(remove)
+            XCTAssertEqual(app.staticTexts["capture.count.rear"].label, "1 photo")
+            remove.tap()
+            XCTAssertEqual(app.staticTexts["capture.count.rear"].label, "0 photos")
+            let skip = app.buttons["capture.skip.rear"]
+            scrollUntilHittable(skip)
+            skip.tap()
+            let prompt = app.alerts["Skip this view"]
+            require(prompt)
+            prompt.textFields.firstMatch.typeText("Rechecked before handoff")
+            prompt.buttons["Save"].tap()
+            require(app.staticTexts["Skipped: Rechecked before handoff"])
+            capture(revision ? "revision-before-correction" : "review-before-correction")
+            app.navigationBars.buttons.firstMatch.tap()
+            let review = app.buttons["Review report"]
+            scrollUntilHittable(review)
+            review.tap()
+            app.buttons["report.seal"].tap()
+            require(app.buttons["report.confirmSeal"])
+            app.buttons["report.confirmSeal"].tap()
+            require(app.alerts["Report issue"])
+            app.alerts.buttons["Open acknowledgment"].tap()
+            require(app.navigationBars["Acknowledgment"])
+            let stale = app.staticTexts["acknowledgment.status"]
+            scrollUntilHittable(stale)
+            XCTAssertTrue(stale.label.contains("changed"))
+            tapReachable(app.buttons["acknowledgment.replace"])
+            let unavailable = app.buttons["Customer unavailable"]
+            scrollUntilHittable(unavailable)
+            unavailable.tap()
+            app.alerts.textFields.firstMatch.typeText("Customer unavailable for correction")
+            app.alerts.buttons["Record"].tap()
+            app.navigationBars.buttons.firstMatch.tap()
+            require(app.navigationBars["Report"])
+            app.buttons["report.seal"].tap()
+            require(app.buttons["report.confirmSeal"])
+            app.buttons["report.confirmSeal"].tap()
+            require(reportVersion())
+            let expectedVersion = revision ? "Version 2" : "Version 1"
+            require(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", expectedVersion)).firstMatch)
+            if revision {
+                let originalPreview = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "report.preview.")).element(boundBy: 1)
+                scrollUntilHittable(originalPreview)
+                originalPreview.tap()
+                require(app.navigationBars.matching(NSPredicate(format: "label ENDSWITH %@", "v1")).firstMatch)
+            }
+        }
+    }
+
+    // Saved acknowledgment must be visible on reopen and only change through an explicit replacement.
+    func testSavedAcknowledgmentReopensAndReplacementCanBeCancelled() throws {
+        launch(arguments: ["--ui-testing", "--screenshot-fixture", "complete"])
+        openFixtureWorkflow(named: "Complete Fixture Sedan")
+        app.buttons["Review report"].tap()
+        app.buttons["report.acknowledgment"].tap()
+        let name = app.staticTexts["acknowledgment.savedName"]
+        scrollUntilHittable(name)
+        XCTAssertEqual(name.label, "Taylor Fixture")
+        let recordedAt = app.staticTexts["acknowledgment.savedTime"]
+        require(recordedAt)
+        let savedTime = recordedAt.label
+        require(app.descendants(matching: .any).matching(identifier: "acknowledgment.savedSignature").firstMatch)
+        XCTAssertFalse(app.textFields["Customer name"].exists)
+        tapReachable(app.buttons["acknowledgment.replace"])
+        scrollUntilHittable(app.buttons["acknowledgment.cancelReplacement"])
+        app.buttons["acknowledgment.cancelReplacement"].tap()
+        XCTAssertEqual(recordedAt.label, savedTime)
+        XCTAssertEqual(name.label, "Taylor Fixture")
+        tapReachable(app.buttons["acknowledgment.replace"])
+        scrollUntilHittable(app.buttons["Customer unavailable"])
+        app.buttons["Customer unavailable"].tap()
+        app.alerts.textFields.firstMatch.typeText("Customer left keys at office")
+        app.alerts.buttons["Record"].tap()
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["report.acknowledgment"].tap()
+        let reason = app.staticTexts["acknowledgment.unavailableReason"]
+        scrollUntilHittable(reason)
+        XCTAssertEqual(reason.label, "Customer left keys at office")
+        XCTAssertFalse(app.textFields["Customer name"].exists)
+        capture("saved-unavailable-acknowledgment")
+    }
+
     func testCleanLaunchCreatesSearchableJobAndOpensWorkflow() throws {
         launch(arguments: ["--ui-testing"])
 
@@ -146,6 +288,14 @@ final class WorkflowUITests: XCTestCase {
         app.launch()
     }
 
+    private func replaceText(in field: XCUIElement, with text: String) {
+        require(field)
+        field.tap()
+        let existing = field.value as? String ?? ""
+        if !existing.isEmpty { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count)) }
+        field.typeText(text)
+    }
+
     private func openFixtureWorkflow(named vehicle: String) {
         require(app.navigationBars["Jobs"])
         capture("fixture-list")
@@ -196,7 +346,16 @@ final class WorkflowUITests: XCTestCase {
         for _ in 0..<attempts where !element.isHittable {
             app.swipeUp()
         }
+        // Back preserves a parent's scroll position; an earlier action can now be above the viewport.
+        for _ in 0..<(attempts * 2) where !element.isHittable {
+            app.swipeDown()
+        }
         XCTAssertTrue(element.isHittable, "Expected \(element) to be reachable after scrolling.", file: file, line: line)
+    }
+
+    private func tapReachable(_ element: XCUIElement) {
+        scrollUntilHittable(element)
+        element.tap()
     }
 
     private func returnToJobs() {

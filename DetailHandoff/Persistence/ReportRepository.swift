@@ -150,10 +150,13 @@ final class ReportRepository {
             }
         }
         let acknowledgmentRepository = AcknowledgmentRepository(context: context)
-        guard let acknowledgment = try acknowledgmentRepository.record(for: job) else { throw ReportRepositoryError.missingAcknowledgment }
+        guard var acknowledgment = try acknowledgmentRepository.record(for: job) else { throw ReportRepositoryError.missingAcknowledgment }
         guard acknowledgment.contentDigest == (try AcknowledgmentContentDigest.make(for: job, document: document)) else {
             throw ReportRepositoryError.staleAcknowledgment
         }
+        // The comparison above proved the current scope, even for a still-current legacy record.
+        // Store that scope in the new snapshot without changing the live record or its signing time.
+        acknowledgment.contentDigestVersion = 2
         return ReportSnapshot(job: job, business: business, capture: document, acknowledgment: acknowledgment)
     }
 

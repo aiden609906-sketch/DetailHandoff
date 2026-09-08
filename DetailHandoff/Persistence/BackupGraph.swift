@@ -76,7 +76,7 @@ struct BackupGraph {
                     }
                 }
                 guard let acknowledgment = try acknowledgments.record(for: snapshotJob),
-                      acknowledgment.contentDigest == (try AcknowledgmentContentDigest.make(for: snapshotJob, document: frozenCapture)) else {
+                      acknowledgment.contentDigest == (try AcknowledgmentContentDigest.makeForFrozenRecord(acknowledgment, job: snapshotJob, document: frozenCapture)) else {
                     throw BackupError.invalidPackage("invalid frozen report acknowledgment")
                 }
                 if let logo = report.snapshot.logoImagePath { try add(logo, kind: .image) }

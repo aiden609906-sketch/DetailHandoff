@@ -8,9 +8,20 @@ protocol CaptureStorageCapacityChecking {
 }
 
 struct FileSystemCaptureStorageCapacityChecker: CaptureStorageCapacityChecking {
+    private let root: URL
+    private let readCapacity: (URL) throws -> Int64?
+
+    init(root: URL = MediaStore.defaultRoot, readCapacity: @escaping (URL) throws -> Int64? = { url in
+        try url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage
+    }) {
+        self.root = root
+        self.readCapacity = readCapacity
+    }
+
     func availableImportantCapacity() throws -> Int64 {
-        let values = try MediaStore.defaultRoot.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-        guard let capacity = values.volumeAvailableCapacityForImportantUsage else {
+        // No-logo onboarding has no media yet. Prepare the actual destination on its own volume.
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        guard let capacity = try readCapacity(root) else {
             throw CocoaError(.fileReadUnknown)
         }
         return Int64(capacity)
@@ -164,6 +175,7 @@ struct CaptureView: View {
                 Spacer()
                 Text("\(photos.count) photo\(photos.count == 1 ? "" : "s")")
                     .font(.subheadline.weight(.medium))
+                    .accessibilityIdentifier("capture.count.\(slot.id)")
             }
             if let skip {
                 HStack {
@@ -187,6 +199,7 @@ struct CaptureView: View {
                                 Button("Remove", role: .destructive) { remove(photo) }
                                     .font(.caption)
                                     .disabled(isImporting || !isMutable)
+                                    .accessibilityIdentifier("capture.remove.\(slot.id).\(photo.id.uuidString)")
                             }
                         }
                     }
@@ -194,12 +207,14 @@ struct CaptureView: View {
             }
             HStack {
                 Button(photos.isEmpty ? "Take photo" : "Retake") { begin(.camera(slot.id)) }
+                    .accessibilityIdentifier("capture.camera.\(slot.id)")
                 Button("Import") { begin(.importPhotos(slot.id)) }
                 Spacer()
                 Button(skip == nil ? "Skip" : "Change skip") {
                     skipReason = skip?.reason ?? ""
                     skipSlot = slot
                 }
+                .accessibilityIdentifier("capture.skip.\(slot.id)")
             }
             .buttonStyle(.bordered)
             .disabled(isImporting || !isMutable)

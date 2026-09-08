@@ -6,6 +6,56 @@ import XCTest
 @testable import DetailHandoff
 
 final class ReportRepositoryTests: XCTestCase {
+    // A still-current legacy Before-only signature can gain After links without breaking new backup history.
+    @MainActor
+    func testSealingCurrentLegacyAcknowledgmentWithAfterLinkRecordsCurrentDigestScope() throws {
+        let fixture = try ReportFixture(photoCount: 1, signed: true)
+        defer { fixture.cleanUp() }
+        let acknowledgments = AcknowledgmentRepository(context: fixture.container.mainContext)
+        var legacy = try XCTUnwrap(try acknowledgments.record(for: fixture.job))
+        legacy.contentDigestVersion = nil
+        fixture.job.acknowledgmentData = try JSONEncoder().encode(legacy)
+        try fixture.container.mainContext.save()
+        let capture = CaptureRepository(context: fixture.container.mainContext, media: fixture.media)
+        try capture.addPhoto(to: fixture.job, data: ReportFixture.imageData(index: 1), slotID: "front", phase: .after)
+        let document = try capture.document(for: fixture.job)
+        var finding = try XCTUnwrap(document.findings.first)
+        finding.photoIDs.append(try XCTUnwrap(document.photos.first { $0.phase == .after }).id)
+        try capture.saveFinding(on: fixture.job, finding: finding)
+        XCTAssertTrue(try acknowledgments.isCurrent(job: fixture.job))
+        let version = try fixture.repository.seal(job: fixture.job, business: fixture.business)
+        XCTAssertEqual(version.snapshot.acknowledgment.contentDigestVersion, 2)
+        XCTAssertEqual(version.snapshot.acknowledgment.recordedAt, legacy.recordedAt)
+        XCTAssertEqual(version.snapshot.acknowledgment.strokes, legacy.strokes)
+        XCTAssertEqual(try acknowledgments.record(for: fixture.job), legacy)
+        XCTAssertNoThrow(try BackupService(context: fixture.container.mainContext, media: fixture.media).makeBackup())
+    }
+
+    // Correcting Before evidence in review/revision must require a new acknowledgment to reseal.
+    @MainActor
+    func testBeforePhotoRevisionRequiresNewAcknowledgmentAndPreservesOriginalFiles() throws {
+        let fixture = try ReportFixture(photoCount: 1, signed: true)
+        defer { fixture.cleanUp() }
+        let first = try fixture.repository.seal(job: fixture.job, business: fixture.business)
+        let originalPDF = try fixture.media.readRegularAsset(at: first.pdfPath)
+        let originalPhoto = try XCTUnwrap(first.snapshot.capture.photos.first)
+        let originalPhotoBytes = try fixture.media.readRegularAsset(at: originalPhoto.imagePath)
+        try fixture.repository.beginRevision(job: fixture.job)
+        let capture = CaptureRepository(context: fixture.container.mainContext, media: fixture.media)
+        try capture.addPhoto(to: fixture.job, data: ReportFixture.imageData(index: 1), slotID: "front", phase: .before)
+        XCTAssertThrowsError(try fixture.repository.seal(job: fixture.job, business: fixture.business)) {
+            XCTAssertEqual($0 as? ReportRepositoryError, .staleAcknowledgment)
+        }
+        XCTAssertEqual(try fixture.repository.versions(for: fixture.job), [first])
+        try AcknowledgmentRepository(context: fixture.container.mainContext).markUnavailable(job: fixture.job, reason: "Customer away during correction")
+        let second = try fixture.repository.seal(job: fixture.job, business: fixture.business)
+        XCTAssertEqual(second.version, 2)
+        XCTAssertEqual(second.snapshot.capture.photos.count, 2)
+        XCTAssertEqual(first.snapshot.capture.photos.count, 1)
+        XCTAssertEqual(try fixture.media.readRegularAsset(at: first.pdfPath), originalPDF)
+        XCTAssertEqual(try fixture.media.readRegularAsset(at: originalPhoto.imagePath), originalPhotoBytes)
+    }
+
     // Catches omitted photos/slots, clipped long text, missing branding or evidence labels.
     @MainActor
     func testFortyPhotoPDFPaginatesAllEvidenceAndLongNotes() throws {

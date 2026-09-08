@@ -54,7 +54,8 @@ final class AcknowledgmentRepository {
                 confirmationText: AcknowledgmentRecord.confirmationText,
                 unavailableReason: "",
                 strokes: strokes,
-                contentDigest: try contentDigest(for: job)
+                contentDigest: try contentDigest(for: job),
+                contentDigestVersion: 2
             ),
             on: job
         )
@@ -72,7 +73,8 @@ final class AcknowledgmentRepository {
                 confirmationText: AcknowledgmentRecord.confirmationText,
                 unavailableReason: trimmedReason,
                 strokes: [],
-                contentDigest: try contentDigest(for: job)
+                contentDigest: try contentDigest(for: job),
+                contentDigestVersion: 2
             ),
             on: job
         )
@@ -109,6 +111,9 @@ final class AcknowledgmentRepository {
     }
 
     private func validate(_ record: AcknowledgmentRecord) throws {
+        guard record.contentDigestVersion == nil || record.contentDigestVersion == 2 else {
+            throw AcknowledgmentRepositoryError.corruptRecord
+        }
         guard record.confirmationText == AcknowledgmentRecord.confirmationText, !record.contentDigest.isEmpty else {
             throw AcknowledgmentRepositoryError.corruptRecord
         }

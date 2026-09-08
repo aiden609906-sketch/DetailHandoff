@@ -111,6 +111,7 @@ private struct ServicesAndTemplatesView: View {
     @Environment(\.modelContext) private var modelContext
     let profile: BusinessProfile
     @State private var configuration: BusinessConfiguration
+    @State private var hasLoadedConfiguration = false
     @State private var errorMessage: String?
     @State private var removalWarning: String?
 
@@ -162,11 +163,19 @@ private struct ServicesAndTemplatesView: View {
         }
         .navigationTitle("Services and templates")
         .onAppear {
-            configuration = (try? BusinessRepository(context: modelContext).configuration(for: profile)) ?? .standard
+            guard !hasLoadedConfiguration else { return }
+            do {
+                configuration = try BusinessRepository(context: modelContext).configuration(for: profile)
+                hasLoadedConfiguration = true
+            } catch {
+                errorMessage = "Saved templates could not be read. Reopen this editor to try again."
+            }
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) { EditButton() }
-            ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save", action: save).disabled(!hasLoadedConfiguration)
+            }
         }
         .alert("Template in use", isPresented: warningShown) { Button("OK", role: .cancel) {} } message: { Text(removalWarning ?? "") }
         .alert("Couldn’t save templates", isPresented: errorShown) { Button("OK", role: .cancel) {} } message: { Text(errorMessage ?? "") }

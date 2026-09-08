@@ -31,8 +31,8 @@ enum BackupRebase {
                     var snapshot = reports[reportIndex].snapshot
                     snapshot.logoImagePath = try mapped(snapshot.logoImagePath, paths: paths)
                     snapshot.capture = try remap(snapshot.capture, paths: paths)
-                    // Every original frozen snapshot was verified current before reaching here.
-                    snapshot.acknowledgment.contentDigest = try AcknowledgmentContentDigest.make(for: BackupGraph.snapshotJob(snapshot), document: snapshot.capture)
+                    // Every original frozen snapshot was verified against its recorded digest scope.
+                    snapshot.acknowledgment.contentDigest = try AcknowledgmentContentDigest.makeForFrozenRecord(snapshot.acknowledgment, job: BackupGraph.snapshotJob(snapshot), document: snapshot.capture)
                     reports[reportIndex].snapshot = snapshot
                 }
                 job.reportsData = try JSONEncoder().encode(reports)

@@ -1,10 +1,77 @@
 import CryptoKit
+import PDFKit
 import SwiftData
 import UIKit
 import XCTest
 @testable import DetailHandoff
 
 final class BackupServiceTests: XCTestCase {
+    // Restore must derive PDF type from validated report ownership, even for old .asset paths.
+    @MainActor
+    func testRestoredReportShareURLHasPDFExtensionUnchangedBytesAndReopens() throws {
+        for incomingName in ["legacy.asset", "untrusted.command"] {
+            let f = try BackupFixture()
+            defer { f.cleanUp() }
+            let (original, originalFiles) = try BackupPackage.unpack(f.service.makeBackup())
+            var manifest = original
+            var files = originalFiles
+            let index = try XCTUnwrap(manifest.jobs.firstIndex { $0.id == f.job.id })
+            var reports = try JSONDecoder().decode([ReportVersion].self, from: XCTUnwrap(manifest.jobs[index].reportsData))
+            let oldPath = reports[0].pdfPath
+            let bytes = try XCTUnwrap(files.removeValue(forKey: oldPath))
+            let checksum = reports[0].sha256
+            reports[0].pdfPath = incomingName
+            files[incomingName] = bytes
+            manifest.jobs[index].reportsData = try JSONEncoder().encode(reports)
+            let assetIndex = try XCTUnwrap(manifest.assets.firstIndex { $0.relativePath == oldPath })
+            manifest.assets[assetIndex].relativePath = incomingName
+            let package = try BackupPackage.make(manifest: manifest, files: files)
+            try f.service.restore(f.service.validate(package))
+
+            let fresh = ModelContext(f.container)
+            let restored = try XCTUnwrap(try fresh.fetch(FetchDescriptor<JobRecord>()).first { $0.id == f.job.id })
+            let report = try XCTUnwrap(try ReportRepository(context: fresh, media: f.media).versions(for: restored).first)
+            let shared = try ReportAssetLoader.load(version: report, media: f.media)
+            XCTAssertEqual(shared.url.pathExtension, "pdf")
+            XCTAssertEqual(shared.data, bytes)
+            XCTAssertEqual(try Data(contentsOf: shared.url), bytes)
+            XCTAssertEqual(report.sha256, checksum)
+            XCTAssertEqual(BackupPackage.digest(shared.data), checksum)
+            XCTAssertGreaterThan(try XCTUnwrap(PDFDocument(url: shared.url)).pageCount, 0)
+            XCTAssertTrue(report.pdfPath.hasPrefix("Restores/"))
+            XCTAssertNoThrow(try BackupService(context: fresh, media: f.media).makeBackup())
+        }
+    }
+
+    // A digest upgrade must not make legacy frozen PDFs unrestorable or renew a stale live signature.
+    @MainActor
+    func testLegacyMixedFindingFrozenReportRestoresWhileLiveAcknowledgmentStaysStale() throws {
+        let f = try BackupFixture()
+        defer { f.cleanUp() }
+        var report = try XCTUnwrap(try f.reports.versions(for: f.job).first)
+        report.snapshot.capture.findings[0].photoIDs = report.snapshot.capture.photos.map(\.id)
+        var legacySignedContent = report.snapshot.capture
+        // V1 omitted any mixed-phase finding entirely; this reconstructs that historical payload.
+        legacySignedContent.findings = []
+        report.snapshot.acknowledgment.contentDigestVersion = nil
+        report.snapshot.acknowledgment.contentDigest = try AcknowledgmentContentDigest.make(
+            for: BackupGraph.snapshotJob(report.snapshot), document: legacySignedContent)
+        f.job.captureData = try JSONEncoder().encode(report.snapshot.capture)
+        f.job.acknowledgmentData = try JSONEncoder().encode(report.snapshot.acknowledgment)
+        f.job.reportsData = try JSONEncoder().encode([report])
+        try f.context.save()
+        let originalPDF = try f.media.readRegularAsset(at: report.pdfPath)
+        XCTAssertFalse(try AcknowledgmentRepository(context: f.context).isCurrent(job: f.job))
+        try f.service.restore(f.service.validate(f.service.makeBackup()))
+        let fresh = ModelContext(f.container)
+        let restored = try XCTUnwrap(try fresh.fetch(FetchDescriptor<JobRecord>()).first { $0.id == f.job.id })
+        XCTAssertFalse(try AcknowledgmentRepository(context: fresh).isCurrent(job: restored))
+        let historical = try XCTUnwrap(try ReportRepository(context: fresh, media: f.media).versions(for: restored).first)
+        XCTAssertNil(historical.snapshot.acknowledgment.contentDigestVersion)
+        XCTAssertEqual(try ReportAssetLoader.load(version: historical, media: f.media).data, originalPDF)
+        XCTAssertNoThrow(try BackupService(context: fresh, media: f.media).makeBackup())
+    }
+
     // Catches omitted nullable metadata, trash, frozen originals and storage-only signature invalidation.
     @MainActor
     func testRoundTripRestoresAllFieldsFrozenMediaAndCurrentSignature() throws {

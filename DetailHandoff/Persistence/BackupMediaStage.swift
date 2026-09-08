@@ -17,11 +17,14 @@ final class BackupMediaStage {
         }
     }
 
-    func write(_ files: [String: Data]) throws -> [String: String] {
+    func write(_ files: [String: Data], pdfPaths: Set<String>) throws -> [String: String] {
         var paths: [String: String] = [:]
         // Flat generated names avoid case/Unicode aliases and file/directory conflicts from imports.
         for (index, original) in files.keys.sorted().enumerated() {
-            let path = "\(namespace)/\(index).asset"
+            // The graph has already validated report ownership, PDF content and checksum.
+            // Never carry an imported filename extension into the private destination.
+            let suffix = pdfPaths.contains(original) ? "pdf" : "asset"
+            let path = "\(namespace)/\(index).\(suffix)"
             guard let bytes = files[original] else { throw BackupError.invalidPackage("missing staged bytes") }
             try bytes.write(to: media.url(for: path), options: .atomic)
             paths[original] = path

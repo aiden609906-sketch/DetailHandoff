@@ -87,9 +87,11 @@ struct CameraPicker: UIViewControllerRepresentable {
                 overlay = referenceOverlay
             } else {
                 overlay = CameraReferenceOverlayView(image: image)
+                overlay.updateLayout(in: picker.view.bounds, safeAreaInsets: picker.view.safeAreaInsets)
                 picker.cameraOverlayView = overlay
                 referenceOverlay = overlay
             }
+            overlay.updateLayout(in: picker.view.bounds, safeAreaInsets: picker.view.safeAreaInsets)
             overlay.imageView.alpha = opacity
         }
 
@@ -116,24 +118,39 @@ struct CameraPicker: UIViewControllerRepresentable {
     }
 }
 
-private final class CameraReferenceOverlayView: UIView {
+final class CameraReferenceOverlayView: UIView {
     let imageView: UIImageView
+    private var presentationInsets = UIEdgeInsets.zero
 
     init(image: UIImage) {
         imageView = UIImageView(image: image)
         super.init(frame: .zero)
         isUserInteractionEnabled = false
         backgroundColor = .clear
+        autoresizingMask = [.flexibleWidth, .flexibleHeight]
         imageView.contentMode = .scaleAspectFit
-        imageView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(imageView)
-        NSLayoutConstraint.activate([
-            imageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
-            imageView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
-            imageView.topAnchor.constraint(equalTo: topAnchor, constant: 72),
-            imageView.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -160),
-            imageView.heightAnchor.constraint(lessThanOrEqualTo: heightAnchor, multiplier: 0.42)
-        ])
+    }
+
+    func updateLayout(in presentationBounds: CGRect, safeAreaInsets: UIEdgeInsets) {
+        frame = CGRect(origin: .zero, size: presentationBounds.size)
+        presentationInsets = safeAreaInsets
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // Autoresizing follows the camera host on rotation; keep the reference above its controls.
+        let top = max(72, presentationInsets.top + 16)
+        let bottom = max(160, presentationInsets.bottom + 120)
+        let left = presentationInsets.left + 24
+        let right = presentationInsets.right + 24
+        imageView.frame = CGRect(
+            x: left,
+            y: top,
+            width: max(0, bounds.width - left - right),
+            height: min(bounds.height * 0.42, max(0, bounds.height - top - bottom))
+        )
     }
 
     required init?(coder: NSCoder) { nil }

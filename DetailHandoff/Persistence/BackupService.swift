@@ -66,7 +66,11 @@ final class BackupService {
         let ledger = try mergedLedger(incoming: validated.manifest, currentProfiles: currentProfiles, currentJobs: currentJobs, context: replacement)
         let stage = try BackupMediaStage(media: media)
         do {
-            let paths = try stage.write(validated.files)
+            let pdfPaths = Set(graph.assets.compactMap { path, kind -> String? in
+                if case .pdf = kind { return path }
+                return nil
+            })
+            let paths = try stage.write(validated.files, pdfPaths: pdfPaths)
             var rebased = try BackupRebase.apply(to: validated.manifest, paths: paths, graph: graph)
             // Keep unchanged payload bytes (and legacy nil) when no larger reservation was merged.
             if ledger != (try ReportNumberLedger.decode(rebased.profile.reportNumberLedgerData)) {

@@ -8,8 +8,11 @@ The integrated V1 source is **not yet release-ready**. The latest executed run
 built the app and passed 133 unit tests, but its iPhone and iPad UI suites failed.
 Focused corrections and a new disk-migration test are committed, but the follow-up
 GitHub Actions run did not start because of an account billing/spending-limit block.
-The corrected UI paths, current 137-test unit target, migration test, and release
-screenshots therefore remain unverified.
+The final-review fixes add capture/revision access, acknowledgment integrity and
+saved-record presentation, safe PDF restore typing, and a DiskSpace privacy manifest.
+The current 149 unit-test methods, 9 UI-test methods, migration coverage, and release
+screenshots remain unverified on macOS. Windows plist/resource and diff checks do
+not establish an iOS build or test pass.
 
 See the evidence-backed [acceptance record](docs/release/acceptance.md),
 [privacy behavior](docs/release/privacy.md), and

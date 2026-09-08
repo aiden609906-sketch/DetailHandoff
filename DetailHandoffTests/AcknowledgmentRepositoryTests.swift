@@ -4,6 +4,101 @@ import XCTest
 @testable import DetailHandoff
 
 final class AcknowledgmentRepositoryTests: XCTestCase {
+    // Unknown digest schemes cannot be treated as legacy/current acknowledgment evidence.
+    @MainActor
+    func testRecordRejectsUnsupportedDigestVersion() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        let repository = AcknowledgmentRepository(context: container.mainContext)
+        try repository.sign(job: job, name: "Marcus", strokes: validStrokes())
+        var record = try XCTUnwrap(try repository.record(for: job))
+        record.contentDigestVersion = 99
+        job.acknowledgmentData = try JSONEncoder().encode(record)
+        XCTAssertThrowsError(try repository.record(for: job)) {
+            XCTAssertEqual($0 as? AcknowledgmentRepositoryError, .corruptRecord)
+        }
+    }
+
+    // Filtering out mixed-phase findings lets changes to signed Before condition go unnoticed.
+    @MainActor
+    func testMixedPhaseFindingMutationAndDeletionInvalidateAcknowledgment() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        let capture = CaptureRepository(context: container.mainContext, media: MediaStore(root: MediaStore.defaultRoot))
+        let acknowledgment = AcknowledgmentRepository(context: container.mainContext)
+        let before = CapturedPhoto(slotID: "front", phase: .before, imagePath: "before.jpg", thumbnailPath: "before-thumb.jpg")
+        let after = CapturedPhoto(slotID: "front", phase: .after, imagePath: "after.jpg", thumbnailPath: "after-thumb.jpg")
+        var finding = VehicleFinding(slotID: "front", kind: "Scratch", severity: "Minor", notes: "Original mark", photoIDs: [before.id, after.id])
+        job.captureData = try JSONEncoder().encode(CaptureDocument(photos: [before, after], findings: [finding]))
+        try container.mainContext.save()
+        try acknowledgment.sign(job: job, name: "Marcus", strokes: validStrokes())
+        XCTAssertTrue(try acknowledgment.isCurrent(job: job))
+        finding.notes = "Changed pre-service description"
+        try capture.saveFinding(on: job, finding: finding)
+        XCTAssertFalse(try acknowledgment.isCurrent(job: job))
+
+        try acknowledgment.sign(job: job, name: "Marcus", strokes: validStrokes())
+        try capture.removeFinding(from: job, findingID: finding.id)
+        XCTAssertFalse(try acknowledgment.isCurrent(job: job))
+    }
+
+    // Only Before-linked photo identity belongs in a mixed finding's pre-service digest.
+    @MainActor
+    func testMixedFindingBeforeLinksInvalidateButAfterLinksAndAfterOnlyEditsDoNot() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        let capture = CaptureRepository(context: container.mainContext, media: MediaStore(root: MediaStore.defaultRoot))
+        let acknowledgment = AcknowledgmentRepository(context: container.mainContext)
+        let before = CapturedPhoto(slotID: "front", phase: .before, imagePath: "before.jpg", thumbnailPath: "before-thumb.jpg")
+        let before2 = CapturedPhoto(slotID: "front", phase: .before, imagePath: "before2.jpg", thumbnailPath: "before2-thumb.jpg")
+        let after = CapturedPhoto(slotID: "front", phase: .after, imagePath: "after.jpg", thumbnailPath: "after-thumb.jpg")
+        var mixed = VehicleFinding(slotID: "front", kind: "Scratch", severity: "Minor", notes: "Before mark", photoIDs: [before.id])
+        var afterOnly = VehicleFinding(slotID: "front", kind: "Stain", severity: "Minor", notes: "After only", photoIDs: [after.id])
+        job.captureData = try JSONEncoder().encode(CaptureDocument(photos: [before, before2, after], findings: [mixed, afterOnly]))
+        try container.mainContext.save()
+        try acknowledgment.markUnavailable(job: job, reason: "Customer away")
+        mixed.photoIDs.append(after.id)
+        try capture.saveFinding(on: job, finding: mixed)
+        XCTAssertTrue(try acknowledgment.isCurrent(job: job))
+        afterOnly.notes = "Updated after-service finding"
+        afterOnly.severity = "Moderate"
+        try capture.saveFinding(on: job, finding: afterOnly)
+        XCTAssertTrue(try acknowledgment.isCurrent(job: job))
+        try capture.removeFinding(from: job, findingID: afterOnly.id)
+        XCTAssertTrue(try acknowledgment.isCurrent(job: job))
+        mixed.photoIDs = [before2.id, after.id]
+        try capture.saveFinding(on: job, finding: mixed)
+        XCTAssertFalse(try acknowledgment.isCurrent(job: job))
+    }
+
+    // Reopening either saved method must preserve exact evidence/time, including when now stale.
+    @MainActor
+    func testReadingSavedAcknowledgmentPreservesSignatureAndUnavailableRecordWhenStale() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        let repository = AcknowledgmentRepository(context: container.mainContext)
+        for signed in [true, false] {
+            if signed { try repository.sign(job: job, name: "Saved signer", strokes: validStrokes()) }
+            else { try repository.markUnavailable(job: job, reason: "Keys left at office") }
+            let saved = try XCTUnwrap(try repository.record(for: job))
+            let bytes = job.acknowledgmentData
+            let timestamp = job.updatedAt
+            XCTAssertTrue(try repository.isCurrent(job: job))
+            job.plate += "X"
+            XCTAssertFalse(try repository.isCurrent(job: job))
+            XCTAssertEqual(try repository.record(for: job), saved)
+            XCTAssertEqual(job.acknowledgmentData, bytes)
+            XCTAssertEqual(job.updatedAt, timestamp)
+            if signed {
+                XCTAssertEqual(saved.customerName, "Saved signer")
+                XCTAssertEqual(saved.strokes, validStrokes())
+            } else {
+                XCTAssertEqual(saved.unavailableReason, "Keys left at office")
+                XCTAssertTrue(saved.strokes.isEmpty)
+            }
+        }
+    }
+
     @MainActor
     func testSignRejectsBlankNameAndTapOnlyOrOutOfRangeStrokes() throws {
         let container = try makeContainer()

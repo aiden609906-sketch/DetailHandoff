@@ -12,6 +12,9 @@ struct AcknowledgmentView: View {
     @State private var unavailableReason = ""
     @State private var isUnavailablePromptPresented = false
     @State private var errorMessage: String?
+    @State private var savedRecord: AcknowledgmentRecord?
+    @State private var savedRecordIsCurrent = false
+    @State private var isReplacingRecord = false
 
     var body: some View {
         ScrollView {
@@ -25,35 +28,20 @@ struct AcknowledgmentView: View {
                 beforeEvidence
                 findings
 
-                VStack(alignment: .leading, spacing: AppTheme.spacing12) {
-                    Text(AcknowledgmentRecord.confirmationText)
-                        .font(.body.weight(.medium))
-                    TextField("Customer name", text: $customerName)
-                        .textFieldStyle(.roundedBorder)
-                    SignaturePad(strokes: $strokes)
-                    HStack {
-                        Button("Clear signature", role: .destructive) { strokes = [] }
-                            .disabled(strokes.isEmpty || !isMutable)
-                        Spacer()
-                        Button("Record signature") { recordSignature() }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(!isMutable)
-                    }
+                if let savedRecord {
+                    savedAcknowledgment(savedRecord)
                 }
-                .reportCard()
 
-                Button("Customer unavailable") {
-                    isUnavailablePromptPresented = true
+                if savedRecord == nil || isReplacingRecord {
+                    acknowledgmentEditor
                 }
-                .buttonStyle(.bordered)
-                .disabled(!isMutable)
             }
             .padding(AppTheme.spacing16)
         }
         .navigationTitle("Acknowledgment")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            customerName = job.customerName
+            if !isReplacingRecord { customerName = job.customerName }
             reloadDocument()
         }
         .alert("Customer unavailable", isPresented: $isUnavailablePromptPresented) {
@@ -68,6 +56,73 @@ struct AcknowledgmentView: View {
         } message: {
             Text(errorMessage ?? "The acknowledgment could not be saved.")
         }
+    }
+
+    private func savedAcknowledgment(_ record: AcknowledgmentRecord) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.spacing12) {
+            Text(savedRecordIsCurrent ? "Current acknowledgment" : "Before-service evidence changed. A new acknowledgment is required.")
+                .font(.headline)
+                .accessibilityIdentifier("acknowledgment.status")
+            Text(record.confirmationText)
+            Text(record.customerName.isEmpty ? "Customer name not recorded" : record.customerName)
+                .accessibilityIdentifier("acknowledgment.savedName")
+            Text("Recorded \(record.recordedAt.formatted(date: .abbreviated, time: .standard))")
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("acknowledgment.savedTime")
+            if record.method == .signature {
+                SignaturePad(strokes: .constant(record.strokes))
+                    .disabled(true)
+                    .allowsHitTesting(false)
+                    .accessibilityLabel("Saved customer signature")
+                    .accessibilityIdentifier("acknowledgment.savedSignature")
+            } else {
+                Text("Customer unavailable").font(.subheadline.weight(.semibold))
+                Text(record.unavailableReason)
+                    .accessibilityIdentifier("acknowledgment.unavailableReason")
+            }
+            if isMutable && !isReplacingRecord {
+                Button("Replace acknowledgment") {
+                    customerName = job.customerName
+                    strokes = []
+                    unavailableReason = ""
+                    isReplacingRecord = true
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("acknowledgment.replace")
+            }
+        }
+        .reportCard()
+    }
+
+    private var acknowledgmentEditor: some View {
+        VStack(alignment: .leading, spacing: AppTheme.spacing12) {
+            Text(AcknowledgmentRecord.confirmationText)
+                .font(.body.weight(.medium))
+            TextField("Customer name", text: $customerName)
+                .textFieldStyle(.roundedBorder)
+            SignaturePad(strokes: $strokes)
+            HStack {
+                Button("Clear signature", role: .destructive) { strokes = [] }
+                    .disabled(strokes.isEmpty || !isMutable)
+                Spacer()
+                Button("Record signature") { recordSignature() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!isMutable)
+            }
+            Button("Customer unavailable") { isUnavailablePromptPresented = true }
+                .buttonStyle(.bordered)
+                .disabled(!isMutable)
+            if isReplacingRecord {
+                Button("Cancel replacement") {
+                    isReplacingRecord = false
+                    strokes = []
+                    unavailableReason = ""
+                }
+                .accessibilityIdentifier("acknowledgment.cancelReplacement")
+            }
+        }
+        .reportCard()
+        .disabled(!isMutable)
     }
 
     private var serviceSummary: some View {
@@ -132,14 +187,20 @@ struct AcknowledgmentView: View {
     private func reloadDocument() {
         do {
             document = try CaptureRepository(context: modelContext, media: MediaStore(root: MediaStore.defaultRoot)).document(for: job)
+            let repository = AcknowledgmentRepository(context: modelContext)
+            savedRecord = try repository.record(for: job)
+            savedRecordIsCurrent = try repository.isCurrent(job: job)
         } catch {
-            errorMessage = "Capture records could not be read. \(error.localizedDescription)"
+            errorMessage = "Acknowledgment evidence could not be read. \(error.localizedDescription)"
         }
     }
 
     private func recordSignature() {
         do {
             try AcknowledgmentRepository(context: modelContext).sign(job: job, name: customerName, strokes: strokes)
+            isReplacingRecord = false
+            strokes = []
+            reloadDocument()
         } catch {
             errorMessage = "The signature could not be recorded. \(error.localizedDescription)"
         }
@@ -148,7 +209,9 @@ struct AcknowledgmentView: View {
     private func recordUnavailable() {
         do {
             try AcknowledgmentRepository(context: modelContext).markUnavailable(job: job, reason: unavailableReason)
+            isReplacingRecord = false
             unavailableReason = ""
+            reloadDocument()
         } catch {
             errorMessage = "The unavailable acknowledgment could not be recorded. \(error.localizedDescription)"
         }

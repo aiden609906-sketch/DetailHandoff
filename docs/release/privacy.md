@@ -1,6 +1,6 @@
 # Privacy and local data behavior
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
 
 This document describes the current V1 source. It is an engineering handoff, not a published privacy policy or legal determination.
 
@@ -20,6 +20,12 @@ Deleted jobs remain recoverable in Recently Deleted for up to 30 days unless the
 | Photo selection | “DetailHandoff lets you import vehicle photos selected by you.” is currently declared, while the app uses SwiftUI `PhotosPicker` for user-selected images and does not request broad photo-library authorization. Release QA must verify that no unnecessary library permission prompt appears. |
 
 The current source does not request microphone, location, contacts, Bluetooth, advertising tracking, or notification permission. Permission denial and later recovery still require physical-device verification before release.
+
+## Required Reason API declaration
+
+The capacity check uses `volumeAvailableCapacityForImportantUsageKey` before capture/import can write media. `DetailHandoff/PrivacyInfo.xcprivacy` declares `NSPrivacyAccessedAPICategoryDiskSpace` with reason `E174.1` for this user-visible storage check. It declares tracking false, no tracking domains, and no collected data types, consistent with the local-only implementation. `project.yml` explicitly includes this file in the application resource build phase.
+
+Windows checks parsed the plist and project resource entry semantically. The XCTest `testBundledPrivacyManifestDeclaresDiskSpacePurposeWithoutTrackingOrCollection` checks the actual built app resource, but has not run. These source facts do not establish archive compliance or App Review acceptance; built-manifest and signed-archive validation remain release gates.
 
 ## Network, accounts, and tracking
 
