@@ -39,9 +39,9 @@ Candidate keywords, subject to metadata-length and market review: `auto detailin
 The generated Info.plist receives these source-controlled strings from `project.yml`:
 
 - Camera: `DetailHandoff uses the camera to document vehicle condition before and after service.`
-- Photo library: `DetailHandoff lets you import vehicle photos selected by you.`
+- Photo selection declaration: `DetailHandoff lets you import vehicle photos selected by you.` The current UI uses SwiftUI `PhotosPicker`; it does not request broad photo-library authorization.
 
-Validate both prompts on physical iPhone and iPad for first denial, later denial/recovery, limited selection where applicable, cancellation, backgrounding, and interrupted capture. Screenshots used for the listing should not display private customer data or system permission prompts unless the store slot specifically calls for that context.
+Validate the camera permission prompt on physical iPhone and iPad for first denial, later denial/recovery, cancellation, backgrounding, and interrupted capture. Separately open and cancel the system photo picker and verify that no unnecessary broad Photo Library permission prompt appears. If the final binary still declares a photo-library purpose string that no code path requires, remove that declaration before submission. Screenshots used for the listing should not display private customer data or system permission prompts unless the store slot specifically calls for that context.
 
 ## Required creative assets
 
@@ -55,7 +55,7 @@ The 27 PNGs from CI `33936741128` are failure diagnostics, not store assets: ins
 
 ## Metadata and account checklist
 
-- [ ] Resolve GitHub Actions billing/spending limits and obtain a green current macOS build, 134/0 unit target, iPhone UI, and iPad UI run with inspected attachments.
+- [ ] Resolve GitHub Actions billing/spending limits and obtain a green current macOS build, 137/0 unit target, iPhone UI, and iPad UI run with inspected attachments.
 - [ ] Pass the Phase 1 on-disk migration fixture without losing baseline records.
 - [ ] Complete physical iPhone and iPad camera, permissions, interruption, offline, accessibility, performance, Files/share, backup/restore, deletion, and low-storage checks.
 - [ ] Confirm Apple Developer Program membership, legal account holder, team, bundle identifier, certificates, provisioning profiles, signing, entitlements, release archive, and upload validation.

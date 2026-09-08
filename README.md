@@ -8,7 +8,7 @@ The integrated V1 source is **not yet release-ready**. The latest executed run
 built the app and passed 133 unit tests, but its iPhone and iPad UI suites failed.
 Focused corrections and a new disk-migration test are committed, but the follow-up
 GitHub Actions run did not start because of an account billing/spending-limit block.
-The corrected UI paths, current 134-test unit target, migration test, and release
+The corrected UI paths, current 137-test unit target, migration test, and release
 screenshots therefore remain unverified.
 
 See the evidence-backed [acceptance record](docs/release/acceptance.md),
@@ -25,8 +25,8 @@ physical-device testing, TestFlight distribution, or App Review.
 - No account, subscription, in-app purchase, ads, cloud backend, or AI in V1
 - Local jobs, guided photos, manual findings, customer acknowledgment, immutable report versions, backup/restore, photo export, recent deletion, and storage cleanup
 
-Business records and metadata use SwiftData. Photos, thumbnails, signatures,
-generated PDFs, and user-created backup/export packages use local files. Data leaves
+Business records and metadata, including signature strokes, use SwiftData. Photos,
+thumbnails, business logos, and generated PDFs use local files. Data leaves
 the app through user-initiated system share/export interfaces; operating-system
 device backups may also include the app container according to the user's settings.
 Reinstalling or losing the device can lose local data without a usable backup.

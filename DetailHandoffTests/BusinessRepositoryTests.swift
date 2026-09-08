@@ -1,4 +1,5 @@
 import SwiftData
+import UIKit
 import XCTest
 @testable import DetailHandoff
 
@@ -93,6 +94,84 @@ final class BusinessRepositoryTests: XCTestCase {
         XCTAssertEqual(profile.phone, "555")
         XCTAssertEqual(profile.email, "old@example.com")
         XCTAssertEqual(profile.reportNumberLedgerData, ledger)
+    }
+
+    @MainActor
+    func testCreateProfileWithLogoPersistsProfileAndPrivateLogoTogether() throws {
+        let container = try makeContainer()
+        let mediaRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BusinessRepository-Logo-Success-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: mediaRoot) }
+        let media = MediaStore(root: mediaRoot)
+        let repository = BusinessRepository(context: container.mainContext, media: media)
+
+        let profile = try repository.createProfile(
+            businessName: "Northstar Detailing",
+            phone: "",
+            email: "",
+            configuration: .standard,
+            logoData: try logoJPEG()
+        )
+
+        let path = try XCTUnwrap(profile.logoImagePath)
+        XCTAssertEqual(try media.assetInventory().map(\.path), [path])
+        XCTAssertNotNil(UIImage(data: try Data(contentsOf: media.url(for: path))))
+    }
+
+    @MainActor
+    func testCreateProfileWithInvalidLogoLeavesNoProfileOrFile() throws {
+        let container = try makeContainer()
+        let mediaRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BusinessRepository-Logo-Invalid-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: mediaRoot) }
+        let media = MediaStore(root: mediaRoot)
+        let repository = BusinessRepository(context: container.mainContext, media: media)
+
+        XCTAssertThrowsError(try repository.createProfile(
+            businessName: "Northstar Detailing",
+            phone: "",
+            email: "",
+            configuration: .standard,
+            logoData: Data("not an image".utf8)
+        ))
+
+        XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<BusinessProfile>()).isEmpty)
+        XCTAssertTrue(try media.assetInventory().isEmpty)
+    }
+
+    @MainActor
+    func testCreateProfileWithLogoRollsBackProfileAndFileWhenSaveFails() throws {
+        enum SaveFailure: Error { case simulated }
+        let container = try makeContainer()
+        let mediaRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BusinessRepository-Logo-SaveFailure-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: mediaRoot) }
+        let media = MediaStore(root: mediaRoot)
+        let repository = BusinessRepository(
+            context: container.mainContext,
+            media: media,
+            saveChanges: { throw SaveFailure.simulated }
+        )
+
+        XCTAssertThrowsError(try repository.createProfile(
+            businessName: "Northstar Detailing",
+            phone: "",
+            email: "",
+            configuration: .standard,
+            logoData: try logoJPEG()
+        )) { error in
+            XCTAssertTrue(error is SaveFailure)
+        }
+
+        XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<BusinessProfile>()).isEmpty)
+        XCTAssertTrue(try media.assetInventory().isEmpty)
+    }
+
+    private func logoJPEG() throws -> Data {
+        try XCTUnwrap(UIGraphicsImageRenderer(size: CGSize(width: 24, height: 24)).jpegData(withCompressionQuality: 0.9) { context in
+            UIColor.systemBlue.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 24, height: 24))
+        })
     }
 
     @MainActor

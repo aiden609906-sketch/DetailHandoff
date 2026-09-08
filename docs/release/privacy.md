@@ -17,7 +17,7 @@ Deleted jobs remain recoverable in Recently Deleted for up to 30 days unless the
 | Capability | Current purpose |
 |---|---|
 | Camera | “DetailHandoff uses the camera to document vehicle condition before and after service.” The system asks when the user invokes camera capture. |
-| Photo library selection | “DetailHandoff lets you import vehicle photos selected by you.” The app uses the system picker for user-selected images; it does not need to enumerate the full library for normal import. |
+| Photo selection | “DetailHandoff lets you import vehicle photos selected by you.” is currently declared, while the app uses SwiftUI `PhotosPicker` for user-selected images and does not request broad photo-library authorization. Release QA must verify that no unnecessary library permission prompt appears. |
 
 The current source does not request microphone, location, contacts, Bluetooth, advertising tracking, or notification permission. Permission denial and later recovery still require physical-device verification before release.
 

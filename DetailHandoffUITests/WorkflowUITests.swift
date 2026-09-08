@@ -15,11 +15,22 @@ final class WorkflowUITests: XCTestCase {
         capture("setup")
         app.textFields["Business name"].tap()
         app.textFields["Business name"].typeText("Fixture Detail")
+        require(app.buttons["setup.logoPicker"])
+        let firstService = app.textFields["setup.service.0"]
+        require(firstService)
+        firstService.tap()
+        firstService.typeText(" Mobile")
+        require(app.buttons["setup.templatePicker"])
         app.buttons["Save"].tap()
 
         require(app.navigationBars["Jobs"])
         app.buttons["New job"].tap()
         require(app.navigationBars["New job"])
+        let editedService = app.switches
+            .matching(NSPredicate(format: "label CONTAINS %@", "Mobile"))
+            .firstMatch
+        require(editedService)
+        XCTAssertEqual(editedService.value as? String, "1", "The edited onboarding default service should be selected for a new job.")
         capture("new-job")
         app.textFields["Vehicle"].tap()
         app.textFields["Vehicle"].typeText("QA-17 Sedan")

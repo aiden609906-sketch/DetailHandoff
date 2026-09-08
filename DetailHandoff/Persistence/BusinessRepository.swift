@@ -19,29 +19,50 @@ final class BusinessRepository {
         saveChanges = { try context.save() }
     }
 
-    init(context: ModelContext, saveChanges: @escaping () throws -> Void) {
+    init(
+        context: ModelContext,
+        media: MediaStore = MediaStore(root: MediaStore.defaultRoot),
+        saveChanges: @escaping () throws -> Void
+    ) {
         self.context = context
-        media = MediaStore(root: MediaStore.defaultRoot)
+        self.media = media
         self.saveChanges = saveChanges
     }
 
-    func createProfile(businessName: String, phone: String, email: String, configuration: BusinessConfiguration) throws -> BusinessProfile {
+    func createProfile(
+        businessName: String,
+        phone: String,
+        email: String,
+        configuration: BusinessConfiguration,
+        logoData: Data? = nil
+    ) throws -> BusinessProfile {
         let name = businessName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw BusinessRepositoryError.blankBusinessName }
         let validated = try configuration.validated()
         guard try context.fetch(FetchDescriptor<BusinessProfile>()).isEmpty else {
             throw BusinessRepositoryError.profileAlreadyExists
         }
+        let configurationData = try JSONEncoder().encode(validated)
+        let logoPath: String?
+        if let logoData {
+            logoPath = try media.storeBusinessLogo(logoData)
+        } else {
+            logoPath = nil
+        }
         let profile = BusinessProfile(
             businessName: name,
             phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
             email: email.trimmingCharacters(in: .whitespacesAndNewlines),
-            configurationData: try JSONEncoder().encode(validated)
+            logoImagePath: logoPath,
+            configurationData: configurationData
         )
         context.insert(profile)
         do { try saveChanges() }
         catch {
             context.delete(profile)
+            if let logoPath {
+                try? media.removeAsset(at: logoPath)
+            }
             throw error
         }
         return profile

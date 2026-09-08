@@ -1,3 +1,5 @@
+import Foundation
+import PhotosUI
 import SwiftData
 import SwiftUI
 
@@ -7,8 +9,12 @@ struct SetupView: View {
     @State private var businessName = ""
     @State private var phone = ""
     @State private var email = ""
+    @State private var services = BusinessConfiguration.standard.services
     @State private var selectedServiceID = BusinessConfiguration.standard.services[0].id
     @State private var selectedTemplateID = BusinessConfiguration.standard.defaultTemplateID
+    @State private var selectedLogo: PhotosPickerItem?
+    @State private var logoData: Data?
+    @State private var isLoadingLogo = false
     @State private var saveError: String?
 
     var body: some View {
@@ -26,6 +32,11 @@ struct SetupView: View {
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.emailAddress)
+
+                    PhotosPicker(selection: $selectedLogo, matching: .images) {
+                        Label(logoData == nil ? "Add logo (optional)" : "Logo selected", systemImage: "photo")
+                    }
+                    .accessibilityIdentifier("setup.logoPicker")
                 } header: {
                     Text("Business details")
                 } footer: {
@@ -33,8 +44,12 @@ struct SetupView: View {
                 }
 
                 Section("Defaults for your first job") {
+                    ForEach(services.indices, id: \.self) { index in
+                        TextField("Service", text: $services[index].name)
+                            .accessibilityIdentifier("setup.service.\(index)")
+                    }
                     Picker("Default service", selection: $selectedServiceID) {
-                        ForEach(BusinessConfiguration.standard.services) { service in
+                        ForEach(services) { service in
                             Text(service.name).tag(service.id)
                         }
                     }
@@ -43,6 +58,7 @@ struct SetupView: View {
                             Text(template.name).tag(template.id)
                         }
                     }
+                    .accessibilityIdentifier("setup.templatePicker")
                 }
 
                 Section("Before you begin") {
@@ -55,6 +71,7 @@ struct SetupView: View {
                 }
             }
             .navigationTitle("Set up your business")
+            .task(id: selectedLogo) { await loadLogo() }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: saveProfile)
@@ -72,7 +89,10 @@ struct SetupView: View {
     }
 
     private var canSave: Bool {
-        !businessName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !businessName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !isLoadingLogo &&
+            services.contains(where: { $0.id == selectedServiceID }) &&
+            services.allSatisfy { !$0.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
     private var saveErrorIsPresented: Binding<Bool> {
@@ -92,16 +112,37 @@ struct SetupView: View {
 
         do {
             var configuration = BusinessConfiguration.standard
+            configuration.services = services
             configuration.defaultTemplateID = selectedTemplateID
             configuration = configuration.makingServiceDefault(selectedServiceID)
             _ = try BusinessRepository(context: modelContext).createProfile(
                 businessName: trimmedBusinessName,
                 phone: phone,
                 email: email,
-                configuration: configuration
+                configuration: configuration,
+                logoData: logoData
             )
         } catch {
             saveError = error.localizedDescription
+        }
+    }
+
+    private func loadLogo() async {
+        guard let selectedLogo else {
+            logoData = nil
+            return
+        }
+        isLoadingLogo = true
+        defer { isLoadingLogo = false }
+        do {
+            let bytes = try await selectedLogo.loadTransferable(type: Data.self)
+            try Task.checkCancellation()
+            guard let bytes else { throw CocoaError(.fileReadCorruptFile) }
+            logoData = bytes
+        } catch {
+            guard !Task.isCancelled, !(error is CancellationError) else { return }
+            logoData = nil
+            saveError = "The logo couldn’t be loaded. Try a different image."
         }
     }
 }

@@ -48,8 +48,9 @@ Evidence update, 2026-09-07:
 Evidence update, 2026-09-07:
 
 - [x] The 17 V1 requirements, cross-cutting PRD sections, and 14 core acceptance criteria are mapped to source, tests, executed CI, and remaining checks in `docs/release/acceptance.md`.
-- [x] Historical 40-photo PDF and backup-roundtrip evidence is recorded without moving the stable PDF samples.
+- [x] Historical 40-photo PDF and backup-roundtrip functional evidence is recorded without moving the stable PDF samples.
+- [ ] Capture and approve elapsed-time/resource budgets for the 40-photo PDF and backup roundtrip; the retained runs did not record performance measurements.
 - [x] A real Phase 1 disk-store fixture test is committed at `4c76018` and checks all baseline fields without deleting the store before migration.
 - [x] Privacy, paid-download/no-IAP, App Store metadata, and external release gates are documented without asserting unavailable credentials, URLs, devices, signing, TestFlight, or review.
-- [ ] Run the current 134-test unit target and Phase 1 migration test on macOS; follow-up CI is blocked before execution by GitHub Actions account billing/spending limits.
+- [ ] Run the current 137-test unit target and Phase 1 migration/logo-atomicity tests on macOS; follow-up CI is blocked before execution by GitHub Actions account billing/spending limits.
 - [ ] Complete full code review, green current iPhone/iPad UI CI, GitHub sync, and all applicable physical/external gates before marking either task complete.
