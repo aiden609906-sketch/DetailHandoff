@@ -63,9 +63,9 @@ final class SchemaMigrationTests: XCTestCase {
         let jobs = try migratedContext.fetch(FetchDescriptor<JobRecord>())
 
         let profile = try XCTUnwrap(profiles.first)
-        let phase1ProfilePersistentID = try XCTUnwrap(phase1ProfilePersistentID)
+        let legacyProfilePersistentID = try XCTUnwrap(phase1ProfilePersistentID)
         XCTAssertEqual(profiles.count, 1)
-        XCTAssertEqual(phase1ProfilePersistentID.entityName, profile.persistentModelID.entityName)
+        XCTAssertEqual(legacyProfilePersistentID.entityName, profile.persistentModelID.entityName)
         XCTAssertEqual(profile.id, profileID)
         XCTAssertEqual(profile.businessName, "Phase 1 Detail")
         XCTAssertEqual(profile.phone, "555-0101")
@@ -75,9 +75,9 @@ final class SchemaMigrationTests: XCTestCase {
         XCTAssertEqual(profile.updatedAt, updatedAt)
 
         let job = try XCTUnwrap(jobs.first)
-        let phase1JobPersistentID = try XCTUnwrap(phase1JobPersistentID)
+        let legacyJobPersistentID = try XCTUnwrap(phase1JobPersistentID)
         XCTAssertEqual(jobs.count, 1)
-        XCTAssertEqual(phase1JobPersistentID.entityName, job.persistentModelID.entityName)
+        XCTAssertEqual(legacyJobPersistentID.entityName, job.persistentModelID.entityName)
         XCTAssertEqual(job.id, jobID)
         XCTAssertEqual(job.customerName, "Morgan")
         XCTAssertEqual(job.vehicleLabel, "Phase 1 Roadster")
