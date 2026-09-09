@@ -312,6 +312,7 @@ final class WorkflowUITests: XCTestCase {
         let fileExporterPresentation = requireFileExporterPresentation()
         capture("backup")
         dismissFileExporterPresentation(fileExporterPresentation)
+        requireDismissed(fileExporterPresentation.marker, message: "Cancelling backup export should dismiss the Files exporter surface.")
         requireNotHittable(fileExporterPresentation.cancel, message: "Cancelling backup export should hide the document picker's Cancel action.")
         let exportButton = app.buttons["backup.export"]
         requireHittable(exportButton, message: "Cancelling backup export must return interaction to the Backup screen.")
@@ -522,6 +523,7 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private struct FileExporterPresentation {
+        let marker: XCUIElement
         let cancel: XCUIElement
     }
 
@@ -531,10 +533,22 @@ final class WorkflowUITests: XCTestCase {
             XCUIApplication(bundleIdentifier: "com.apple.springboard"),
             app
         ]
+        let exporterPredicate = NSPredicate(
+            format: "label == %@ OR label == %@ OR label BEGINSWITH %@",
+            "Save",
+            "Save as",
+            "DetailHandoff-backup"
+        )
         let cancelPredicate = NSPredicate(format: "label == %@", "Cancel")
         let windowFrame = app.windows.firstMatch.frame
 
         for root in roots {
+            let marker = root.descendants(matching: .any)
+                .matching(exporterPredicate)
+                .firstMatch
+            guard marker.waitForExistence(timeout: 4) else { continue }
+            let markerFrame = marker.frame
+            guard !markerFrame.isEmpty, windowFrame.intersects(markerFrame) else { continue }
             let cancelLabel = root.descendants(matching: .any)
                 .matching(cancelPredicate)
                 .firstMatch
@@ -542,18 +556,19 @@ final class WorkflowUITests: XCTestCase {
             let labelFrame = cancelLabel.frame
             guard !labelFrame.isEmpty, windowFrame.intersects(labelFrame) else { continue }
             let labelCenter = CGPoint(x: labelFrame.midX, y: labelFrame.midY)
-            let navigationButtons = roots.flatMap {
-                $0.navigationBars.buttons.allElementsBoundByIndex
-            }
+            let navigationButtons = root.navigationBars.buttons.allElementsBoundByIndex
             if let cancel = navigationButtons.first(where: {
                 $0.isHittable && $0.frame.contains(labelCenter)
             }) {
-                return FileExporterPresentation(cancel: cancel)
+                return FileExporterPresentation(marker: marker, cancel: cancel)
             }
         }
 
-        XCTFail("The real Files exporter must expose visible Cancel text inside a hittable system navigation button.")
-        return FileExporterPresentation(cancel: app.navigationBars.buttons.firstMatch)
+        XCTFail("The real Files exporter must expose Save, Save as, or its backup filename together with visible Cancel text inside the same root's hittable navigation button.")
+        return FileExporterPresentation(
+            marker: app.descendants(matching: .any).matching(exporterPredicate).firstMatch,
+            cancel: app.navigationBars.buttons.firstMatch
+        )
     }
 
     private func dismissSharePresentation(_ presentation: XCUIElement) {
