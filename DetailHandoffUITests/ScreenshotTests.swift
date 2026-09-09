@@ -17,19 +17,32 @@ final class ScreenshotTests: XCTestCase {
         let jobsList = app.descendants(matching: .any)
             .matching(identifier: "jobs.verticalScroll")
             .firstMatch
-        XCTAssertTrue(jobsList.waitForExistence(timeout: 8), "The Jobs list must expose its named vertical scroll container at accessibility text sizes.")
+        guard jobsList.waitForExistence(timeout: 12) else {
+            XCTFail("The Jobs list must expose its named vertical scroll container at accessibility text sizes.")
+            return
+        }
         let vehicleQuery = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label == %@", "Complete Fixture Sedan"))
         for _ in 0..<5 where !vehicleQuery.firstMatch.isHittable {
             jobsList.swipeUp()
         }
         let vehicle = vehicleQuery.firstMatch
-        XCTAssertTrue(vehicle.isHittable, "The complete fixture must remain reachable at accessibility text sizes.")
+        guard vehicle.isHittable else {
+            XCTFail("The complete fixture must remain reachable at accessibility text sizes.")
+            return
+        }
         vehicle.tap()
+        guard app.navigationBars["Complete Fixture Sedan"].waitForExistence(timeout: 12) else {
+            XCTFail("The complete fixture workflow must finish navigation at accessibility text sizes.")
+            return
+        }
         let workflowScroll = app.descendants(matching: .any)
             .matching(identifier: "workflow.verticalScroll")
             .firstMatch
-        XCTAssertTrue(workflowScroll.waitForExistence(timeout: 8), "The workflow must expose its named vertical scroll container at accessibility text sizes.")
+        guard workflowScroll.waitForExistence(timeout: 12) else {
+            XCTFail("The workflow must expose its named vertical scroll container at accessibility text sizes.")
+            return
+        }
         let reportQuery = app.descendants(matching: .any)
             .matching(identifier: "workflow.report")
         for _ in 0..<5 where !reportQuery.firstMatch.isHittable {

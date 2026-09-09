@@ -81,8 +81,9 @@ final class WorkflowUITests: XCTestCase {
             XCTAssertEqual(app.staticTexts["capture.count.rear"].label, "1 photo")
             remove.tap()
             XCTAssertEqual(app.staticTexts["capture.count.rear"].label, "0 photos")
-            let skip = scrollUntilHittable(
+            let skip = revealControlBelowVisibleAnchor(
                 { app.buttons["capture.skip.rear"] },
+                anchor: app.staticTexts["capture.count.rear"],
                 in: verticalScroll("capture.verticalScroll")
             )
             tapAtCenter(skip)
@@ -103,6 +104,7 @@ final class WorkflowUITests: XCTestCase {
                 preferredDirection: .down
             )
             tapAtCenter(review)
+            requireReportScreen()
             app.buttons["report.seal"].tap()
             confirmSeal()
             require(app.alerts["Report issue"])
@@ -134,7 +136,10 @@ final class WorkflowUITests: XCTestCase {
                     in: verticalScroll("report.verticalScroll")
                 )
                 tapAtCenter(originalPreview)
-                require(app.navigationBars.matching(NSPredicate(format: "label ENDSWITH %@", "v1")).firstMatch)
+                let originalPDF = app.descendants(matching: .any)
+                    .matching(NSPredicate(format: "identifier == %@ AND label ENDSWITH %@", "report.pdfPreview", "v1"))
+                    .firstMatch
+                require(originalPDF)
             }
         }
     }
@@ -151,7 +156,7 @@ final class WorkflowUITests: XCTestCase {
             },
             in: verticalScroll("workflow.verticalScroll")
         )
-        require(app.navigationBars["Report"])
+        requireReportScreen()
         app.buttons["report.acknowledgment"].tap()
         let name = app.staticTexts["acknowledgment.savedName"]
         scrollUntilHittable(name)
@@ -249,7 +254,7 @@ final class WorkflowUITests: XCTestCase {
             in: verticalScroll("workflow.verticalScroll"),
             preferredDirection: .down
         )
-        require(app.navigationBars["Report"])
+        requireReportScreen()
         capture("report")
 
         app.buttons["report.acknowledgment"].tap()
@@ -280,7 +285,7 @@ final class WorkflowUITests: XCTestCase {
         let sharePresentation = requireSharePresentation()
         capture("share-sheet")
         dismissSharePresentation(sharePresentation)
-        requireDismissed(sharePresentation, message: "Cancelling share should dismiss the system activity presentation.")
+        requireDismissed(sharePresentation.marker, message: "Cancelling share should dismiss the system activity presentation.")
         XCTAssertTrue(version.exists, "Cancelling share must leave the sealed report version available.")
         require(app.staticTexts["Sealed versions"])
     }
@@ -450,6 +455,31 @@ final class WorkflowUITests: XCTestCase {
         return element
     }
 
+    @discardableResult
+    private func revealControlBelowVisibleAnchor(
+        _ resolveElement: () -> XCUIElement,
+        anchor: XCUIElement,
+        in scrollContainer: XCUIElement,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) -> XCUIElement {
+        require(scrollContainer, file: file, line: line)
+        require(anchor, file: file, line: line)
+        var element = resolveElement()
+        if element.isHittable { return element }
+
+        let start = scrollContainer.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.65))
+        let destination = scrollContainer.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35))
+        for _ in 0..<3 {
+            start.press(forDuration: 0.05, thenDragTo: destination)
+            element = resolveElement()
+            if element.isHittable { return element }
+        }
+
+        XCTAssertTrue(element.isHittable, "Expected the control below the visible slot anchor to become reachable after bounded, card-local scrolling.", file: file, line: line)
+        return element
+    }
+
     private func tapReachable(_ element: XCUIElement, preferredDirection: ScrollDirection = .up) {
         let reachableElement = scrollUntilHittable(element, preferredDirection: preferredDirection)
         tapAtCenter(reachableElement)
@@ -497,6 +527,10 @@ final class WorkflowUITests: XCTestCase {
         confirmation.tap()
     }
 
+    private func requireReportScreen() {
+        require(verticalScroll("report.verticalScroll"))
+    }
+
     private func returnToJobs() {
         for _ in 0..<3 where !app.navigationBars["Jobs"].exists {
             let back = app.navigationBars.buttons.firstMatch
@@ -513,13 +547,39 @@ final class WorkflowUITests: XCTestCase {
         require(app.navigationBars["Report"])
     }
 
-    private func requireSharePresentation() -> XCUIElement {
-        let sheet = app.sheets.firstMatch
-        if sheet.waitForExistence(timeout: 4) { return sheet }
-        let popover = app.popovers.firstMatch
-        if popover.waitForExistence(timeout: 4) { return popover }
-        XCTFail("Share must present a system activity sheet on iPhone or a popover on iPad.")
-        return app.otherElements.firstMatch
+    private struct SharePresentation {
+        let marker: XCUIElement
+        let cancel: XCUIElement
+    }
+
+    private func requireSharePresentation() -> SharePresentation {
+        let roots = [
+            XCUIApplication(bundleIdentifier: "com.apple.springboard"),
+            app
+        ]
+        let activityPredicate = NSPredicate(
+            format: "label == %@ OR label == %@ OR label == %@",
+            "AirDrop",
+            "Copy",
+            "Save to Files"
+        )
+        let cancelPredicate = NSPredicate(format: "label == %@ OR label == %@", "Close", "Cancel")
+
+        for root in roots {
+            let marker = root.descendants(matching: .any)
+                .matching(activityPredicate)
+                .firstMatch
+            guard marker.waitForExistence(timeout: 4) else { continue }
+            let cancel = root.buttons.matching(cancelPredicate).firstMatch
+            guard cancel.waitForExistence(timeout: 2), cancel.isHittable else { continue }
+            return SharePresentation(marker: marker, cancel: cancel)
+        }
+
+        XCTFail("Share must expose a public system activity together with a hittable Close or Cancel button.")
+        return SharePresentation(
+            marker: app.descendants(matching: .any).matching(activityPredicate).firstMatch,
+            cancel: app.buttons.matching(cancelPredicate).firstMatch
+        )
     }
 
     private struct FileExporterPresentation {
@@ -555,44 +615,43 @@ final class WorkflowUITests: XCTestCase {
             guard cancelLabel.waitForExistence(timeout: 4) else { continue }
             let labelFrame = cancelLabel.frame
             guard !labelFrame.isEmpty, windowFrame.intersects(labelFrame) else { continue }
-            let labelCenter = CGPoint(x: labelFrame.midX, y: labelFrame.midY)
-            let navigationButtons = root.navigationBars.buttons.allElementsBoundByIndex
-            if let cancel = navigationButtons.first(where: {
-                $0.isHittable && $0.frame.contains(labelCenter)
-            }) {
-                return FileExporterPresentation(marker: marker, cancel: cancel)
+            let directCancel = root.buttons.matching(cancelPredicate).firstMatch
+            if directCancel.waitForExistence(timeout: 1), directCancel.isHittable {
+                return FileExporterPresentation(marker: marker, cancel: directCancel)
+            }
+
+            let publicMore = root.buttons["More"].firstMatch
+            let menuButton: XCUIElement?
+            if publicMore.waitForExistence(timeout: 1), publicMore.isHittable {
+                menuButton = publicMore
+            } else {
+                let labelCenter = CGPoint(x: labelFrame.midX, y: labelFrame.midY)
+                menuButton = root.navigationBars.buttons.allElementsBoundByIndex.first(where: {
+                    $0.isHittable && $0.frame.contains(labelCenter)
+                })
+            }
+            guard let menuButton else { continue }
+            menuButton.tap()
+
+            let menuCancel = root.buttons.matching(cancelPredicate).firstMatch
+            if menuCancel.waitForExistence(timeout: 4), menuCancel.isHittable {
+                return FileExporterPresentation(marker: marker, cancel: menuCancel)
             }
         }
 
-        XCTFail("The real Files exporter must expose Save, Save as, or its backup filename together with visible Cancel text inside the same root's hittable navigation button.")
+        XCTFail("The real Files exporter must expose Save, Save as, or its backup filename and a real hittable Cancel button in the same root, directly or through its More menu.")
         return FileExporterPresentation(
             marker: app.descendants(matching: .any).matching(exporterPredicate).firstMatch,
             cancel: app.navigationBars.buttons.firstMatch
         )
     }
 
-    private func dismissSharePresentation(_ presentation: XCUIElement) {
-        dismissSystemPresentation(presentation, controls: ["Close", "Cancel"])
+    private func dismissSharePresentation(_ presentation: SharePresentation) {
+        presentation.cancel.tap()
     }
 
     private func dismissFileExporterPresentation(_ presentation: FileExporterPresentation) {
         presentation.cancel.tap()
-    }
-
-    private func dismissSystemPresentation(_ presentation: XCUIElement, controls: [String]) {
-        for title in controls {
-            let withinPresentation = presentation.buttons[title]
-            if withinPresentation.waitForExistence(timeout: 2) {
-                withinPresentation.tap()
-                return
-            }
-            let applicationButton = app.buttons[title]
-            if applicationButton.waitForExistence(timeout: 1) {
-                applicationButton.tap()
-                return
-            }
-        }
-        XCTFail("No supported cancellation control was available for the system presentation.")
     }
 
     private func requireDismissed(_ presentation: XCUIElement, message: String) {

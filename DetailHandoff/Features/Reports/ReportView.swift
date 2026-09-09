@@ -47,6 +47,8 @@ struct ReportView: View {
         .sheet(item: $presentedPDF) { item in
             NavigationStack {
                 PDFPreview(data: item.data)
+                    .accessibilityIdentifier("report.pdfPreview")
+                    .accessibilityLabel(item.title)
                     .navigationTitle(item.title)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
