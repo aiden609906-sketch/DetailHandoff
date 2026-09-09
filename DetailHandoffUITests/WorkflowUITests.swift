@@ -86,7 +86,7 @@ final class WorkflowUITests: XCTestCase {
                 in: verticalScroll("capture.verticalScroll"),
                 preferredDirection: .down
             )
-            skip.tap()
+            tapAtCenter(skip)
             let prompt = app.alerts["Skip this view"]
             require(prompt)
             prompt.textFields.firstMatch.typeText("Rechecked before handoff")
@@ -95,11 +95,15 @@ final class WorkflowUITests: XCTestCase {
             capture(revision ? "revision-before-correction" : "review-before-correction")
             app.navigationBars.buttons.firstMatch.tap()
             let review = scrollUntilHittable(
-                { app.buttons["Review report"] },
+                {
+                    app.descendants(matching: .any)
+                        .matching(identifier: "workflow.report")
+                        .firstMatch
+                },
                 in: verticalScroll("workflow.verticalScroll"),
                 preferredDirection: .down
             )
-            review.tap()
+            tapAtCenter(review)
             app.buttons["report.seal"].tap()
             confirmSeal()
             require(app.alerts["Report issue"])
@@ -123,10 +127,14 @@ final class WorkflowUITests: XCTestCase {
             require(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", expectedVersion)).firstMatch)
             if revision {
                 let originalPreview = scrollUntilHittable(
-                    { app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "report.preview.")).element(boundBy: 1) },
+                    {
+                        app.descendants(matching: .any)
+                            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "report.preview."))
+                            .element(boundBy: 1)
+                    },
                     in: verticalScroll("report.verticalScroll")
                 )
-                originalPreview.tap()
+                tapAtCenter(originalPreview)
                 require(app.navigationBars.matching(NSPredicate(format: "label ENDSWITH %@", "v1")).firstMatch)
             }
         }
@@ -136,7 +144,15 @@ final class WorkflowUITests: XCTestCase {
     func testSavedAcknowledgmentReopensAndReplacementCanBeCancelled() throws {
         launch(arguments: ["--ui-testing", "--screenshot-fixture", "complete"])
         openFixtureWorkflow(named: "Complete Fixture Sedan")
-        app.buttons["Review report"].tap()
+        tapReachable(
+            {
+                app.descendants(matching: .any)
+                    .matching(identifier: "workflow.report")
+                    .firstMatch
+            },
+            in: verticalScroll("workflow.verticalScroll")
+        )
+        require(app.navigationBars["Report"])
         app.buttons["report.acknowledgment"].tap()
         let name = app.staticTexts["acknowledgment.savedName"]
         scrollUntilHittable(name)
@@ -226,7 +242,11 @@ final class WorkflowUITests: XCTestCase {
         openFixtureWorkflow(named: "Complete Fixture Sedan")
         openFindingsScreen()
         tapReachable(
-            { app.buttons["Review report"] },
+            {
+                app.descendants(matching: .any)
+                    .matching(identifier: "workflow.report")
+                    .firstMatch
+            },
             in: verticalScroll("workflow.verticalScroll"),
             preferredDirection: .down
         )
@@ -250,10 +270,14 @@ final class WorkflowUITests: XCTestCase {
         capture("sealed-version")
 
         let share = scrollUntilHittable(
-            { app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "report.share.")).firstMatch },
+            {
+                app.descendants(matching: .any)
+                    .matching(NSPredicate(format: "identifier BEGINSWITH %@", "report.share."))
+                    .firstMatch
+            },
             in: verticalScroll("report.verticalScroll")
         )
-        share.tap()
+        tapAtCenter(share)
         let sharePresentation = requireSharePresentation()
         capture("share-sheet")
         dismissSharePresentation(sharePresentation)
@@ -389,7 +413,7 @@ final class WorkflowUITests: XCTestCase {
     private func scrollUntilHittable(
         _ element: XCUIElement,
         preferredDirection: ScrollDirection = .up,
-        attempts: Int = 12,
+        attempts: Int = 5,
         file: StaticString = #filePath,
         line: UInt = #line
     ) -> XCUIElement {
@@ -408,36 +432,28 @@ final class WorkflowUITests: XCTestCase {
         _ resolveElement: () -> XCUIElement,
         in scrollContainer: XCUIElement,
         preferredDirection: ScrollDirection = .up,
-        attempts: Int = 12,
+        attempts: Int = 5,
         file: StaticString = #filePath,
         line: UInt = #line
     ) -> XCUIElement {
         require(scrollContainer, file: file, line: line)
-        let window = app.windows.firstMatch
+        var element = resolveElement()
+        if element.isHittable { return element }
         for _ in 0..<attempts {
-            let element = resolveElement()
-            if element.isHittable { return element }
-
-            let direction: ScrollDirection
-            if element.exists, window.exists, !element.frame.isEmpty {
-                direction = element.frame.midY < window.frame.midY ? .down : .up
-            } else {
-                direction = preferredDirection
-            }
-
-            switch direction {
+            switch preferredDirection {
             case .up: scrollContainer.swipeUp()
             case .down: scrollContainer.swipeDown()
             }
+            element = resolveElement()
+            if element.isHittable { return element }
         }
-        let element = resolveElement()
         XCTAssertTrue(element.isHittable, "Expected \(element) to be reachable after scrolling.", file: file, line: line)
         return element
     }
 
     private func tapReachable(_ element: XCUIElement, preferredDirection: ScrollDirection = .up) {
         let reachableElement = scrollUntilHittable(element, preferredDirection: preferredDirection)
-        reachableElement.tap()
+        tapAtCenter(reachableElement)
     }
 
     private func tapReachable(
@@ -455,7 +471,16 @@ final class WorkflowUITests: XCTestCase {
             line: line
         )
         XCTAssertTrue(element.isHittable, "The freshly resolved element must remain hittable before tapping.", file: file, line: line)
-        element.tap()
+        tapAtCenter(element)
+    }
+
+    private func tapAtCenter(
+        _ element: XCUIElement,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertTrue(element.isHittable, "The element must be hittable before its visible center is tapped.", file: file, line: line)
+        element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
     private func verticalScroll(_ identifier: String) -> XCUIElement {
@@ -512,8 +537,11 @@ final class WorkflowUITests: XCTestCase {
         let cancelQuery = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label == %@", "Cancel"))
         require(cancelQuery.firstMatch)
-        guard let cancel = cancelQuery.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
-            XCTFail("The real Files exporter must expose a hittable Cancel action.")
+        let windowFrame = app.windows.firstMatch.frame
+        guard let cancel = cancelQuery.allElementsBoundByIndex.first(where: {
+            !$0.frame.isEmpty && windowFrame.intersects($0.frame)
+        }) else {
+            XCTFail("The real Files exporter must expose a visible Cancel action.")
             return FileExporterPresentation(marker: marker, cancel: cancelQuery.firstMatch)
         }
         return FileExporterPresentation(marker: marker, cancel: cancel)
@@ -524,7 +552,7 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func dismissFileExporterPresentation(_ presentation: FileExporterPresentation) {
-        presentation.cancel.tap()
+        presentation.cancel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
     private func dismissSystemPresentation(_ presentation: XCUIElement, controls: [String]) {

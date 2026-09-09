@@ -32,6 +32,7 @@ struct JobWorkflowView: View {
                     .controlSize(.large)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(AppTheme.spacing16)
         }
         .accessibilityIdentifier("workflow.verticalScroll")
@@ -132,6 +133,7 @@ struct JobWorkflowView: View {
                     WorkflowActionLabel("Review report", systemImage: "doc.text")
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("workflow.report")
                 NavigationLink {
                     PhotoPairView(job: job)
                 } label: {

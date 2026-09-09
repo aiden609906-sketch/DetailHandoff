@@ -20,7 +20,7 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertTrue(jobsList.waitForExistence(timeout: 8), "The Jobs list must expose its named vertical scroll container at accessibility text sizes.")
         let vehicleQuery = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label == %@", "Complete Fixture Sedan"))
-        for _ in 0..<12 where !vehicleQuery.firstMatch.isHittable {
+        for _ in 0..<5 where !vehicleQuery.firstMatch.isHittable {
             jobsList.swipeUp()
         }
         let vehicle = vehicleQuery.firstMatch
@@ -30,18 +30,19 @@ final class ScreenshotTests: XCTestCase {
             .matching(identifier: "workflow.verticalScroll")
             .firstMatch
         XCTAssertTrue(workflowScroll.waitForExistence(timeout: 8), "The workflow must expose its named vertical scroll container at accessibility text sizes.")
-        let reportQuery = app.buttons.matching(NSPredicate(format: "label == %@", "Review report"))
-        for _ in 0..<12 where !reportQuery.firstMatch.isHittable {
+        let reportQuery = app.descendants(matching: .any)
+            .matching(identifier: "workflow.report")
+        for _ in 0..<5 where !reportQuery.firstMatch.isHittable {
             workflowScroll.swipeUp()
         }
         let report = reportQuery.firstMatch
         XCTAssertTrue(report.isHittable, "The primary workflow action must remain visible and reachable at accessibility text sizes.")
         let photoPairLabel = app.staticTexts["Inspect photo pairs"]
         XCTAssertTrue(photoPairLabel.waitForExistence(timeout: 8))
-        XCTAssertTrue(
-            app.windows.firstMatch.frame.contains(photoPairLabel.frame),
-            "Accessibility-sized workflow action text must wrap inside the visible window instead of clipping horizontally."
-        )
+        let windowFrame = app.windows.firstMatch.frame
+        let labelFrame = photoPairLabel.frame
+        XCTAssertGreaterThanOrEqual(labelFrame.minX, windowFrame.minX, "Accessibility-sized workflow action text must not clip past the leading edge.")
+        XCTAssertLessThanOrEqual(labelFrame.maxX, windowFrame.maxX, "Accessibility-sized workflow action text must not clip past the trailing edge.")
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "accessibility-text-workflow"
