@@ -70,6 +70,7 @@ struct CaptureView: View {
             }
             .padding(AppTheme.spacing16)
         }
+        .accessibilityIdentifier("capture.verticalScroll")
         .navigationTitle(phase == .before ? "Before photos" : "After photos")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: reloadDocument)

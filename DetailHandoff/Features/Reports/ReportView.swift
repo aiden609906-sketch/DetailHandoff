@@ -39,6 +39,7 @@ struct ReportView: View {
             }
             .padding(AppTheme.spacing16)
         }
+        .accessibilityIdentifier("report.verticalScroll")
         .navigationTitle("Report")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: reloadHistory)

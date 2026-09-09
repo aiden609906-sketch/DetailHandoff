@@ -72,6 +72,7 @@ struct NewJobView: View {
                         .accessibilityIdentifier("newJob.create")
                 }
             }
+            .accessibilityIdentifier("newJob.verticalScroll")
             .formStyle(.grouped)
             .navigationTitle("New job")
             .onAppear {

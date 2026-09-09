@@ -34,6 +34,7 @@ struct JobWorkflowView: View {
             }
             .padding(AppTheme.spacing16)
         }
+        .accessibilityIdentifier("workflow.verticalScroll")
         .navigationTitle(job.vehicleLabel)
         .navigationBarTitleDisplayMode(.inline)
         .alert("Unable to advance job", isPresented: isShowingAdvanceError) {

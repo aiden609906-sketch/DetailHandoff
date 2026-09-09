@@ -75,13 +75,17 @@ enum UITestFixtures {
 
         switch requestedFixture {
         case "complete":
-            _ = try makeReviewReadyJob(
+            let captureJob = try makeCaptureFixture(in: context, media: media)
+            let completeJob = try makeReviewReadyJob(
                 vehicle: "Complete Fixture Sedan",
                 customer: "Taylor Fixture",
                 in: context,
                 media: media
             )
-            try makeCaptureFixture(in: context, media: media)
+            let fixtureDate = Date(timeIntervalSince1970: 1_700_000_000)
+            captureJob.createdAt = fixtureDate
+            completeJob.createdAt = fixtureDate.addingTimeInterval(60)
+            try context.save()
         case "revision":
             let job = try makeReviewReadyJob(
                 vehicle: "Revision Fixture SUV",
@@ -102,7 +106,7 @@ enum UITestFixtures {
         }
     }
 
-    private static func makeCaptureFixture(in context: ModelContext, media: MediaStore) throws {
+    private static func makeCaptureFixture(in context: ModelContext, media: MediaStore) throws -> JobRecord {
         let job = try makeJob(vehicle: "Capture Fixture Coupe", customer: "Casey Fixture", in: context)
         let jobs = JobRepository(context: context)
         try jobs.advance(job)
@@ -112,6 +116,7 @@ enum UITestFixtures {
             slotID: "front",
             phase: .before
         )
+        return job
     }
 
     private static func makeReviewReadyJob(

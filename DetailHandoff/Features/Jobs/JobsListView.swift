@@ -76,6 +76,7 @@ struct JobsListView: View {
                     }
                 }
             }
+            .accessibilityIdentifier("jobs.verticalScroll")
             .navigationTitle("Jobs")
             .searchable(text: $searchText, prompt: "Customer, vehicle, or plate")
             .toolbar {
