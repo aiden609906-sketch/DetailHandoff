@@ -153,6 +153,7 @@ struct ReportView: View {
         VStack(alignment: .leading, spacing: AppTheme.spacing8) {
             Text("\(version.reportNumber) · Version \(version.version)")
                 .font(.subheadline.weight(.semibold))
+                .accessibilityIdentifier("report.version.\(version.id.uuidString)")
             Text("Sealed \(version.sealedAt.formatted(date: .abbreviated, time: .shortened))")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -165,13 +166,15 @@ struct ReportView: View {
                 Button("Preview") { openStoredVersion(version) }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("report.preview.\(version.id.uuidString)")
+                    .accessibilityLabel("Preview Version \(version.version)")
                 Button("Share") { shareStoredVersion(version) }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("report.share.\(version.id.uuidString)")
+                    .accessibilityLabel("Share Version \(version.version)")
             }
         }
         .padding(.vertical, AppTheme.spacing8)
-        .accessibilityIdentifier("report.version.\(version.id.uuidString)")
+        .accessibilityElement(children: .contain)
     }
 
     private var isShowingError: Binding<Bool> {

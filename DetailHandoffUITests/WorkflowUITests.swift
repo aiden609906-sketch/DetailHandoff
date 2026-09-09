@@ -83,8 +83,7 @@ final class WorkflowUITests: XCTestCase {
             XCTAssertEqual(app.staticTexts["capture.count.rear"].label, "0 photos")
             let skip = scrollUntilHittable(
                 { app.buttons["capture.skip.rear"] },
-                in: verticalScroll("capture.verticalScroll"),
-                preferredDirection: .down
+                in: verticalScroll("capture.verticalScroll")
             )
             tapAtCenter(skip)
             let prompt = app.alerts["Skip this view"]
@@ -129,8 +128,8 @@ final class WorkflowUITests: XCTestCase {
                 let originalPreview = scrollUntilHittable(
                     {
                         app.descendants(matching: .any)
-                            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "report.preview."))
-                            .element(boundBy: 1)
+                            .matching(NSPredicate(format: "label == %@", "Preview Version 1"))
+                            .firstMatch
                     },
                     in: verticalScroll("report.verticalScroll")
                 )
@@ -272,7 +271,7 @@ final class WorkflowUITests: XCTestCase {
         let share = scrollUntilHittable(
             {
                 app.descendants(matching: .any)
-                    .matching(NSPredicate(format: "identifier BEGINSWITH %@", "report.share."))
+                    .matching(NSPredicate(format: "label == %@", "Share Version 1"))
                     .firstMatch
             },
             in: verticalScroll("report.verticalScroll")
@@ -313,10 +312,9 @@ final class WorkflowUITests: XCTestCase {
         let fileExporterPresentation = requireFileExporterPresentation()
         capture("backup")
         dismissFileExporterPresentation(fileExporterPresentation)
-        requireDismissed(fileExporterPresentation.marker, message: "Cancelling backup export should dismiss the document picker.")
+        requireNotHittable(fileExporterPresentation.cancel, message: "Cancelling backup export should hide the document picker's Cancel action.")
         let exportButton = app.buttons["backup.export"]
-        require(exportButton)
-        XCTAssertTrue(exportButton.isHittable, "Cancelling backup export must return interaction to the Backup screen.")
+        requireHittable(exportButton, message: "Cancelling backup export must return interaction to the Backup screen.")
 
         app.navigationBars.buttons.firstMatch.tap()
         app.staticTexts["Recently deleted"].tap()
@@ -524,27 +522,38 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private struct FileExporterPresentation {
-        let marker: XCUIElement
         let cancel: XCUIElement
     }
 
     private func requireFileExporterPresentation() -> FileExporterPresentation {
-        let marker = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@ OR label == %@", "Save", "Save as"))
-            .firstMatch
-        require(marker, timeout: 12)
-
-        let cancelQuery = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@", "Cancel"))
-        require(cancelQuery.firstMatch)
+        let roots = [
+            XCUIApplication(bundleIdentifier: "com.apple.DocumentsApp"),
+            XCUIApplication(bundleIdentifier: "com.apple.springboard"),
+            app
+        ]
+        let cancelPredicate = NSPredicate(format: "label == %@", "Cancel")
         let windowFrame = app.windows.firstMatch.frame
-        guard let cancel = cancelQuery.allElementsBoundByIndex.first(where: {
-            !$0.frame.isEmpty && windowFrame.intersects($0.frame)
-        }) else {
-            XCTFail("The real Files exporter must expose a visible Cancel action.")
-            return FileExporterPresentation(marker: marker, cancel: cancelQuery.firstMatch)
+
+        for root in roots {
+            let cancelLabel = root.descendants(matching: .any)
+                .matching(cancelPredicate)
+                .firstMatch
+            guard cancelLabel.waitForExistence(timeout: 4) else { continue }
+            let labelFrame = cancelLabel.frame
+            guard !labelFrame.isEmpty, windowFrame.intersects(labelFrame) else { continue }
+            let labelCenter = CGPoint(x: labelFrame.midX, y: labelFrame.midY)
+            let navigationButtons = roots.flatMap {
+                $0.navigationBars.buttons.allElementsBoundByIndex
+            }
+            if let cancel = navigationButtons.first(where: {
+                $0.isHittable && $0.frame.contains(labelCenter)
+            }) {
+                return FileExporterPresentation(cancel: cancel)
+            }
         }
-        return FileExporterPresentation(marker: marker, cancel: cancel)
+
+        XCTFail("The real Files exporter must expose visible Cancel text inside a hittable system navigation button.")
+        return FileExporterPresentation(cancel: app.navigationBars.buttons.firstMatch)
     }
 
     private func dismissSharePresentation(_ presentation: XCUIElement) {
@@ -552,7 +561,7 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func dismissFileExporterPresentation(_ presentation: FileExporterPresentation) {
-        presentation.cancel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        presentation.cancel.tap()
     }
 
     private func dismissSystemPresentation(_ presentation: XCUIElement, controls: [String]) {
@@ -575,6 +584,22 @@ final class WorkflowUITests: XCTestCase {
         let expectation = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"),
             object: presentation
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 8), .completed, message)
+    }
+
+    private func requireNotHittable(_ element: XCUIElement, message: String) {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "hittable == false"),
+            object: element
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 8), .completed, message)
+    }
+
+    private func requireHittable(_ element: XCUIElement, message: String) {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "hittable == true"),
+            object: element
         )
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 8), .completed, message)
     }

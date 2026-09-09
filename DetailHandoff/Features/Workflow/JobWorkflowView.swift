@@ -8,6 +8,7 @@ struct JobWorkflowView: View {
     let job: JobRecord
 
     @State private var advanceErrorMessage: String?
+    @State private var isReportPresented = false
 
     var body: some View {
         ScrollView {
@@ -42,6 +43,9 @@ struct JobWorkflowView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(advanceErrorMessage ?? "Please try again.")
+        }
+        .navigationDestination(isPresented: $isReportPresented) {
+            ReportView(job: job)
         }
     }
 
@@ -127,8 +131,8 @@ struct JobWorkflowView: View {
             captureActions(phase: .after)
         case .review:
             VStack(spacing: AppTheme.spacing8) {
-                NavigationLink {
-                    ReportView(job: job)
+                Button {
+                    isReportPresented = true
                 } label: {
                     WorkflowActionLabel("Review report", systemImage: "doc.text")
                 }
