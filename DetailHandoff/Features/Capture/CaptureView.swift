@@ -48,6 +48,9 @@ struct CaptureView: View {
     @State private var storageDecision: CaptureStorageDecision?
     @State private var pendingAction: PendingAction?
     @State private var selectedPhoto: CapturedPhoto?
+#if DEBUG
+    @State private var skipDiagnosticActionObserved = false
+#endif
 
     init(job: JobRecord, phase: CapturePhase) {
         self.init(job: job, phase: phase, capacityChecker: FileSystemCaptureStorageCapacityChecker())
@@ -125,6 +128,30 @@ struct CaptureView: View {
         .sheet(item: $selectedPhoto) { photo in
             FullPhotoView(photo: photo)
         }
+        .overlay(alignment: .topLeading) {
+            skipTransitionDiagnostic
+        }
+    }
+
+    @ViewBuilder
+    private var skipTransitionDiagnostic: some View {
+#if DEBUG
+        if isUIDiagnosticsEnabled {
+            Text("Skip transition diagnostic")
+                .font(.system(size: 1))
+                .foregroundStyle(.clear)
+                .frame(width: 1, height: 1)
+                .allowsHitTesting(false)
+                .accessibilityElement(children: .ignore)
+                .accessibilityIdentifier("diagnostic.capture.skipTransition")
+                .accessibilityLabel("Skip transition diagnostic")
+                .accessibilityValue(
+                    "actionObserved=\(skipDiagnosticActionObserved);skipSlot=\(skipSlot?.id ?? "none")"
+                )
+        }
+#else
+        EmptyView()
+#endif
     }
 
     private var header: some View {
@@ -213,6 +240,11 @@ struct CaptureView: View {
                 Spacer()
                 Button(skip == nil ? "Skip" : "Change skip") {
                     skipReason = skip?.reason ?? ""
+#if DEBUG
+                    if isUIDiagnosticsEnabled {
+                        skipDiagnosticActionObserved = true
+                    }
+#endif
                     skipSlot = slot
                 }
                 .accessibilityIdentifier("capture.skip.\(slot.id)")
@@ -268,6 +300,13 @@ struct CaptureView: View {
     }
 
     private var isMutable: Bool { job.status != .finalized && job.status != .archived }
+
+#if DEBUG
+    private var isUIDiagnosticsEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-diagnostics")
+            && ProcessInfo.processInfo.environment["XCUI_TESTING"] == "1"
+    }
+#endif
 
     private var cameraReferenceData: Data? {
         guard phase == .after,

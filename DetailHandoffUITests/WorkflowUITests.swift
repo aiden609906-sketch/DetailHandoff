@@ -90,8 +90,16 @@ final class WorkflowUITests: XCTestCase {
                 named: revision ? "revision-skip-before-action" : "review-skip-before-action"
             )
             tapAtCenter(skip)
+            waitForOneSecondDiagnosticCheckpoint(named: "skip-post-action")
+            let skipAfterOneSecond = skipDiagnosticCheckpoint(
+                named: revision ? "revision-skip-after-1s" : "review-skip-after-1s"
+            )
             let prompt = app.alerts["Skip this view"]
-            requireSkipPrompt(prompt, beforeAction: skipBeforeAction)
+            requireSkipPrompt(
+                prompt,
+                beforeAction: skipBeforeAction,
+                afterOneSecond: skipAfterOneSecond
+            )
             prompt.textFields.firstMatch.typeText("Rechecked before handoff")
             prompt.buttons["Save"].tap()
             require(app.staticTexts["Skipped: Rechecked before handoff"])
@@ -108,7 +116,12 @@ final class WorkflowUITests: XCTestCase {
             )
             let reportBeforeAction = reportDiagnosticCheckpoint(named: "review-report-before-action")
             review.tap()
-            requireReportScreen(beforeAction: reportBeforeAction)
+            waitForOneSecondDiagnosticCheckpoint(named: "review-report-post-action")
+            let reportAfterOneSecond = reportDiagnosticCheckpoint(named: "review-report-after-1s")
+            requireReportScreen(
+                beforeAction: reportBeforeAction,
+                afterOneSecond: reportAfterOneSecond
+            )
             app.buttons["report.seal"].tap()
             confirmSeal()
             require(app.alerts["Report issue"])
@@ -162,7 +175,12 @@ final class WorkflowUITests: XCTestCase {
         )
         let reportBeforeAction = reportDiagnosticCheckpoint(named: "saved-ack-report-before-action")
         report.tap()
-        requireReportScreen(beforeAction: reportBeforeAction)
+        waitForOneSecondDiagnosticCheckpoint(named: "saved-ack-report-post-action")
+        let reportAfterOneSecond = reportDiagnosticCheckpoint(named: "saved-ack-report-after-1s")
+        requireReportScreen(
+            beforeAction: reportBeforeAction,
+            afterOneSecond: reportAfterOneSecond
+        )
         app.buttons["report.acknowledgment"].tap()
         let name = app.staticTexts["acknowledgment.savedName"]
         scrollUntilHittable(name)
@@ -262,7 +280,12 @@ final class WorkflowUITests: XCTestCase {
         )
         let reportBeforeAction = reportDiagnosticCheckpoint(named: "complete-report-before-action")
         report.tap()
-        requireReportScreen(beforeAction: reportBeforeAction)
+        waitForOneSecondDiagnosticCheckpoint(named: "complete-report-post-action")
+        let reportAfterOneSecond = reportDiagnosticCheckpoint(named: "complete-report-after-1s")
+        requireReportScreen(
+            beforeAction: reportBeforeAction,
+            afterOneSecond: reportAfterOneSecond
+        )
         capture("report")
 
         app.buttons["report.acknowledgment"].tap()
@@ -351,6 +374,7 @@ final class WorkflowUITests: XCTestCase {
 
     private func launch(arguments: [String]) {
         app.launchArguments = arguments + [
+            "--ui-diagnostics",
             "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"
         ]
@@ -578,11 +602,15 @@ final class WorkflowUITests: XCTestCase {
         confirmation.tap()
     }
 
-    private func requireReportScreen(beforeAction: DiagnosticCheckpoint) {
+    private func requireReportScreen(
+        beforeAction: DiagnosticCheckpoint,
+        afterOneSecond: DiagnosticCheckpoint
+    ) {
         let reportScroll = verticalScroll("report.verticalScroll")
         let appeared = reportScroll.waitForExistence(timeout: 8)
         if !appeared {
             attachDiagnostic(beforeAction)
+            attachDiagnostic(afterOneSecond)
             attachDiagnostic(reportDiagnosticCheckpoint(named: "\(beforeAction.name)-timeout"))
         }
         XCTAssertTrue(appeared, "Expected \(reportScroll) to exist.")
@@ -802,12 +830,15 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func reportDiagnosticCheckpoint(named name: String) -> DiagnosticCheckpoint {
+        let checkpointUptime = ProcessInfo.processInfo.systemUptime
+        let screenshot = app.screenshot()
         let reportQuery = app.descendants(matching: .any)
             .matching(identifier: "workflow.report")
         let workflowScroll = verticalScroll("workflow.verticalScroll")
         let reportScroll = verticalScroll("report.verticalScroll")
         let window = app.windows.firstMatch
         let details = [
+            "checkpoint-system-uptime=\(String(format: "%.3f", checkpointUptime))",
             "tap-api=XCUIElement.tap()",
             "app-window \(elementSummary(window))",
             "workflow-scroll \(elementSummary(workflowScroll))",
@@ -816,16 +847,22 @@ final class WorkflowUITests: XCTestCase {
             elementSummaries(app.navigationBars, heading: "navigation bars"),
             "app.debugDescription:\n\(app.debugDescription)"
         ].joined(separator: "\n")
-        return DiagnosticCheckpoint(name: name, screenshot: app.screenshot(), details: details)
+        return DiagnosticCheckpoint(name: name, screenshot: screenshot, details: details)
     }
 
     private func skipDiagnosticCheckpoint(named name: String) -> DiagnosticCheckpoint {
+        let screenshot = app.screenshot()
         let skipQuery = app.descendants(matching: .any)
             .matching(identifier: "capture.skip.rear")
         let skip = skipQuery.firstMatch
+        let transitionSignal = app.descendants(matching: .any)
+            .matching(identifier: "diagnostic.capture.skipTransition")
+            .firstMatch
         let details = [
+            "checkpoint-system-uptime=\(String(format: "%.3f", ProcessInfo.processInfo.systemUptime))",
             "tap-api=coordinate(normalizedOffset: 0.5,0.5)",
             "computed-tap-point=(x: \(format(skip.frame.midX)), y: \(format(skip.frame.midY)))",
+            "skip-transition-signal \(elementSummary(transitionSignal))",
             "app-window \(elementSummary(app.windows.firstMatch))",
             "capture-scroll \(elementSummary(verticalScroll("capture.verticalScroll")))",
             "rear-anchor \(elementSummary(app.staticTexts["capture.count.rear"]))",
@@ -834,18 +871,20 @@ final class WorkflowUITests: XCTestCase {
             elementSummaries(app.navigationBars, heading: "navigation bars"),
             "app.debugDescription:\n\(app.debugDescription)"
         ].joined(separator: "\n")
-        return DiagnosticCheckpoint(name: name, screenshot: app.screenshot(), details: details)
+        return DiagnosticCheckpoint(name: name, screenshot: screenshot, details: details)
     }
 
     private func requireSkipPrompt(
         _ prompt: XCUIElement,
         beforeAction: DiagnosticCheckpoint,
+        afterOneSecond: DiagnosticCheckpoint,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
         let appeared = prompt.waitForExistence(timeout: 8)
         if !appeared {
             attachDiagnostic(beforeAction)
+            attachDiagnostic(afterOneSecond)
             attachDiagnostic(skipDiagnosticCheckpoint(named: "\(beforeAction.name)-timeout"))
         }
         XCTAssertTrue(appeared, "Expected \(prompt) to exist.", file: file, line: line)
@@ -916,7 +955,14 @@ final class WorkflowUITests: XCTestCase {
         } else {
             geometry = ""
         }
-        return "type=\(String(describing: element.elementType)) identifier=\(quoted(element.identifier)) label=\(quoted(element.label)) exists=\(element.exists) enabled=\(element.isEnabled) hittable=\(element.isHittable) frame=\(frameSummary(elementFrame))\(geometry)"
+        let value = element.value.map { quoted(String(describing: $0)) } ?? "nil"
+        return "type=\(String(describing: element.elementType)) identifier=\(quoted(element.identifier)) label=\(quoted(element.label)) value=\(value) exists=\(element.exists) enabled=\(element.isEnabled) hittable=\(element.isHittable) frame=\(frameSummary(elementFrame))\(geometry)"
+    }
+
+    private func waitForOneSecondDiagnosticCheckpoint(named name: String) {
+        let expectation = XCTestExpectation(description: "Diagnostic checkpoint \(name)")
+        expectation.isInverted = true
+        _ = XCTWaiter.wait(for: [expectation], timeout: 1)
     }
 
     private func frameSummary(_ frame: CGRect) -> String {

@@ -51,6 +51,9 @@ final class ScreenshotTests: XCTestCase {
         failureCheckpoints.append(diagnosticCheckpoint(named: "fixture-row-before-action", app: app))
         vehicle.tap()
         record("fixture row tap returned", since: startedAt, in: &timeline)
+        waitForOneSecondDiagnosticCheckpoint(named: "fixture-navigation-post-action")
+        record("fixture navigation +1s checkpoint", since: startedAt, in: &timeline)
+        failureCheckpoints.append(diagnosticCheckpoint(named: "fixture-navigation-after-1s", app: app))
         let destinationBar = app.navigationBars["Complete Fixture Sedan"]
         let navigationReady = destinationBar.waitForExistence(timeout: 12)
         record("destination navigation ready=\(navigationReady)", since: startedAt, in: &timeline)
@@ -99,6 +102,7 @@ final class ScreenshotTests: XCTestCase {
     }
 
     private func diagnosticCheckpoint(named name: String, app: XCUIApplication) -> DiagnosticCheckpoint {
+        let screenshot = app.screenshot()
         let fixtureQuery = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label == %@", "Complete Fixture Sedan"))
         let details = [
@@ -110,7 +114,7 @@ final class ScreenshotTests: XCTestCase {
             "app-window \(elementSummary(app.windows.firstMatch))",
             "app.debugDescription:\n\(app.debugDescription)"
         ].joined(separator: "\n")
-        return DiagnosticCheckpoint(name: name, screenshot: app.screenshot(), details: details)
+        return DiagnosticCheckpoint(name: name, screenshot: screenshot, details: details)
     }
 
     private func record(
@@ -152,7 +156,14 @@ final class ScreenshotTests: XCTestCase {
     }
 
     private func elementSummary(_ element: XCUIElement) -> String {
-        "type=\(String(describing: element.elementType)) identifier=\(quoted(element.identifier)) label=\(quoted(element.label)) exists=\(element.exists) enabled=\(element.isEnabled) hittable=\(element.isHittable) frame=\(frameSummary(element.frame))"
+        let value = element.value.map { quoted(String(describing: $0)) } ?? "nil"
+        return "type=\(String(describing: element.elementType)) identifier=\(quoted(element.identifier)) label=\(quoted(element.label)) value=\(value) exists=\(element.exists) enabled=\(element.isEnabled) hittable=\(element.isHittable) frame=\(frameSummary(element.frame))"
+    }
+
+    private func waitForOneSecondDiagnosticCheckpoint(named name: String) {
+        let expectation = XCTestExpectation(description: "Diagnostic checkpoint \(name)")
+        expectation.isInverted = true
+        _ = XCTWaiter.wait(for: [expectation], timeout: 1)
     }
 
     private func frameSummary(_ frame: CGRect) -> String {
