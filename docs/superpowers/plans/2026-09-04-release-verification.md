@@ -54,3 +54,15 @@ Evidence update, 2026-09-07:
 - [x] Privacy, paid-download/no-IAP, App Store metadata, and external release gates are documented without asserting unavailable credentials, URLs, devices, signing, TestFlight, or review.
 - [ ] Run the current 137-test unit target and Phase 1 migration/logo-atomicity tests on macOS; follow-up CI is blocked before execution by GitHub Actions account billing/spending limits.
 - [ ] Complete full code review, green current iPhone/iPad UI CI, GitHub sync, and all applicable physical/external gates before marking either task complete.
+
+### Task 3: Compact UI automation reliability re-plan
+
+**Trigger:** The first runtime UI correction task reached its 5/5 breaker. CI `34439586782` still has four compact-iPhone failures and one intermittent iPad screenshot-navigation failure, while build/unit tests remain green and a prior run proved iPad workflow 9/9.
+
+**Files:** `DetailHandoffUITests/WorkflowUITests.swift`, `ScreenshotTests.swift`; focused production accessibility/navigation code only after a diagnostic run proves the failing boundary; `.github/workflows/ios-build.yml` only if targeted evidence export is required.
+
+- [ ] Evidence first: extract the complete action trace and hierarchy snapshot for each remaining failure. Record whether the intended control exists, which process/root owns it, whether it is visible/hittable, and what destination/system surface appears after the action. Do not change gestures or timeouts in this phase.
+- [ ] Compare each failing compact path with its passing iPad counterpart and with the last passing screenshot run. State one falsifiable root-cause hypothesis per failure group: report navigation, capture Skip confirmation, Files exporter cancellation, and fixture navigation readiness.
+- [ ] Add the smallest diagnostic or regression assertion needed to test each hypothesis. Prefer stable production semantics and condition-based readiness; do not add DEBUG shortcuts that bypass the production transition being verified.
+- [ ] Implement one root-cause fix at a time, preserving all nine UI methods, every downstream business assertion, the large-text edge checks, the proven iPad workflow paths, and the 15-minute device budget.
+- [ ] Require independent scoped review, a green 149-unit + iPhone 9/9 + iPad 9/9 macOS run, and visual inspection of replacement screenshots before marking release verification complete.
