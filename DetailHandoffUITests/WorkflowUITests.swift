@@ -103,7 +103,7 @@ final class WorkflowUITests: XCTestCase {
                 in: verticalScroll("workflow.verticalScroll"),
                 preferredDirection: .down
             )
-            tapAtCenter(review)
+            review.tap()
             requireReportScreen()
             app.buttons["report.seal"].tap()
             confirmSeal()
@@ -148,7 +148,7 @@ final class WorkflowUITests: XCTestCase {
     func testSavedAcknowledgmentReopensAndReplacementCanBeCancelled() throws {
         launch(arguments: ["--ui-testing", "--screenshot-fixture", "complete"])
         openFixtureWorkflow(named: "Complete Fixture Sedan")
-        tapReachable(
+        let report = scrollUntilHittable(
             {
                 app.descendants(matching: .any)
                     .matching(identifier: "workflow.report")
@@ -156,6 +156,7 @@ final class WorkflowUITests: XCTestCase {
             },
             in: verticalScroll("workflow.verticalScroll")
         )
+        report.tap()
         requireReportScreen()
         app.buttons["report.acknowledgment"].tap()
         let name = app.staticTexts["acknowledgment.savedName"]
@@ -245,7 +246,7 @@ final class WorkflowUITests: XCTestCase {
         openCaptureScreen()
         openFixtureWorkflow(named: "Complete Fixture Sedan")
         openFindingsScreen()
-        tapReachable(
+        let report = scrollUntilHittable(
             {
                 app.descendants(matching: .any)
                     .matching(identifier: "workflow.report")
@@ -254,6 +255,7 @@ final class WorkflowUITests: XCTestCase {
             in: verticalScroll("workflow.verticalScroll"),
             preferredDirection: .down
         )
+        report.tap()
         requireReportScreen()
         capture("report")
 
@@ -474,21 +476,42 @@ final class WorkflowUITests: XCTestCase {
         }
         let windowFrame = app.windows.firstMatch.frame
         let scrollFrame = scrollContainer.frame
-        let anchorFrame = anchor.frame
-        let anchorCenter = CGPoint(x: anchorFrame.midX, y: anchorFrame.midY)
-        guard !scrollFrame.isEmpty,
-              !anchorFrame.isEmpty,
-              windowFrame.intersects(anchorFrame),
-              scrollFrame.intersects(anchorFrame),
-              windowFrame.contains(anchorCenter),
-              scrollFrame.contains(anchorCenter) else {
+        guard !scrollFrame.isEmpty else {
+            XCTFail("The named capture scroll container must have a visible frame.", file: file, line: line)
+            return element
+        }
+
+        for _ in 0..<3 {
+            let anchorFrame = anchor.frame
+            let anchorCenter = CGPoint(x: anchorFrame.midX, y: anchorFrame.midY)
+            if !anchorFrame.isEmpty,
+               windowFrame.contains(anchorCenter),
+               scrollFrame.contains(anchorCenter) {
+                break
+            }
+
+            let anchorIsAbove = !anchorFrame.isEmpty && anchorFrame.midY < scrollFrame.midY
+            let startY = anchorIsAbove ? 0.35 : 0.65
+            let destinationY = anchorIsAbove ? 0.55 : 0.45
+            let start = scrollContainer.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: startY))
+            let destination = scrollContainer.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: destinationY))
+            start.press(forDuration: 0.05, thenDragTo: destination)
+        }
+
+        let visibleAnchorFrame = anchor.frame
+        let visibleAnchorCenter = CGPoint(x: visibleAnchorFrame.midX, y: visibleAnchorFrame.midY)
+        guard !visibleAnchorFrame.isEmpty,
+              windowFrame.intersects(visibleAnchorFrame),
+              scrollFrame.intersects(visibleAnchorFrame),
+              windowFrame.contains(visibleAnchorCenter),
+              scrollFrame.contains(visibleAnchorCenter) else {
             XCTFail("The rear slot anchor must be visible inside the named capture scroll container.", file: file, line: line)
             return element
         }
         if element.isHittable { return element }
 
         let travel = min(120, scrollFrame.height * 0.2)
-        let destinationY = max(scrollFrame.minY + 1, anchorFrame.midY - travel)
+        let destinationY = max(scrollFrame.minY + 1, visibleAnchorFrame.midY - travel)
         let destinationOffset = (destinationY - scrollFrame.minY) / scrollFrame.height
         let start = anchor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         let destination = scrollContainer.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: destinationOffset))
@@ -663,9 +686,17 @@ final class WorkflowUITests: XCTestCase {
             if menuCancel.waitForExistence(timeout: 4), menuCancel.isHittable {
                 return FileExporterPresentation(marker: marker, cancel: menuCancel)
             }
+            let semanticMenuCancels = root.descendants(matching: .any)
+                .matching(cancelPredicate)
+                .allElementsBoundByIndex
+            if let semanticMenuCancel = semanticMenuCancels.first(where: {
+                $0.isHittable && !$0.frame.isEmpty && windowFrame.intersects($0.frame)
+            }) {
+                return FileExporterPresentation(marker: marker, cancel: semanticMenuCancel)
+            }
         }
 
-        XCTFail("The real Files exporter must expose Save, Save as, or its backup filename and a real hittable Cancel button in the same root, directly or through its More menu.")
+        XCTFail("The real Files exporter must expose Save, Save as, or its backup filename and a real hittable Cancel action in the same root, directly or through its More menu.")
         return FileExporterPresentation(
             marker: app.descendants(matching: .any).matching(exporterPredicate).firstMatch,
             cancel: app.navigationBars.buttons.firstMatch
