@@ -463,13 +463,35 @@ final class WorkflowUITests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) -> XCUIElement {
-        require(scrollContainer, file: file, line: line)
-        require(anchor, file: file, line: line)
         var element = resolveElement()
+        guard scrollContainer.waitForExistence(timeout: 8) else {
+            XCTFail("The named capture scroll container must exist before revealing a slot control.", file: file, line: line)
+            return element
+        }
+        guard anchor.waitForExistence(timeout: 8) else {
+            XCTFail("The rear slot anchor must exist before revealing its control.", file: file, line: line)
+            return element
+        }
+        let windowFrame = app.windows.firstMatch.frame
+        let scrollFrame = scrollContainer.frame
+        let anchorFrame = anchor.frame
+        let anchorCenter = CGPoint(x: anchorFrame.midX, y: anchorFrame.midY)
+        guard !scrollFrame.isEmpty,
+              !anchorFrame.isEmpty,
+              windowFrame.intersects(anchorFrame),
+              scrollFrame.intersects(anchorFrame),
+              windowFrame.contains(anchorCenter),
+              scrollFrame.contains(anchorCenter) else {
+            XCTFail("The rear slot anchor must be visible inside the named capture scroll container.", file: file, line: line)
+            return element
+        }
         if element.isHittable { return element }
 
-        let start = scrollContainer.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.65))
-        let destination = scrollContainer.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35))
+        let travel = min(120, scrollFrame.height * 0.2)
+        let destinationY = max(scrollFrame.minY + 1, anchorFrame.midY - travel)
+        let destinationOffset = (destinationY - scrollFrame.minY) / scrollFrame.height
+        let start = anchor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let destination = scrollContainer.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: destinationOffset))
         for _ in 0..<3 {
             start.press(forDuration: 0.05, thenDragTo: destination)
             element = resolveElement()
@@ -609,12 +631,6 @@ final class WorkflowUITests: XCTestCase {
             guard marker.waitForExistence(timeout: 4) else { continue }
             let markerFrame = marker.frame
             guard !markerFrame.isEmpty, windowFrame.intersects(markerFrame) else { continue }
-            let cancelLabel = root.descendants(matching: .any)
-                .matching(cancelPredicate)
-                .firstMatch
-            guard cancelLabel.waitForExistence(timeout: 4) else { continue }
-            let labelFrame = cancelLabel.frame
-            guard !labelFrame.isEmpty, windowFrame.intersects(labelFrame) else { continue }
             let directCancel = root.buttons.matching(cancelPredicate).firstMatch
             if directCancel.waitForExistence(timeout: 1), directCancel.isHittable {
                 return FileExporterPresentation(marker: marker, cancel: directCancel)
@@ -625,10 +641,20 @@ final class WorkflowUITests: XCTestCase {
             if publicMore.waitForExistence(timeout: 1), publicMore.isHittable {
                 menuButton = publicMore
             } else {
-                let labelCenter = CGPoint(x: labelFrame.midX, y: labelFrame.midY)
-                menuButton = root.navigationBars.buttons.allElementsBoundByIndex.first(where: {
-                    $0.isHittable && $0.frame.contains(labelCenter)
-                })
+                let cancelLabel = root.descendants(matching: .any)
+                    .matching(cancelPredicate)
+                    .firstMatch
+                if cancelLabel.waitForExistence(timeout: 1) {
+                    let labelFrame = cancelLabel.frame
+                    let labelCenter = CGPoint(x: labelFrame.midX, y: labelFrame.midY)
+                    menuButton = !labelFrame.isEmpty && windowFrame.intersects(labelFrame)
+                        ? root.navigationBars.buttons.allElementsBoundByIndex.first(where: {
+                            $0.isHittable && $0.frame.contains(labelCenter)
+                        })
+                        : nil
+                } else {
+                    menuButton = nil
+                }
             }
             guard let menuButton else { continue }
             menuButton.tap()
