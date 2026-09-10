@@ -4,6 +4,9 @@ import XCTest
 final class ScreenshotTests: XCTestCase {
     func testLargeAccessibilityTextKeepsWorkflowActionsVisible() throws {
         let app = XCUIApplication()
+        let startedAt = ProcessInfo.processInfo.systemUptime
+        var timeline: [String] = []
+        var failureCheckpoints: [DiagnosticCheckpoint] = []
         app.launchArguments = [
             "--ui-testing", "--screenshot-fixture", "complete",
             "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
@@ -11,13 +14,24 @@ final class ScreenshotTests: XCTestCase {
         ]
         app.launchEnvironment = ["XCUI_TESTING": "1"]
         app.launch()
+        record("app.launch returned", since: startedAt, in: &timeline)
 
         let appliedCategory = app.descendants(matching: .any)["ui.dynamicType.accessibility5"]
-        XCTAssertTrue(appliedCategory.waitForExistence(timeout: 20), "The requested accessibility text category must be applied to the app process.")
+        let categoryReady = appliedCategory.waitForExistence(timeout: 20)
+        record("dynamic-type marker ready=\(categoryReady)", since: startedAt, in: &timeline)
+        if !categoryReady {
+            failureCheckpoints.append(diagnosticCheckpoint(named: "dynamic-type-timeout", app: app))
+            attachDiagnostics(failureCheckpoints, timeline: timeline)
+        }
+        XCTAssertTrue(categoryReady, "The requested accessibility text category must be applied to the app process.")
         let jobsList = app.descendants(matching: .any)
             .matching(identifier: "jobs.verticalScroll")
             .firstMatch
-        guard jobsList.waitForExistence(timeout: 12) else {
+        let jobsReady = jobsList.waitForExistence(timeout: 12)
+        record("jobs scroll ready=\(jobsReady)", since: startedAt, in: &timeline)
+        guard jobsReady else {
+            failureCheckpoints.append(diagnosticCheckpoint(named: "jobs-readiness-timeout", app: app))
+            attachDiagnostics(failureCheckpoints, timeline: timeline)
             XCTFail("The Jobs list must expose its named vertical scroll container at accessibility text sizes.")
             return
         }
@@ -27,19 +41,34 @@ final class ScreenshotTests: XCTestCase {
             jobsList.swipeUp()
         }
         let vehicle = vehicleQuery.firstMatch
+        record("fixture row hittable=\(vehicle.isHittable)", since: startedAt, in: &timeline)
         guard vehicle.isHittable else {
+            failureCheckpoints.append(diagnosticCheckpoint(named: "fixture-row-unreachable", app: app))
+            attachDiagnostics(failureCheckpoints, timeline: timeline)
             XCTFail("The complete fixture must remain reachable at accessibility text sizes.")
             return
         }
+        failureCheckpoints.append(diagnosticCheckpoint(named: "fixture-row-before-action", app: app))
         vehicle.tap()
-        guard app.navigationBars["Complete Fixture Sedan"].waitForExistence(timeout: 12) else {
+        record("fixture row tap returned", since: startedAt, in: &timeline)
+        let destinationBar = app.navigationBars["Complete Fixture Sedan"]
+        let navigationReady = destinationBar.waitForExistence(timeout: 12)
+        record("destination navigation ready=\(navigationReady)", since: startedAt, in: &timeline)
+        guard navigationReady else {
+            failureCheckpoints.append(diagnosticCheckpoint(named: "fixture-navigation-timeout", app: app))
+            attachDiagnostics(failureCheckpoints, timeline: timeline)
             XCTFail("The complete fixture workflow must finish navigation at accessibility text sizes.")
             return
         }
+        failureCheckpoints.append(diagnosticCheckpoint(named: "fixture-navigation-ready", app: app))
         let workflowScroll = app.descendants(matching: .any)
             .matching(identifier: "workflow.verticalScroll")
             .firstMatch
-        guard workflowScroll.waitForExistence(timeout: 12) else {
+        let workflowReady = workflowScroll.waitForExistence(timeout: 12)
+        record("workflow scroll ready=\(workflowReady)", since: startedAt, in: &timeline)
+        guard workflowReady else {
+            failureCheckpoints.append(diagnosticCheckpoint(named: "workflow-readiness-timeout", app: app))
+            attachDiagnostics(failureCheckpoints, timeline: timeline)
             XCTFail("The workflow must expose its named vertical scroll container at accessibility text sizes.")
             return
         }
@@ -61,5 +90,80 @@ final class ScreenshotTests: XCTestCase {
         attachment.name = "accessibility-text-workflow"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private struct DiagnosticCheckpoint {
+        let name: String
+        let screenshot: XCUIScreenshot
+        let details: String
+    }
+
+    private func diagnosticCheckpoint(named name: String, app: XCUIApplication) -> DiagnosticCheckpoint {
+        let fixtureQuery = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "Complete Fixture Sedan"))
+        let details = [
+            elementSummaries(fixtureQuery, heading: "fixture row candidates"),
+            "jobs-scroll \(elementSummary(app.descendants(matching: .any).matching(identifier: "jobs.verticalScroll").firstMatch))",
+            "workflow-scroll \(elementSummary(app.descendants(matching: .any).matching(identifier: "workflow.verticalScroll").firstMatch))",
+            "destination-navigation \(elementSummary(app.navigationBars["Complete Fixture Sedan"]))",
+            elementSummaries(app.navigationBars, heading: "navigation bars"),
+            "app-window \(elementSummary(app.windows.firstMatch))",
+            "app.debugDescription:\n\(app.debugDescription)"
+        ].joined(separator: "\n")
+        return DiagnosticCheckpoint(name: name, screenshot: app.screenshot(), details: details)
+    }
+
+    private func record(
+        _ event: String,
+        since startedAt: TimeInterval,
+        in timeline: inout [String]
+    ) {
+        let elapsed = ProcessInfo.processInfo.systemUptime - startedAt
+        let entry = "t+\(String(format: "%.3f", elapsed))s \(event)"
+        timeline.append(entry)
+        print("UI_DIAGNOSTIC \(entry)")
+    }
+
+    private func attachDiagnostics(_ checkpoints: [DiagnosticCheckpoint], timeline: [String]) {
+        let timelineAttachment = XCTAttachment(string: timeline.joined(separator: "\n"))
+        timelineAttachment.name = "diagnostic-accessibility-navigation-timeline.txt"
+        timelineAttachment.lifetime = .keepAlways
+        add(timelineAttachment)
+
+        for checkpoint in checkpoints {
+            let screenshot = XCTAttachment(screenshot: checkpoint.screenshot)
+            screenshot.name = "diagnostic-\(checkpoint.name)-screenshot"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+
+            let details = XCTAttachment(string: checkpoint.details)
+            details.name = "diagnostic-\(checkpoint.name)-hierarchy.txt"
+            details.lifetime = .keepAlways
+            add(details)
+        }
+    }
+
+    private func elementSummaries(_ query: XCUIElementQuery, heading: String) -> String {
+        let elements = query.allElementsBoundByIndex
+        guard !elements.isEmpty else { return "\(heading): none" }
+        return (["\(heading): count=\(elements.count)"] + elements.enumerated().map { index, element in
+            "[\(index)] \(elementSummary(element))"
+        }).joined(separator: "\n")
+    }
+
+    private func elementSummary(_ element: XCUIElement) -> String {
+        "type=\(String(describing: element.elementType)) identifier=\(quoted(element.identifier)) label=\(quoted(element.label)) exists=\(element.exists) enabled=\(element.isEnabled) hittable=\(element.isHittable) frame=\(frameSummary(element.frame))"
+    }
+
+    private func frameSummary(_ frame: CGRect) -> String {
+        "(x: \(format(frame.origin.x)), y: \(format(frame.origin.y)), width: \(format(frame.size.width)), height: \(format(frame.size.height)))"
+    }
+
+    private func format(_ value: CGFloat) -> String {
+        String(format: "%.2f", Double(value))
+    }
+
+    private func quoted(_ value: String) -> String {
+        "\"\(value.replacingOccurrences(of: "\n", with: "\\n"))\""
     }
 }

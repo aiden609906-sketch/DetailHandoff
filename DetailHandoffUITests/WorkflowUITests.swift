@@ -86,9 +86,12 @@ final class WorkflowUITests: XCTestCase {
                 anchor: app.staticTexts["capture.count.rear"],
                 in: verticalScroll("capture.verticalScroll")
             )
+            let skipBeforeAction = skipDiagnosticCheckpoint(
+                named: revision ? "revision-skip-before-action" : "review-skip-before-action"
+            )
             tapAtCenter(skip)
             let prompt = app.alerts["Skip this view"]
-            require(prompt)
+            requireSkipPrompt(prompt, beforeAction: skipBeforeAction)
             prompt.textFields.firstMatch.typeText("Rechecked before handoff")
             prompt.buttons["Save"].tap()
             require(app.staticTexts["Skipped: Rechecked before handoff"])
@@ -103,8 +106,9 @@ final class WorkflowUITests: XCTestCase {
                 in: verticalScroll("workflow.verticalScroll"),
                 preferredDirection: .down
             )
+            let reportBeforeAction = reportDiagnosticCheckpoint(named: "review-report-before-action")
             review.tap()
-            requireReportScreen()
+            requireReportScreen(beforeAction: reportBeforeAction)
             app.buttons["report.seal"].tap()
             confirmSeal()
             require(app.alerts["Report issue"])
@@ -156,8 +160,9 @@ final class WorkflowUITests: XCTestCase {
             },
             in: verticalScroll("workflow.verticalScroll")
         )
+        let reportBeforeAction = reportDiagnosticCheckpoint(named: "saved-ack-report-before-action")
         report.tap()
-        requireReportScreen()
+        requireReportScreen(beforeAction: reportBeforeAction)
         app.buttons["report.acknowledgment"].tap()
         let name = app.staticTexts["acknowledgment.savedName"]
         scrollUntilHittable(name)
@@ -255,8 +260,9 @@ final class WorkflowUITests: XCTestCase {
             in: verticalScroll("workflow.verticalScroll"),
             preferredDirection: .down
         )
+        let reportBeforeAction = reportDiagnosticCheckpoint(named: "complete-report-before-action")
         report.tap()
-        requireReportScreen()
+        requireReportScreen(beforeAction: reportBeforeAction)
         capture("report")
 
         app.buttons["report.acknowledgment"].tap()
@@ -572,8 +578,14 @@ final class WorkflowUITests: XCTestCase {
         confirmation.tap()
     }
 
-    private func requireReportScreen() {
-        require(verticalScroll("report.verticalScroll"))
+    private func requireReportScreen(beforeAction: DiagnosticCheckpoint) {
+        let reportScroll = verticalScroll("report.verticalScroll")
+        let appeared = reportScroll.waitForExistence(timeout: 8)
+        if !appeared {
+            attachDiagnostic(beforeAction)
+            attachDiagnostic(reportDiagnosticCheckpoint(named: "\(beforeAction.name)-timeout"))
+        }
+        XCTAssertTrue(appeared, "Expected \(reportScroll) to exist.")
     }
 
     private func returnToJobs() {
@@ -632,11 +644,22 @@ final class WorkflowUITests: XCTestCase {
         let cancel: XCUIElement
     }
 
+    private struct DiagnosticApplicationRoot {
+        let name: String
+        let application: XCUIApplication
+    }
+
     private func requireFileExporterPresentation() -> FileExporterPresentation {
         let roots = [
-            XCUIApplication(bundleIdentifier: "com.apple.DocumentsApp"),
-            XCUIApplication(bundleIdentifier: "com.apple.springboard"),
-            app
+            DiagnosticApplicationRoot(
+                name: "DocumentsApp (com.apple.DocumentsApp)",
+                application: XCUIApplication(bundleIdentifier: "com.apple.DocumentsApp")
+            ),
+            DiagnosticApplicationRoot(
+                name: "SpringBoard (com.apple.springboard)",
+                application: XCUIApplication(bundleIdentifier: "com.apple.springboard")
+            ),
+            DiagnosticApplicationRoot(name: "DetailHandoff target app", application: app)
         ]
         let exporterPredicate = NSPredicate(
             format: "label == %@ OR label == %@ OR label BEGINSWITH %@",
@@ -646,8 +669,10 @@ final class WorkflowUITests: XCTestCase {
         )
         let cancelPredicate = NSPredicate(format: "label == %@", "Cancel")
         let windowFrame = app.windows.firstMatch.frame
+        var failureCheckpoints: [DiagnosticCheckpoint] = []
 
-        for root in roots {
+        for (rootIndex, diagnosticRoot) in roots.enumerated() {
+            let root = diagnosticRoot.application
             let marker = root.descendants(matching: .any)
                 .matching(exporterPredicate)
                 .firstMatch
@@ -658,6 +683,16 @@ final class WorkflowUITests: XCTestCase {
             if directCancel.waitForExistence(timeout: 1), directCancel.isHittable {
                 return FileExporterPresentation(marker: marker, cancel: directCancel)
             }
+            failureCheckpoints.append(
+                fileExporterDiagnosticCheckpoint(
+                    named: "files-marker-accepted-root-\(rootIndex)",
+                    roots: roots,
+                    selectedRootIndex: rootIndex,
+                    windowFrame: windowFrame,
+                    exporterPredicate: exporterPredicate,
+                    cancelPredicate: cancelPredicate
+                )
+            )
 
             let publicMore = root.buttons["More"].firstMatch
             let menuButton: XCUIElement?
@@ -681,6 +716,16 @@ final class WorkflowUITests: XCTestCase {
             }
             guard let menuButton else { continue }
             menuButton.tap()
+            failureCheckpoints.append(
+                fileExporterDiagnosticCheckpoint(
+                    named: "files-after-more-root-\(rootIndex)",
+                    roots: roots,
+                    selectedRootIndex: rootIndex,
+                    windowFrame: windowFrame,
+                    exporterPredicate: exporterPredicate,
+                    cancelPredicate: cancelPredicate
+                )
+            )
 
             let menuCancel = root.buttons.matching(cancelPredicate).firstMatch
             if menuCancel.waitForExistence(timeout: 4), menuCancel.isHittable {
@@ -696,6 +741,21 @@ final class WorkflowUITests: XCTestCase {
             }
         }
 
+        if failureCheckpoints.isEmpty {
+            failureCheckpoints.append(
+                fileExporterDiagnosticCheckpoint(
+                    named: "files-no-accepted-marker",
+                    roots: roots,
+                    selectedRootIndex: nil,
+                    windowFrame: windowFrame,
+                    exporterPredicate: exporterPredicate,
+                    cancelPredicate: cancelPredicate
+                )
+            )
+        }
+        for checkpoint in failureCheckpoints {
+            attachDiagnostic(checkpoint)
+        }
         XCTFail("The real Files exporter must expose Save, Save as, or its backup filename and a real hittable Cancel action in the same root, directly or through its More menu.")
         return FileExporterPresentation(
             marker: app.descendants(matching: .any).matching(exporterPredicate).firstMatch,
@@ -733,6 +793,154 @@ final class WorkflowUITests: XCTestCase {
             object: element
         )
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 8), .completed, message)
+    }
+
+    private struct DiagnosticCheckpoint {
+        let name: String
+        let screenshot: XCUIScreenshot
+        let details: String
+    }
+
+    private func reportDiagnosticCheckpoint(named name: String) -> DiagnosticCheckpoint {
+        let reportQuery = app.descendants(matching: .any)
+            .matching(identifier: "workflow.report")
+        let workflowScroll = verticalScroll("workflow.verticalScroll")
+        let reportScroll = verticalScroll("report.verticalScroll")
+        let window = app.windows.firstMatch
+        let details = [
+            "tap-api=XCUIElement.tap()",
+            "app-window \(elementSummary(window))",
+            "workflow-scroll \(elementSummary(workflowScroll))",
+            "report-scroll \(elementSummary(reportScroll))",
+            elementSummaries(reportQuery, heading: "workflow.report candidates"),
+            elementSummaries(app.navigationBars, heading: "navigation bars"),
+            "app.debugDescription:\n\(app.debugDescription)"
+        ].joined(separator: "\n")
+        return DiagnosticCheckpoint(name: name, screenshot: app.screenshot(), details: details)
+    }
+
+    private func skipDiagnosticCheckpoint(named name: String) -> DiagnosticCheckpoint {
+        let skipQuery = app.descendants(matching: .any)
+            .matching(identifier: "capture.skip.rear")
+        let skip = skipQuery.firstMatch
+        let details = [
+            "tap-api=coordinate(normalizedOffset: 0.5,0.5)",
+            "computed-tap-point=(x: \(format(skip.frame.midX)), y: \(format(skip.frame.midY)))",
+            "app-window \(elementSummary(app.windows.firstMatch))",
+            "capture-scroll \(elementSummary(verticalScroll("capture.verticalScroll")))",
+            "rear-anchor \(elementSummary(app.staticTexts["capture.count.rear"]))",
+            elementSummaries(skipQuery, heading: "capture.skip.rear candidates"),
+            elementSummaries(app.alerts, heading: "alerts"),
+            elementSummaries(app.navigationBars, heading: "navigation bars"),
+            "app.debugDescription:\n\(app.debugDescription)"
+        ].joined(separator: "\n")
+        return DiagnosticCheckpoint(name: name, screenshot: app.screenshot(), details: details)
+    }
+
+    private func requireSkipPrompt(
+        _ prompt: XCUIElement,
+        beforeAction: DiagnosticCheckpoint,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let appeared = prompt.waitForExistence(timeout: 8)
+        if !appeared {
+            attachDiagnostic(beforeAction)
+            attachDiagnostic(skipDiagnosticCheckpoint(named: "\(beforeAction.name)-timeout"))
+        }
+        XCTAssertTrue(appeared, "Expected \(prompt) to exist.", file: file, line: line)
+    }
+
+    private func fileExporterDiagnosticCheckpoint(
+        named name: String,
+        roots: [DiagnosticApplicationRoot],
+        selectedRootIndex: Int?,
+        windowFrame: CGRect,
+        exporterPredicate: NSPredicate,
+        cancelPredicate: NSPredicate
+    ) -> DiagnosticCheckpoint {
+        var sections = [
+            "fixture-data-only=true",
+            "selected-root-index=\(selectedRootIndex.map { String($0) } ?? "none")",
+            "app-window-frame=\(frameSummary(windowFrame))"
+        ]
+        for (index, diagnosticRoot) in roots.enumerated() {
+            let root = diagnosticRoot.application
+            let prefix = "root[\(index)] \(diagnosticRoot.name)"
+            sections.append(
+                elementSummaries(
+                    root.descendants(matching: .any).matching(exporterPredicate),
+                    heading: "\(prefix) exporter markers",
+                    windowFrame: windowFrame
+                )
+            )
+            sections.append(
+                elementSummaries(
+                    root.descendants(matching: .any).matching(cancelPredicate),
+                    heading: "\(prefix) Cancel candidates",
+                    windowFrame: windowFrame
+                )
+            )
+            sections.append(
+                elementSummaries(
+                    root.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "More")),
+                    heading: "\(prefix) More candidates",
+                    windowFrame: windowFrame
+                )
+            )
+            sections.append("\(prefix).debugDescription:\n\(root.debugDescription)")
+        }
+        sections.append("target-app.debugDescription:\n\(app.debugDescription)")
+        sections.append("backup.export \(elementSummary(app.buttons["backup.export"], windowFrame: windowFrame))")
+        sections.append(elementSummaries(app.navigationBars, heading: "target-app navigation bars", windowFrame: windowFrame))
+        return DiagnosticCheckpoint(name: name, screenshot: app.screenshot(), details: sections.joined(separator: "\n"))
+    }
+
+    private func elementSummaries(
+        _ query: XCUIElementQuery,
+        heading: String,
+        windowFrame: CGRect? = nil
+    ) -> String {
+        let elements = query.allElementsBoundByIndex
+        guard !elements.isEmpty else { return "\(heading): none" }
+        return (["\(heading): count=\(elements.count)"] + elements.enumerated().map { index, element in
+            "[\(index)] \(elementSummary(element, windowFrame: windowFrame))"
+        }).joined(separator: "\n")
+    }
+
+    private func elementSummary(_ element: XCUIElement, windowFrame: CGRect? = nil) -> String {
+        let elementFrame = element.frame
+        let geometry: String
+        if let windowFrame {
+            geometry = " frameEmpty=\(elementFrame.isEmpty) intersectsAppWindow=\(windowFrame.intersects(elementFrame))"
+        } else {
+            geometry = ""
+        }
+        return "type=\(String(describing: element.elementType)) identifier=\(quoted(element.identifier)) label=\(quoted(element.label)) exists=\(element.exists) enabled=\(element.isEnabled) hittable=\(element.isHittable) frame=\(frameSummary(elementFrame))\(geometry)"
+    }
+
+    private func frameSummary(_ frame: CGRect) -> String {
+        "(x: \(format(frame.origin.x)), y: \(format(frame.origin.y)), width: \(format(frame.size.width)), height: \(format(frame.size.height)))"
+    }
+
+    private func format(_ value: CGFloat) -> String {
+        String(format: "%.2f", Double(value))
+    }
+
+    private func quoted(_ value: String) -> String {
+        "\"\(value.replacingOccurrences(of: "\n", with: "\\n"))\""
+    }
+
+    private func attachDiagnostic(_ checkpoint: DiagnosticCheckpoint) {
+        let screenshot = XCTAttachment(screenshot: checkpoint.screenshot)
+        screenshot.name = "diagnostic-\(checkpoint.name)-screenshot"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+
+        let details = XCTAttachment(string: checkpoint.details)
+        details.name = "diagnostic-\(checkpoint.name)-hierarchy.txt"
+        details.lifetime = .keepAlways
+        add(details)
     }
 
     private func require(_ element: XCUIElement, timeout: TimeInterval = 8, file: StaticString = #filePath, line: UInt = #line) {
