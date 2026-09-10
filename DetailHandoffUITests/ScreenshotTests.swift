@@ -156,8 +156,9 @@ final class ScreenshotTests: XCTestCase {
     }
 
     private func elementSummary(_ element: XCUIElement) -> String {
+        guard element.exists else { return "exists=false" }
         let value = element.value.map { quoted(String(describing: $0)) } ?? "nil"
-        return "type=\(String(describing: element.elementType)) identifier=\(quoted(element.identifier)) label=\(quoted(element.label)) value=\(value) exists=\(element.exists) enabled=\(element.isEnabled) hittable=\(element.isHittable) frame=\(frameSummary(element.frame))"
+        return "type=\(String(describing: element.elementType)) identifier=\(quoted(element.identifier)) label=\(quoted(element.label)) value=\(value) exists=true enabled=\(element.isEnabled) hittable=\(element.isHittable) frame=\(frameSummary(element.frame))"
     }
 
     private func waitForOneSecondDiagnosticCheckpoint(named name: String) {

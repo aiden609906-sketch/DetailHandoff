@@ -948,6 +948,7 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func elementSummary(_ element: XCUIElement, windowFrame: CGRect? = nil) -> String {
+        guard element.exists else { return "exists=false" }
         let elementFrame = element.frame
         let geometry: String
         if let windowFrame {
@@ -956,7 +957,7 @@ final class WorkflowUITests: XCTestCase {
             geometry = ""
         }
         let value = element.value.map { quoted(String(describing: $0)) } ?? "nil"
-        return "type=\(String(describing: element.elementType)) identifier=\(quoted(element.identifier)) label=\(quoted(element.label)) value=\(value) exists=\(element.exists) enabled=\(element.isEnabled) hittable=\(element.isHittable) frame=\(frameSummary(elementFrame))\(geometry)"
+        return "type=\(String(describing: element.elementType)) identifier=\(quoted(element.identifier)) label=\(quoted(element.label)) value=\(value) exists=true enabled=\(element.isEnabled) hittable=\(element.isHittable) frame=\(frameSummary(elementFrame))\(geometry)"
     }
 
     private func waitForOneSecondDiagnosticCheckpoint(named name: String) {
