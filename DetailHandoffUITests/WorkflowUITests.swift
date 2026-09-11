@@ -737,6 +737,30 @@ final class WorkflowUITests: XCTestCase {
             if directCancel.waitForExistence(timeout: 1), directCancel.isHittable {
                 return FileExporterPresentation(marker: marker, cancel: directCancel)
             }
+
+            // Compact iPhone document pickers can replace the visible Cancel
+            // button with a Browse back button. Return to the picker root so
+            // XCTest can use the real, visible Cancel action there.
+            let browseBack = root.navigationBars.buttons.matching(
+                NSPredicate(format: "identifier == %@ AND label == %@", "BackButton", "Browse")
+            ).firstMatch
+            if browseBack.waitForExistence(timeout: 1), browseBack.isHittable {
+                browseBack.tap()
+                let rootCancel = root.buttons.matching(cancelPredicate).firstMatch
+                if rootCancel.waitForExistence(timeout: 4), rootCancel.isHittable {
+                    return FileExporterPresentation(marker: marker, cancel: rootCancel)
+                }
+                failureCheckpoints.append(
+                    fileExporterDiagnosticCheckpoint(
+                        named: "files-after-browse-back-root-\(rootIndex)",
+                        roots: roots,
+                        selectedRootIndex: rootIndex,
+                        windowFrame: windowFrame,
+                        exporterPredicate: exporterPredicate,
+                        cancelPredicate: cancelPredicate
+                    )
+                )
+            }
             failureCheckpoints.append(
                 fileExporterDiagnosticCheckpoint(
                     named: "files-marker-accepted-root-\(rootIndex)",
@@ -810,7 +834,7 @@ final class WorkflowUITests: XCTestCase {
         for checkpoint in failureCheckpoints {
             attachDiagnostic(checkpoint)
         }
-        XCTFail("The real Files exporter must expose Save, Save as, or its backup filename and a real hittable Cancel action in the same root, directly or through its More menu.")
+        XCTFail("The real Files exporter must expose Save, Save as, or its backup filename and a real hittable Cancel action in the same root, directly, from Browse, or through its More menu.")
         return FileExporterPresentation(
             marker: app.descendants(matching: .any).matching(exporterPredicate).firstMatch,
             cancel: app.navigationBars.buttons.firstMatch
