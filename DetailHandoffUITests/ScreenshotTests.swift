@@ -35,7 +35,12 @@ final class ScreenshotTests: XCTestCase {
             XCTFail("The Jobs list must expose its named vertical scroll container at accessibility text sizes.")
             return
         }
-        let windowFrame = app.windows.firstMatch.frame
+        let appWindow = app.windows.firstMatch
+        guard appWindow.waitForExistence(timeout: 8) else {
+            XCTFail("The app window must exist before validating full-screen geometry.")
+            return
+        }
+        let windowFrame = appWindow.frame
         let shortWindowSide = min(windowFrame.width, windowFrame.height)
         let longWindowSide = max(windowFrame.width, windowFrame.height)
         XCTAssertTrue(

@@ -403,7 +403,16 @@ final class WorkflowUITests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        let frame = app.windows.firstMatch.frame
+        let appWindow = app.windows.firstMatch
+        guard appWindow.waitForExistence(timeout: 8) else {
+            XCTFail(
+                "The app window must exist before validating full-screen geometry.",
+                file: file,
+                line: line
+            )
+            return
+        }
+        let frame = appWindow.frame
         let shortSide = min(frame.width, frame.height)
         let longSide = max(frame.width, frame.height)
         XCTAssertTrue(
