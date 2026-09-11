@@ -4,15 +4,13 @@ DetailHandoff is an offline-first iPhone and iPad app for mobile auto detailers 
 
 ## Verification status
 
-The integrated V1 source is **not yet release-ready**. The latest executed run
-built the app and passed 133 unit tests, but its iPhone and iPad UI suites failed.
-Focused corrections and a new disk-migration test are committed, but the follow-up
-GitHub Actions run did not start because of an account billing/spending-limit block.
-The final-review fixes add capture/revision access, acknowledgment integrity and
-saved-record presentation, safe PDF restore typing, and a DiskSpace privacy manifest.
-The current 149 unit-test methods, 9 UI-test methods, migration coverage, and release
-screenshots remain unverified on macOS. Windows plist/resource and diff checks do
-not establish an iOS build or test pass.
+The integrated V1 source has passed its current automated release gate. GitHub
+Actions run `34560087867`, attempt 2, built commit `9199120`, passed all 149 unit
+tests, and passed all 9 UI tests on both an iPhone 17 Pro and an iPad Pro 13-inch
+(M5), using iOS 26.5 simulators. The run exported 30 attachments per device;
+representative phone, tablet, Files exporter, report, and accessibility screenshots
+were inspected at native resolution. This evidence does not replace the physical-
+device, signing, TestFlight, business, or App Review gates listed below.
 
 See the evidence-backed [acceptance record](docs/release/acceptance.md),
 [privacy behavior](docs/release/privacy.md), and
@@ -65,15 +63,14 @@ xcodebuild test -project DetailHandoff.xcodeproj -scheme DetailHandoff -destinat
 ```
 
 Windows can edit and inspect this repository, but cannot run Xcode, XcodeGen,
-`xcodebuild`, or the iOS Simulator. The current follow-up verification must run
-on macOS after the GitHub Actions account block is resolved.
+`xcodebuild`, or the iOS Simulator. The cited GitHub Actions run supplies the
+current macOS simulator evidence.
 
 ## Remaining release gates
 
-At minimum: a green macOS build/unit/iPhone UI/iPad UI run with inspected
-screenshots; a passing Phase 1 disk-migration test; physical iPhone and iPad
-camera, permission, interruption, offline, and performance checks; Apple Developer
-membership, account/team/signing configuration; verified product-name clearance;
-real support and privacy-policy URLs; App Store assets and metadata; TestFlight
-users; business agreements, tax, and banking; and App Review.
+Remaining gates include physical iPhone and iPad camera, permission, interruption,
+offline, accessibility, Files-provider, and performance checks; Apple Developer
+membership and signing; product-name clearance; real support and privacy-policy
+URLs; final App Store icon/screenshots and metadata; TestFlight; business
+agreements, tax and banking; and App Review.
 

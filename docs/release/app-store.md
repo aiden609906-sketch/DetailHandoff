@@ -1,10 +1,10 @@
 # App Store handoff
 
-Last updated: 2026-09-08
+Last updated: 2026-09-11
 
 ## Submission status
 
-**Do not submit this revision.** Corrected iPhone/iPad UI verification and the Phase 1 migration test have not run because the latest GitHub Actions attempt was blocked before all steps by account billing/spending limits. Physical-device, signing, TestFlight, business, and metadata gates are also open. There has been no archive signing, TestFlight distribution, App Review submission, approval, or publication.
+**Do not submit this revision yet.** Automated verification is green at commit `9199120`: CI `34560087867`, attempt 2, built the app, passed 149 unit tests, and passed all 9 UI tests on both selected iPhone and iPad simulators. Physical-device, signing, TestFlight, business, support/privacy URL, final creative-asset, and metadata gates remain open. There has been no archive signing, TestFlight distribution, App Review submission, approval, or publication.
 
 ## Commercial configuration
 
@@ -46,18 +46,18 @@ Validate the camera permission prompt on physical iPhone and iPad for first deni
 ## Required creative assets
 
 - `Assets.xcassets/AppIcon.appiconset` declares a universal iOS 1024×1024 slot, but the catalog currently contains no referenced artwork filename. Final original icon artwork and Xcode asset validation are required.
-- Accepted App Store screenshots do not yet exist. Run the corrected UI suite to generate inspection candidates, then capture final App Store Connect sizes from approved simulator/physical states with synthetic data only.
+- The green CI run exported inspected simulator screenshot candidates with synthetic data. Final App Store Connect-sized screenshots still need deliberate composition, copy review, and approval; test evidence images are not automatically store artwork.
 - Required screenshot story: Jobs/search; guided Before capture; findings; acknowledgment or customer unavailable; paired Before/After review; branded PDF preview; immutable report history; backup/storage controls.
 - Review every image at native resolution for cropping, Dynamic Type overflow, private information, placeholder data, misleading status, and device chrome.
 - Optional promotional art, preview video, and localization are not required by this handoff and have not been produced.
 
-The 27 PNGs from CI `33936741128` are failure diagnostics, not store assets: inspection found large-text leakage and clipping plus incomplete navigation/system-surface paths.
+The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. CI `34560087867`, attempt 2, supersedes them for automated verification and exported 30 attachments for each device class; representative native-resolution images were inspected without the earlier compatibility scaling or horizontal action-label clipping.
 
 ## Metadata and account checklist
 
-- [ ] Resolve GitHub Actions billing/spending limits and obtain a green current macOS build, all 149 unit-test methods, and all 9 UI-test methods on both iPhone and iPad with inspected attachments. These counts describe source, not test results.
-- [ ] Verify the bundled and archived `PrivacyInfo.xcprivacy` declares DiskSpace reason `E174.1` for the actual capture/import storage check, without tracking or collected-data claims beyond the implementation.
-- [ ] Pass the Phase 1 on-disk migration fixture without losing baseline records.
+- [x] Obtain a green current macOS build, all 149 unit tests, and all 9 UI tests on both iPhone and iPad with inspected representative attachments (CI `34560087867`, attempt 2, commit `9199120`).
+- [ ] Verify the archived `PrivacyInfo.xcprivacy` declares DiskSpace reason `E174.1` for the actual capture/import storage check, without tracking or collected-data claims beyond the implementation. The built simulator resource test has passed.
+- [x] Pass the Phase 1 on-disk migration fixture without losing baseline records (included in the 149-test run).
 - [ ] Complete physical iPhone and iPad camera, permissions, interruption, offline, accessibility, performance, Files/share, backup/restore, deletion, and low-storage checks.
 - [ ] Confirm Apple Developer Program membership, legal account holder, team, bundle identifier, certificates, provisioning profiles, signing, entitlements, release archive, and upload validation.
 - [ ] Perform product-name availability and legal/trademark clearance. No clearance is claimed.

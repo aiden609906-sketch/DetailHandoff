@@ -1,6 +1,6 @@
 # Privacy and local data behavior
 
-Last updated: 2026-09-08
+Last updated: 2026-09-11
 
 This document describes the current V1 source. It is an engineering handoff, not a published privacy policy or legal determination.
 
@@ -25,7 +25,7 @@ The current source does not request microphone, location, contacts, Bluetooth, a
 
 The capacity check uses `volumeAvailableCapacityForImportantUsageKey` before capture/import can write media. `DetailHandoff/PrivacyInfo.xcprivacy` declares `NSPrivacyAccessedAPICategoryDiskSpace` with reason `E174.1` for this user-visible storage check. It declares tracking false, no tracking domains, and no collected data types, consistent with the local-only implementation. `project.yml` explicitly includes this file in the application resource build phase.
 
-Windows checks parsed the plist and project resource entry semantically. The XCTest `testBundledPrivacyManifestDeclaresDiskSpacePurposeWithoutTrackingOrCollection` checks the actual built app resource, but has not run. These source facts do not establish archive compliance or App Review acceptance; built-manifest and signed-archive validation remain release gates.
+Windows checks parsed the plist and project resource entry semantically. The XCTest `testBundledPrivacyManifestDeclaresDiskSpacePurposeWithoutTrackingOrCollection` also passed against the built app resource in CI `34560087867`, attempt 2. This does not establish signed-archive compliance or App Review acceptance; signed-archive validation remains a release gate.
 
 ## Network, accounts, and tracking
 
@@ -41,7 +41,7 @@ App-initiated data handoff occurs only after a user invokes an export or operati
 - Single-job photo export writes an evidence package through the system document/Files interface.
 - Full backup writes a backup package through the system document/Files interface; restore reads a package the user selects and validates it before replacing app data.
 
-Canceling share or export is expected to leave the job and report history unchanged. That behavior has focused UI-test source but the corrected real-system cancellation path still awaits an executable CI run and physical-provider checks. Once a file is handed to Files, iCloud Drive, an external volume, email, messaging, or another share extension, that destination controls its copies and retention.
+Canceling share or export leaves the tested fixture's job and report history unchanged in the iPhone and iPad simulator flows from CI `34560087867`, attempt 2. Physical-provider checks are still required. Once a file is handed to Files, iCloud Drive, an external volume, email, messaging, or another share extension, that destination controls its copies and retention.
 
 ## System backup behavior
 
