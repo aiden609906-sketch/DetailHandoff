@@ -35,6 +35,13 @@ final class ScreenshotTests: XCTestCase {
             XCTFail("The Jobs list must expose its named vertical scroll container at accessibility text sizes.")
             return
         }
+        let windowFrame = app.windows.firstMatch.frame
+        let shortWindowSide = min(windowFrame.width, windowFrame.height)
+        let longWindowSide = max(windowFrame.width, windowFrame.height)
+        XCTAssertTrue(
+            shortWindowSide >= 375 && longWindowSide >= 667,
+            "Expected a modern full-screen app window of at least 375x667 points; observed \(windowFrame)."
+        )
         let vehicleQuery = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label == %@", "Complete Fixture Sedan"))
         for _ in 0..<5 where !vehicleQuery.firstMatch.isHittable {
@@ -84,7 +91,6 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertTrue(report.isHittable, "The primary workflow action must remain visible and reachable at accessibility text sizes.")
         let photoPairLabel = app.staticTexts["Inspect photo pairs"]
         XCTAssertTrue(photoPairLabel.waitForExistence(timeout: 8))
-        let windowFrame = app.windows.firstMatch.frame
         let labelFrame = photoPairLabel.frame
         XCTAssertGreaterThanOrEqual(labelFrame.minX, windowFrame.minX, "Accessibility-sized workflow action text must not clip past the leading edge.")
         XCTAssertLessThanOrEqual(labelFrame.maxX, windowFrame.maxX, "Accessibility-sized workflow action text must not clip past the trailing edge.")

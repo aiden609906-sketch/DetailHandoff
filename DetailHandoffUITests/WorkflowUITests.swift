@@ -392,10 +392,26 @@ final class WorkflowUITests: XCTestCase {
 
     private func openFixtureWorkflow(named vehicle: String) {
         require(app.navigationBars["Jobs"])
+        assertModernAppWindowGeometry()
         capture("fixture-list")
         app.staticTexts[vehicle].tap()
         require(app.navigationBars[vehicle])
         capture("workflow")
+    }
+
+    private func assertModernAppWindowGeometry(
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let frame = app.windows.firstMatch.frame
+        let shortSide = min(frame.width, frame.height)
+        let longSide = max(frame.width, frame.height)
+        XCTAssertTrue(
+            shortSide >= 375 && longSide >= 667,
+            "Expected a modern full-screen app window of at least 375x667 points; observed \(frame).",
+            file: file,
+            line: line
+        )
     }
 
     private func openCaptureScreen() {

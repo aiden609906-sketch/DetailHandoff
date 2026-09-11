@@ -26,6 +26,7 @@ targets:
         INFOPLIST_KEY_NSCameraUsageDescription: DetailHandoff uses the camera to document vehicle condition before and after service.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: DetailHandoff lets you import vehicle photos selected by you.
         GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_FILE: DetailHandoff/Info.plist
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
