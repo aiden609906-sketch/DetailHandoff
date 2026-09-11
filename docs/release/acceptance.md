@@ -4,7 +4,7 @@ Last updated: 2026-09-11
 
 ## Release decision
 
-**Automated V1 gate passed; not yet App Store release-ready.** CI `34560087867`, attempt 2, built commit `9199120`, passed all 149 unit tests, and passed all 9 UI tests on both an iPhone 17 Pro and iPad Pro 13-inch (M5) running iOS 26.5. It exported 30 attachments per device; representative native-resolution phone, tablet, Files exporter, report, and accessibility images were inspected. The remaining blockers are physical-device behavior, signing/archive validation, final creative assets and metadata, real support/privacy URLs, TestFlight, business setup, and App Review.
+**Automated V1 gate passed; not yet App Store release-ready.** CI `34560087867`, attempt 2, built commit `9199120`, passed all 149 unit tests, and passed all 9 UI tests on both an iPhone 17 Pro and iPad Pro 13-inch (M5) running iOS 26.5. It exported 30 attachments per device; representative native-resolution phone, tablet, Files exporter, report, and accessibility images were inspected. A 1024×1024 opaque app-icon master is now referenced by the asset catalog but still requires Xcode and signed-archive validation. The remaining blockers are physical-device behavior, signing/archive validation, final screenshots and metadata, real support/privacy URLs, TestFlight, business setup, and App Review.
 
 Legend: **PASS** means the named behavior actually ran successfully in the cited run. **SOURCE** means the statement is supported by source inspection but not by the manual or external observation still named in that row. **MANUAL** is an external or physical check that automation cannot establish.
 
@@ -112,7 +112,7 @@ CI `34560087867`, attempt 2, exported 30 attachments for each device class acros
 - Establish Apple Developer membership, account owner, team, bundle identifier, certificates, profiles, signing, and release archive validation.
 - Verify product-name and trademark clearance. No clearance or App Store availability is claimed.
 - Supply and verify a real support contact and public privacy-policy URL.
-- Complete App Store metadata, compliant screenshots, 1024px icon artwork, age rating, category, export-compliance answers, reviewer notes, and localization review.
+- Complete App Store metadata, compliant screenshots, signed-archive icon validation, age rating, category, export-compliance answers, reviewer notes, and localization review.
 - Recruit TestFlight users and complete feedback/remediation; no TestFlight distribution has occurred.
 - Complete Apple business agreements, tax, banking, pricing/territory configuration, and App Review. No submission, approval, or publication is claimed.
 

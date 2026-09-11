@@ -71,6 +71,7 @@ current macOS simulator evidence.
 Remaining gates include physical iPhone and iPad camera, permission, interruption,
 offline, accessibility, Files-provider, and performance checks; Apple Developer
 membership and signing; product-name clearance; real support and privacy-policy
-URLs; final App Store icon/screenshots and metadata; TestFlight; business
+URLs; final App Store screenshots and metadata; icon validation in the signed
+archive; TestFlight; business
 agreements, tax and banking; and App Review.
 

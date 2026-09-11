@@ -4,7 +4,7 @@ Last updated: 2026-09-11
 
 ## Submission status
 
-**Do not submit this revision yet.** Automated verification is green at commit `9199120`: CI `34560087867`, attempt 2, built the app, passed 149 unit tests, and passed all 9 UI tests on both selected iPhone and iPad simulators. Physical-device, signing, TestFlight, business, support/privacy URL, final creative-asset, and metadata gates remain open. There has been no archive signing, TestFlight distribution, App Review submission, approval, or publication.
+**Do not submit this revision yet.** Automated verification is green at commit `9199120`: CI `34560087867`, attempt 2, built the app, passed 149 unit tests, and passed all 9 UI tests on both selected iPhone and iPad simulators. A selected 1024×1024 app-icon master is present, while physical-device, icon/archive validation, signing, TestFlight, business, support/privacy URL, final screenshot, and metadata gates remain open. There has been no archive signing, TestFlight distribution, App Review submission, approval, or publication.
 
 ## Commercial configuration
 
@@ -45,7 +45,7 @@ Validate the camera permission prompt on physical iPhone and iPad for first deni
 
 ## Required creative assets
 
-- `Assets.xcassets/AppIcon.appiconset` declares a universal iOS 1024×1024 slot, but the catalog currently contains no referenced artwork filename. Final original icon artwork and Xcode asset validation are required.
+- `Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png` is the selected opaque 1024×1024 master and is referenced by `Contents.json`. Dimensions, RGB opacity, JSON syntax, and visual safe margins were checked locally; Xcode asset compilation and signed-archive validation remain required.
 - The green CI run exported inspected simulator screenshot candidates with synthetic data. Final App Store Connect-sized screenshots still need deliberate composition, copy review, and approval; test evidence images are not automatically store artwork.
 - Required screenshot story: Jobs/search; guided Before capture; findings; acknowledgment or customer unavailable; paired Before/After review; branded PDF preview; immutable report history; backup/storage controls.
 - Review every image at native resolution for cropping, Dynamic Type overflow, private information, placeholder data, misleading status, and device chrome.
@@ -64,7 +64,7 @@ The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. 
 - [ ] Provide a real support contact and reachable support URL. No address or URL is invented here.
 - [ ] Publish a real privacy policy and enter its reachable URL. No policy URL is claimed here.
 - [ ] Complete category, age rating, copyright, seller/developer name, SKU, version/release notes, territories, paid-app price, App Store privacy responses, accessibility information, and export-compliance answers.
-- [ ] Upload final 1024px icon artwork and approved iPhone/iPad screenshots; validate all asset warnings in the release archive.
+- [ ] Validate the selected 1024px icon and all asset warnings in the release archive; upload approved iPhone/iPad screenshots.
 - [ ] Add truthful reviewer notes describing local data, camera/photo selection, synthetic review data, backup/restore, and any non-obvious navigation. No demo account is required by current source because there is no login.
 - [ ] Accept paid-app and other business agreements; complete tax and banking information.
 - [ ] Recruit TestFlight users, distribute a signed build, capture feedback, fix release blockers, and retest. No TestFlight activity is claimed.
