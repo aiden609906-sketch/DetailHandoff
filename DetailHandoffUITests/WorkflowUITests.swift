@@ -726,6 +726,7 @@ final class WorkflowUITests: XCTestCase {
 
         for (rootIndex, diagnosticRoot) in roots.enumerated() {
             let root = diagnosticRoot.application
+            guard isRunning(root.state) else { continue }
             let marker = root.descendants(matching: .any)
                 .matching(exporterPredicate)
                 .firstMatch
@@ -931,6 +932,14 @@ final class WorkflowUITests: XCTestCase {
         for (index, diagnosticRoot) in roots.enumerated() {
             let root = diagnosticRoot.application
             let prefix = "root[\(index)] \(diagnosticRoot.name)"
+            let rootState = root.state
+            guard isRunning(rootState) else {
+                sections.append(
+                    "\(prefix) state=\(String(describing: rootState)); queries skipped because not running"
+                )
+                continue
+            }
+            sections.append("\(prefix) state=\(String(describing: rootState))")
             sections.append(
                 elementSummaries(
                     root.descendants(matching: .any).matching(exporterPredicate),
@@ -954,10 +963,21 @@ final class WorkflowUITests: XCTestCase {
             )
             sections.append("\(prefix).debugDescription:\n\(root.debugDescription)")
         }
-        sections.append("target-app.debugDescription:\n\(app.debugDescription)")
-        sections.append("backup.export \(elementSummary(app.buttons["backup.export"], windowFrame: windowFrame))")
-        sections.append(elementSummaries(app.navigationBars, heading: "target-app navigation bars", windowFrame: windowFrame))
+        let targetAppState = app.state
+        if isRunning(targetAppState) {
+            sections.append("target-app.debugDescription:\n\(app.debugDescription)")
+            sections.append("backup.export \(elementSummary(app.buttons["backup.export"], windowFrame: windowFrame))")
+            sections.append(elementSummaries(app.navigationBars, heading: "target-app navigation bars", windowFrame: windowFrame))
+        } else {
+            sections.append(
+                "target-app state=\(String(describing: targetAppState)); queries skipped because not running"
+            )
+        }
         return DiagnosticCheckpoint(name: name, screenshot: app.screenshot(), details: sections.joined(separator: "\n"))
+    }
+
+    private func isRunning(_ state: XCUIApplication.State) -> Bool {
+        state == .runningForeground || state == .runningBackground
     }
 
     private func elementSummaries(
