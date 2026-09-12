@@ -39,6 +39,8 @@ Reinstalling or losing the device can lose local data without a usable backup.
 - [V1 acceptance and evidence](docs/release/acceptance.md)
 - [Privacy behavior](docs/release/privacy.md)
 - [App Store handoff](docs/release/app-store.md)
+- [Public support site](https://detailhandoff-support.aiden609906.chatgpt.site/)
+- [Public privacy policy](https://detailhandoff-support.aiden609906.chatgpt.site/privacy/)
 
 ## Build and test
 
@@ -70,8 +72,7 @@ current macOS simulator evidence.
 
 Remaining gates include physical iPhone and iPad camera, permission, interruption,
 offline, accessibility, Files-provider, and performance checks; Apple Developer
-membership and signing; product-name clearance; real support and privacy-policy
-URLs; final App Store screenshots and metadata; icon validation in the signed
-archive; TestFlight; business
+membership and signing; product-name clearance; final account-owned App Store
+metadata; icon validation in the signed archive; TestFlight; business
 agreements, tax and banking; and App Review.
 

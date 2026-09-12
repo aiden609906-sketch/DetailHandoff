@@ -4,7 +4,7 @@ Last updated: 2026-09-12
 
 ## Submission status
 
-**Do not submit this revision yet.** Automated verification is green at commit `8ee3f2c`: CI `34597284958`, attempt 2, built the app, passed 149 unit tests, and passed all 9 UI tests on both selected iPhone and iPad simulators. A selected 1024×1024 app-icon master and native-size draft App Store screenshot sets are present, while physical-device, icon/archive validation, signing, TestFlight, business, support/privacy URL, creative approval, and metadata gates remain open. There has been no archive signing, TestFlight distribution, App Review submission, approval, or publication.
+**Do not submit this revision yet.** Automated verification is green at commit `8ee3f2c`: CI `34597284958`, attempt 2, built the app, passed 149 unit tests, and passed all 9 UI tests on both selected iPhone and iPad simulators. A selected 1024×1024 app-icon master, native-size draft App Store screenshot sets, a public support page, and a public privacy policy are present, while physical-device, icon/archive validation, signing, TestFlight, business, creative approval, and account-owned metadata gates remain open. There has been no archive signing, TestFlight distribution, App Review submission, approval, or publication.
 
 ## Commercial configuration
 
@@ -58,8 +58,8 @@ The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. 
 - [ ] Complete physical iPhone and iPad camera, permissions, interruption, offline, accessibility, performance, Files/share, backup/restore, deletion, and low-storage checks.
 - [ ] Confirm Apple Developer Program membership, legal account holder, team, bundle identifier, certificates, provisioning profiles, signing, entitlements, release archive, and upload validation.
 - [ ] Perform product-name availability and legal/trademark clearance. No clearance is claimed.
-- [ ] Provide a real support contact and reachable support URL. No address or URL is invented here.
-- [ ] Publish a real privacy policy and enter its reachable URL. No policy URL is claimed here.
+- [x] Provide support contact `aiden609906@gmail.com` and publish the reachable support URL: `https://detailhandoff-support.aiden609906.chatgpt.site/`.
+- [x] Publish the privacy policy URL: `https://detailhandoff-support.aiden609906.chatgpt.site/privacy/`.
 - [ ] Complete category, age rating, copyright, seller/developer name, SKU, version/release notes, territories, paid-app price, App Store privacy responses, accessibility information, and export-compliance answers.
 - [x] Prepare length-validated U.S. English product-page copy and truthful App Review notes for the current binary.
 - [ ] Validate the selected 1024px icon and all asset warnings in the release archive; upload approved iPhone/iPad screenshots.
