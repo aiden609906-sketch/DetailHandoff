@@ -17,6 +17,7 @@ DerivedData/
 # Local Git worktrees and agent scratch state
 .worktrees/
 .superpowers/
+.ci-artifacts/
 
 # Swift Package Manager
 .build/
