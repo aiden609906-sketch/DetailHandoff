@@ -214,13 +214,10 @@ final class WorkflowUITests: XCTestCase {
 
         require(app.navigationBars["Set up your business"])
         capture("setup")
-        app.textFields["Business name"].tap()
-        app.textFields["Business name"].typeText("Fixture Detail")
+        focusAndTypeText(in: app.textFields["Business name"], with: "Fixture Detail")
         require(app.buttons["setup.logoPicker"])
         let firstService = app.textFields["setup.service.0"]
-        require(firstService)
-        firstService.tap()
-        firstService.typeText(" Mobile")
+        focusAndTypeText(in: firstService, with: " Mobile")
         require(app.buttons["setup.templatePicker"])
         app.buttons["Save"].tap()
 
@@ -388,6 +385,27 @@ final class WorkflowUITests: XCTestCase {
         let existing = field.value as? String ?? ""
         if !existing.isEmpty { field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existing.count)) }
         field.typeText(text)
+    }
+
+    private func focusAndTypeText(
+        in field: XCUIElement,
+        with text: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        require(field, file: file, line: line)
+        for _ in 0..<3 {
+            if field.hasFocus {
+                field.typeText(text)
+                return
+            }
+            tapAtCenter(field, file: file, line: line)
+            if field.wait(for: \.hasFocus, toEqual: true, timeout: 2) {
+                field.typeText(text)
+                return
+            }
+        }
+        XCTFail("Expected the text field to receive keyboard focus before typing.", file: file, line: line)
     }
 
     private func openFixtureWorkflow(named vehicle: String) {
