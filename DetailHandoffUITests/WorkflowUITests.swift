@@ -395,17 +395,13 @@ final class WorkflowUITests: XCTestCase {
     ) {
         require(field, file: file, line: line)
         for _ in 0..<3 {
-            if field.hasFocus {
-                field.typeText(text)
-                return
-            }
             tapAtCenter(field, file: file, line: line)
-            if field.wait(for: \.hasFocus, toEqual: true, timeout: 2) {
+            if app.keyboards.firstMatch.waitForExistence(timeout: 2) {
                 field.typeText(text)
                 return
             }
         }
-        XCTFail("Expected the text field to receive keyboard focus before typing.", file: file, line: line)
+        XCTFail("Expected the software keyboard to appear before typing.", file: file, line: line)
     }
 
     private func openFixtureWorkflow(named vehicle: String) {
