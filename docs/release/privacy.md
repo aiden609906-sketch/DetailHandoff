@@ -61,4 +61,4 @@ The user-created DetailHandoff backup package is separate from system device bac
 
 The app uses its sandboxed container and validates internal/export paths and file ownership. It uses SHA-256 to detect report and backup asset changes; a hash is an integrity check, not encryption or a digital signature.
 
-Before distribution, confirm file data-protection behavior on locked physical devices, system-backup behavior, network observation, permission copy, retention language, and App Store privacy labels. A real public privacy-policy URL and responsible contact are still required. None is supplied or claimed here.
+Before distribution, confirm file data-protection behavior on locked physical devices, system-backup behavior, network observation, permission copy, retention language, and App Store privacy labels. The public privacy policy is prepared at `https://detailhandoff-support.lemony-toast-3128.chatgpt.site/privacy/`, with support contact `aiden609906@gmail.com`; release QA must confirm the deployed page remains publicly reachable before App Store submission.

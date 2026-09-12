@@ -69,10 +69,14 @@ The data shown in App Store screenshots is synthetic. A clean install starts wit
 - Subscriptions and in-app purchases: None
 - Primary localization: English (U.S.)
 
+## Public support information
+
+- Support URL: `https://detailhandoff-support.lemony-toast-3128.chatgpt.site/`
+- Privacy Policy URL: `https://detailhandoff-support.lemony-toast-3128.chatgpt.site/privacy/`
+- Support email: `aiden609906@gmail.com`
+
 ## Values still requiring the developer account
 
-- Reachable Privacy Policy URL
-- Reachable Support URL containing real contact information
 - Legal seller name for copyright
 - App Store Connect SKU and final bundle ID confirmation
 - Final territories, agreements, tax, and banking configuration

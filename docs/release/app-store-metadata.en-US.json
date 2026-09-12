@@ -11,10 +11,11 @@
   "primaryCategoryRecommendation": "Business",
   "secondaryCategoryRecommendation": "Productivity",
   "pricingIntent": "USD 9.99 paid download; no subscriptions or in-app purchases",
+  "supportUrl": "https://detailhandoff-support.lemony-toast-3128.chatgpt.site/",
+  "privacyPolicyUrl": "https://detailhandoff-support.lemony-toast-3128.chatgpt.site/privacy/",
+  "supportEmail": "aiden609906@gmail.com",
   "ageRatingPreparation": "Answer the App Store Connect questionnaire from the final binary; the app contains no user-generated public content, gambling, violence, sexual content, or unrestricted web access.",
   "unresolvedRequiredAccountValues": [
-    "Privacy Policy URL",
-    "Support URL with real contact information",
     "Legal seller name for copyright",
     "App Store Connect SKU and bundle ID confirmation",
     "Final territory and tax/banking configuration"
