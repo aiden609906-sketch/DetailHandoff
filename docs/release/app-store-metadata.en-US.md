@@ -71,8 +71,8 @@ The data shown in App Store screenshots is synthetic. A clean install starts wit
 
 ## Public support information
 
-- Support URL: `https://detailhandoff-support.lemony-toast-3128.chatgpt.site/`
-- Privacy Policy URL: `https://detailhandoff-support.lemony-toast-3128.chatgpt.site/privacy/`
+- Support URL: `https://detailhandoff-support.aiden609906.chatgpt.site/`
+- Privacy Policy URL: `https://detailhandoff-support.aiden609906.chatgpt.site/privacy/`
 - Support email: `aiden609906@gmail.com`
 
 ## Values still requiring the developer account
