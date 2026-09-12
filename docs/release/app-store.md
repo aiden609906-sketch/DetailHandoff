@@ -20,19 +20,16 @@ Last updated: 2026-09-12
 
 USD 9.99 is the intended US storefront price, not an in-app price. Apple may represent it through a storefront price tier and add taxes or regional equivalents. Do not add an IAP, subscription, trial, account, or paywall to reproduce the purchase; the App Store paid-download setting is the commercial mechanism.
 
-## English-first listing draft
+## English-first listing package
 
-Working title: `DetailHandoff`
+The copy-ready U.S. English package is stored in:
 
-Working subtitle: `Before & after vehicle reports`
+- `docs/release/app-store-metadata.en-US.json` — machine-readable source of truth.
+- `docs/release/app-store-metadata.en-US.md` — copy-friendly product-page text and App Review notes.
 
-Draft description:
+The package includes name, subtitle, promotional text, description, keywords, initial release notes, reviewer navigation, category recommendations, paid-download intent, and a list of account-owned values that cannot be invented. `scripts/test-app-store-metadata.ps1` validates required text and Apple's current length limits. The current draft passes at 13/30 name characters, 30/30 subtitle characters, 142/170 promotional-text characters, 1157/4000 description characters, and 94/100 keyword UTF-8 bytes.
 
-> Document vehicle condition before service, guide consistent Before and After photos, record manual findings, collect a pre-service acknowledgment, and create a branded PDF handoff. DetailHandoff keeps core job data on the device and works without an account or developer cloud service. Export reports, job photo packages, and full backups when you choose.
-
-This copy must be reviewed against the final binary and accepted screenshots. It must not promise legal protection, guaranteed dispute outcomes, cloud sync, AI damage detection, or features outside V1.
-
-Candidate keywords, subject to metadata-length and market review: `auto detailing,vehicle inspection,before after,car photos,service report,PDF`.
+The copy describes the current binary and explicitly avoids promises of legal protection, guaranteed dispute outcomes, cloud sync, AI damage detection, or features outside V1. Product-name availability and legal/trademark clearance are still not verified.
 
 ## Permission copy
 
@@ -64,6 +61,7 @@ The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. 
 - [ ] Provide a real support contact and reachable support URL. No address or URL is invented here.
 - [ ] Publish a real privacy policy and enter its reachable URL. No policy URL is claimed here.
 - [ ] Complete category, age rating, copyright, seller/developer name, SKU, version/release notes, territories, paid-app price, App Store privacy responses, accessibility information, and export-compliance answers.
+- [x] Prepare length-validated U.S. English product-page copy and truthful App Review notes for the current binary.
 - [ ] Validate the selected 1024px icon and all asset warnings in the release archive; upload approved iPhone/iPad screenshots.
 - [ ] Add truthful reviewer notes describing local data, camera/photo selection, synthetic review data, backup/restore, and any non-obvious navigation. No demo account is required by current source because there is no login.
 - [ ] Accept paid-app and other business agreements; complete tax and banking information.
