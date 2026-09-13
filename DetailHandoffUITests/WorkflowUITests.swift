@@ -255,7 +255,13 @@ final class WorkflowUITests: XCTestCase {
         let search = activateSearch()
         search.typeText("QA-17")
         require(app.staticTexts["QA-17 Sedan"])
-        app.staticTexts["QA-17 Sedan"].tap()
+        let searchKey = app.keyboards.buttons["Search"]
+        if searchKey.exists {
+            searchKey.tap()
+        }
+        let jobRow = app.buttons.containing(.staticText, identifier: "QA-17 Sedan").firstMatch
+        require(jobRow)
+        jobRow.tap()
         require(app.navigationBars["QA-17 Sedan"])
         capture("workflow")
     }
