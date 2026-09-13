@@ -1,10 +1,10 @@
 # V1 acceptance and evidence
 
-Last updated: 2026-09-11
+Last updated: 2026-09-13
 
 ## Release decision
 
-**Automated V1 gate passed; not yet App Store release-ready.** CI `34560087867`, attempt 2, built commit `9199120`, passed all 149 unit tests, and passed all 9 UI tests on both an iPhone 17 Pro and iPad Pro 13-inch (M5) running iOS 26.5. It exported 30 attachments per device; representative native-resolution phone, tablet, Files exporter, report, and accessibility images were inspected. A 1024×1024 opaque app-icon master is now referenced by the asset catalog but still requires Xcode and signed-archive validation. Public support and privacy pages are now available. The remaining blockers are physical-device behavior, signing/archive validation, final account-owned metadata, TestFlight, business setup, and App Review.
+**Automated V1 gate passed on merged `main`; not yet App Store release-ready.** CI `34735856765` built commit `843c46b`, passed all 149 unit tests, and passed all 9 UI tests on both an iPhone 17 Pro and iPad Pro 13-inch (M5) running iOS 26.5. It exported test attachments; representative native-resolution phone, tablet, Files exporter, report, and accessibility images were inspected from earlier green CI `34560087867`, attempt 2, not from this merged run. A 1024×1024 opaque app-icon master is referenced by the asset catalog but still requires signed-archive validation. Public support and privacy pages are available. The remaining blockers are physical-device behavior, signing/archive validation, final account-owned metadata, TestFlight, business setup, and App Review.
 
 Legend: **PASS** means the named behavior actually ran successfully in the cited run. **SOURCE** means the statement is supported by source inspection but not by the manual or external observation still named in that row. **MANUAL** is an external or physical check that automation cannot establish.
 
@@ -20,6 +20,7 @@ Legend: **PASS** means the named behavior actually ran successfully in the cited
 | [CI 34181591559](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34181591559) | `3b18e27` | **BLOCKED:** zero steps with the same account payment/spending-limit annotation. This is not build/test evidence. |
 | Final-review fix wave | Based on `3b18e27`; see `.superpowers/sdd/2026-09-04-release-verification/final-fix-report.md` | **PASS in CI 34560087867 attempt 2:** all final-review tests are included in the green 149-unit and dual-device 9-test UI suites. Physical camera rendering and release signing are not claimed. |
 | [CI 34560087867, attempt 2](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34560087867/attempts/2) | `9199120` | **PASS:** app build; 149/0 unit tests; 9/0 iPhone UI tests; 9/0 iPad UI tests. Destinations: iPhone 17 Pro and iPad Pro 13-inch (M5), iOS 26.5. Screenshot/test artifacts uploaded (140,160,931 bytes). Representative native-resolution screenshots inspected; no legacy letterboxing or horizontal action-label clipping observed. |
+| [CI 34735856765](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34735856765) | `843c46b` | **PASS on merged `main`:** app build; 149/0 unit tests; 9/0 iPhone UI tests; 9/0 iPad UI tests. Destinations: iPhone 17 Pro and iPad Pro 13-inch (M5), iOS 26.5. Test attachments uploaded but not separately inspected in this run. No physical-device or signed-archive claim. |
 
 The stable 40-photo PDF outputs and rendered QA pages remain outside product source under `.superpowers/sdd/2026-09-04-reports/ci-33848520274/` and `.superpowers/sdd/2026-09-04-reports/pdf-qa/`. They must not be relocated into the app bundle or deleted during release preparation.
 
@@ -106,7 +107,7 @@ CI `34560087867`, attempt 2, exported 30 attachments for each device class acros
 
 ## Pending release gates
 
-- Preserve the green automated baseline from CI `34560087867`, attempt 2, when making release changes. The app build, 149 unit tests, both 9-test UI suites, and representative screenshot inspection are complete for commit `9199120`.
+- Preserve the green automated baseline from CI `34735856765` when making release changes. The app build, 149 unit tests, and both 9-test UI suites are complete for merged commit `843c46b`; representative screenshot inspection was performed on earlier green CI `34560087867`, attempt 2.
 - Verify the privacy manifest in the signed release archive and validate its required-reason declaration against actual runtime behavior. The built simulator resource test is green.
 - Run physical iPhone and iPad tests for camera capture, photo permission states, cancellation, force-quit/interruption, airplane mode, rotation/multitasking, large Dynamic Type/VoiceOver, low storage, 40-photo performance, PDF viewers/share destinations, Files/iCloud/external backup restore, deletion, and cleanup.
 - Establish Apple Developer membership, account owner, team, bundle identifier, certificates, profiles, signing, and release archive validation.

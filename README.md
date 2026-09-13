@@ -4,12 +4,13 @@ DetailHandoff is an offline-first iPhone and iPad app for mobile auto detailers 
 
 ## Verification status
 
-The integrated V1 source has passed its current automated release gate. GitHub
-Actions run `34560087867`, attempt 2, built commit `9199120`, passed all 149 unit
-tests, and passed all 9 UI tests on both an iPhone 17 Pro and an iPad Pro 13-inch
-(M5), using iOS 26.5 simulators. The run exported 30 attachments per device;
-representative phone, tablet, Files exporter, report, and accessibility screenshots
-were inspected at native resolution. This evidence does not replace the physical-
+The merged V1 source passed its automated release gate on `main`: GitHub Actions
+run `34735856765` built commit `843c46b`, passed 149 unit tests, and passed all
+9 UI tests on both an iPhone 17 Pro and an iPad Pro 13-inch (M5), using iOS 26.5
+simulators. The run exported test attachments. Representative phone, tablet,
+Files exporter, report, and accessibility screenshots were inspected from the
+earlier green run `34560087867`, attempt 2; the new run's attachments have not
+been separately inspected. Simulator evidence does not replace the physical-
 device, signing, TestFlight, business, or App Review gates listed below.
 
 See the evidence-backed [acceptance record](docs/release/acceptance.md),
