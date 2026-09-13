@@ -1,6 +1,6 @@
 # App Store screenshot set
 
-These English-first draft screenshots implement the selected dark-navy Product Design direction with exact UI captures from green CI run `34597284958`, attempt 2.
+These English-first draft screenshots implement the selected dark-navy Product Design direction with exact UI captures from green CI run `34740399131`.
 
 ## Upload order
 
@@ -27,4 +27,4 @@ Download the full successful UI-test artifact so it contains `TestAttachments-iP
 ./scripts/render-app-store-screenshots.ps1 -ArtifactRoot <artifact-directory> -Platform iPad
 ```
 
-The renderer keeps the source app screenshots intact, adds the approved marketing frame and copy, and exports opaque PNG files at the required dimensions.
+The renderer resolves each capture by its human-readable label in the test attachment `manifest.json`, so exported filenames can change between CI runs. It keeps the source app screenshots intact, adds the approved marketing frame and copy, and exports opaque PNG files at the required dimensions.

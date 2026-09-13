@@ -26,19 +26,28 @@ if ($Platform -eq "iPad") {
     $canvasWidth = 2048; $canvasHeight = 2732
     $sourceRoot = Join-Path $ArtifactRoot "TestAttachments-iPad"
     if (-not $OutputRoot) { $OutputRoot = Join-Path $PSScriptRoot "../docs/release/app-store-assets/ipad" }
-    $sources = @("E76F557C-3405-480A-B46E-35C389314E4B.png", "49A80D53-28AF-49B4-9EFB-2D43B99B64C2.png", "93B69571-F135-4E4E-A3AF-197D2AD31100.png", "6CCF3566-CED0-4B15-8C87-E978CE399716.png", "CFE74894-DFDF-453E-9A33-5EE5ED15B196.png", "CD5EF74D-8DB3-41EE-A825-7D2165A87D3E.png")
     $layout = @{ Margin = 130; Icon = 190; IconY = 64; TitleY = 270; TitleSize = 118; RuleOffset = 50; SubtitleSize = 48; PanelX = 180; PanelY = 900; PanelWidth = 1728; PanelHeight = 2200; PanelInset = 34; PanelAngle = -1.5 }
 } else {
     $canvasWidth = 1290; $canvasHeight = 2796
     $sourceRoot = Join-Path $ArtifactRoot "TestAttachments-iPhone"
     if (-not $OutputRoot) { $OutputRoot = Join-Path $PSScriptRoot "../docs/release/app-store-assets/iphone" }
-    $sources = @("634B0F48-B1DA-41A7-A383-A3B79B495F86.png", "0C6E153A-9E54-418B-B582-B788695E3859.png", "EFA822E4-A3D7-414C-9300-FF27980CE8F7.png", "7E2841EC-4E8E-4779-A291-F44C7472E420.png", "1BAEC182-AD14-4A20-BBB3-153DF18B9617.png", "B2C8BE92-3DF9-4A20-BC35-A3DD2C830008.png")
     $layout = @{ Margin = 82; Icon = 176; IconY = 78; TitleY = 315; TitleSize = 104; RuleOffset = 44; SubtitleSize = 45; PanelX = 145; PanelY = 1100; PanelWidth = 1080; PanelHeight = 2350; PanelInset = 28; PanelAngle = -2.3 }
 }
 
+$manifestPath = Join-Path $sourceRoot "manifest.json"
+if (-not (Test-Path -LiteralPath $manifestPath)) {
+    throw "Screenshot manifest not found: $manifestPath"
+}
+$attachments = @((Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json) | ForEach-Object { $_.attachments })
+$sourceNames = @("report", "capture", "findings", "acknowledgment", "sealed-version", "settings")
 $slides = for ($index = 0; $index -lt $copy.Count; $index++) {
     $item = $copy[$index].Clone()
-    $item.Source = $sources[$index]
+    $name = $sourceNames[$index]
+    $matches = @($attachments | Where-Object { $_.suggestedHumanReadableName -match "^$([regex]::Escape($name))_0_" })
+    if ($matches.Count -ne 1) {
+        throw "Expected one '$name' screenshot in $manifestPath; found $($matches.Count)."
+    }
+    $item.Source = $matches[0].exportedFileName
     $item
 }
 

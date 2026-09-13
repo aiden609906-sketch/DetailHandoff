@@ -8,6 +8,8 @@ Add-Type -AssemblyName System.Drawing
 
 $outputRoot = Join-Path ([System.IO.Path]::GetTempPath()) "detailhandoff-app-store-layout-test"
 & (Join-Path $PSScriptRoot "render-app-store-screenshots.ps1") -ArtifactRoot $ArtifactRoot -Platform iPhone -OutputRoot $outputRoot | Out-Null
+$ipadOutputRoot = Join-Path ([System.IO.Path]::GetTempPath()) "detailhandoff-app-store-layout-test-ipad"
+& (Join-Path $PSScriptRoot "render-app-store-screenshots.ps1") -ArtifactRoot $ArtifactRoot -Platform iPad -OutputRoot $ipadOutputRoot | Out-Null
 
 $imagePath = Join-Path $outputRoot "01-professional-record.png"
 $image = [System.Drawing.Bitmap]::FromFile($imagePath)
@@ -63,6 +65,13 @@ if ($rearSheetSamples -lt 350) {
 }
 
 $image.Dispose()
+
+$ipadImagePath = Join-Path $ipadOutputRoot "01-professional-record.png"
+$ipadImage = [System.Drawing.Bitmap]::FromFile($ipadImagePath)
+if ($ipadImage.Width -ne 2048 -or $ipadImage.Height -ne 2732) {
+    $failures.Add("iPad screenshot has unexpected dimensions ($($ipadImage.Width)x$($ipadImage.Height)).")
+}
+$ipadImage.Dispose()
 
 if ($failures.Count -gt 0) {
     $failures | ForEach-Object { Write-Error $_ -ErrorAction Continue }
