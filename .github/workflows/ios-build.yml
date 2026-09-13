@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
@@ -23,37 +24,71 @@ jobs:
           -destination 'generic/platform=iOS Simulator'
           CODE_SIGNING_ALLOWED=NO
           build
-      - name: Select available iPhone simulator
-        id: simulator
+      - name: Select available iPhone and iPad simulators
+        id: simulators
         shell: bash
         run: |
           set -euo pipefail
-          simulator_udid="$(
-            xcrun simctl list devices available --json |
-              jq -r '
-                [
-                  .devices
-                  | to_entries
-                  | map(select(.key | contains("SimRuntime.iOS-")))
-                  | sort_by(.key)
-                  | reverse
-                  | .[]
-                  | .value[]
-                  | select(.isAvailable == true and (.name | startswith("iPhone")))
-                ]
-                | first
-                | .udid // empty
-              '
+          devices_json="$(xcrun simctl list devices available --json)"
+          phone_json="$(
+            jq -c '
+              [
+                .devices
+                | to_entries
+                | map(select(.key | contains("SimRuntime.iOS-")))
+                | sort_by(.key)
+                | reverse
+                | .[]
+                | .key as $runtime
+                | .value[]
+                | select(.isAvailable == true and (.name | startswith("iPhone")))
+                | {udid, name, runtime: $runtime}
+              ]
+              | first // empty
+            ' <<< "$devices_json"
+          )"
+          pad_json="$(
+            jq -c '
+              [
+                .devices
+                | to_entries
+                | map(select(.key | contains("SimRuntime.iOS-")))
+                | sort_by(.key)
+                | reverse
+                | .[]
+                | .key as $runtime
+                | .value[]
+                | select(.isAvailable == true and (.name | startswith("iPad")))
+                | {udid, name, runtime: $runtime}
+              ]
+              | first // empty
+            ' <<< "$devices_json"
           )"
 
-          if [[ -z "$simulator_udid" ]]; then
-            echo "::error::No available iPhone simulator was found."
+          if [[ -z "$phone_json" || "$phone_json" == "null" || -z "$pad_json" || "$pad_json" == "null" ]]; then
+            echo "::error::An available iPhone and iPad simulator are both required."
             xcrun simctl list devices available
             exit 1
           fi
 
-          echo "udid=$simulator_udid" >> "$GITHUB_OUTPUT"
+          echo "phone_udid=$(jq -r '.udid' <<< "$phone_json")" >> "$GITHUB_OUTPUT"
+          echo "phone_name=$(jq -r '.name' <<< "$phone_json")" >> "$GITHUB_OUTPUT"
+          echo "phone_runtime=$(jq -r '.runtime' <<< "$phone_json")" >> "$GITHUB_OUTPUT"
+          echo "pad_udid=$(jq -r '.udid' <<< "$pad_json")" >> "$GITHUB_OUTPUT"
+          echo "pad_name=$(jq -r '.name' <<< "$pad_json")" >> "$GITHUB_OUTPUT"
+          echo "pad_runtime=$(jq -r '.runtime' <<< "$pad_json")" >> "$GITHUB_OUTPUT"
+      - name: Record selected simulator inventory
+        run: |
+          {
+            echo "iPhone: ${{ steps.simulators.outputs.phone_name }} (${{ steps.simulators.outputs.phone_runtime }})"
+            echo "iPad: ${{ steps.simulators.outputs.pad_name }} (${{ steps.simulators.outputs.pad_runtime }})"
+          } | tee SimulatorInventory.txt
+      - name: Select available iPhone simulator for unit tests
+        id: simulator
+        run: |
+          echo "udid=${{ steps.simulators.outputs.phone_udid }}" >> "$GITHUB_OUTPUT"
       - name: Run full iOS unit-test target
+        timeout-minutes: 12
         run: >-
           xcodebuild
           test
@@ -61,12 +96,60 @@ jobs:
           -scheme DetailHandoff
           -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}'
           -only-testing:DetailHandoffTests
-          -resultBundlePath TestResults.xcresult
+          -resultBundlePath UnitTestResults.xcresult
           CODE_SIGNING_ALLOWED=NO
+      - name: Run UI tests on selected iPhone
+        timeout-minutes: 20
+        run: >-
+          xcodebuild
+          test
+          -project DetailHandoff.xcodeproj
+          -scheme DetailHandoff
+          -destination 'platform=iOS Simulator,id=${{ steps.simulators.outputs.phone_udid }}'
+          -only-testing:DetailHandoffUITests
+          -parallel-testing-enabled NO
+          -maximum-parallel-testing-workers 1
+          -resultBundlePath UITestResults-iPhone.xcresult
+          CODE_SIGNING_ALLOWED=NO
+      - name: Run UI tests on selected iPad
+        if: always()
+        timeout-minutes: 20
+        run: >-
+          xcodebuild
+          test
+          -project DetailHandoff.xcodeproj
+          -scheme DetailHandoff
+          -destination 'platform=iOS Simulator,id=${{ steps.simulators.outputs.pad_udid }}'
+          -only-testing:DetailHandoffUITests
+          -parallel-testing-enabled NO
+          -maximum-parallel-testing-workers 1
+          -resultBundlePath UITestResults-iPad.xcresult
+          CODE_SIGNING_ALLOWED=NO
+      - name: Export test attachments for visual inspection
+        if: always()
+        run: |
+          set -euo pipefail
+          for result in UnitTestResults.xcresult UITestResults-iPhone.xcresult UITestResults-iPad.xcresult; do
+            if [[ -f "$result/Info.plist" ]]; then
+              case "$result" in
+                UnitTestResults.xcresult) device="Unit" ;;
+                UITestResults-iPhone.xcresult) device="iPhone" ;;
+                UITestResults-iPad.xcresult) device="iPad" ;;
+              esac
+              xcrun xcresulttool export attachments --path "$result" --output-path "TestAttachments-$device"
+            fi
+          done
       - name: Upload iOS test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ios-test-results
-          path: TestResults.xcresult
+          path: |
+            SimulatorInventory.txt
+            UnitTestResults.xcresult
+            UITestResults-iPhone.xcresult
+            UITestResults-iPad.xcresult
+            TestAttachments-Unit
+            TestAttachments-iPhone
+            TestAttachments-iPad
           if-no-files-found: ignore

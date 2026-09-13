@@ -14,7 +14,12 @@ final class AppStartup: ObservableObject {
 
     convenience init() {
         self.init {
-            try ModelContainer(for: BusinessProfile.self, JobRecord.self)
+            #if DEBUG
+            if let container = try UITestFixtures.makeContainer() {
+                return container
+            }
+            #endif
+            return try ModelContainer(for: BusinessProfile.self, JobRecord.self)
         }
     }
 

@@ -1,0 +1,181 @@
+import SwiftData
+import UIKit
+import XCTest
+@testable import DetailHandoff
+
+final class BusinessRepositoryTests: XCTestCase {
+    @MainActor
+    func testCreateProfileRequiresNonemptyIdentityAndOnlyOneProfile() throws {
+        let container = try makeContainer()
+        let repository = BusinessRepository(context: container.mainContext)
+
+        XCTAssertThrowsError(try repository.createProfile(businessName: "  ", phone: "", email: "", configuration: .standard)) { error in
+            XCTAssertEqual(error as? BusinessRepositoryError, .blankBusinessName)
+        }
+
+        _ = try repository.createProfile(businessName: "Northstar Detailing", phone: "", email: "", configuration: .standard)
+
+        XCTAssertThrowsError(try repository.createProfile(businessName: "Second Shop", phone: "", email: "", configuration: .standard)) { error in
+            XCTAssertEqual(error as? BusinessRepositoryError, .profileAlreadyExists)
+        }
+    }
+
+    func testConfigurationRequiresValidDefaultAndUniqueNonemptySlots() {
+        let service = ServiceOption(name: "Full detail")
+        let template = CaptureTemplateOption(name: "Standard", slots: [
+            CaptureSlot(id: "front", name: "Front", isRequired: true),
+            CaptureSlot(id: "front", name: "Front again", isRequired: true)
+        ])
+        let invalid = BusinessConfiguration(services: [service], templates: [template], defaultTemplateID: UUID())
+
+        XCTAssertThrowsError(try invalid.validated()) { error in
+            XCTAssertEqual(error as? BusinessConfigurationError, .invalidDefaultTemplate)
+        }
+
+        let duplicateSlots = BusinessConfiguration(services: [service], templates: [template], defaultTemplateID: template.id)
+        XCTAssertThrowsError(try duplicateSlots.validated()) { error in
+            XCTAssertEqual(error as? BusinessConfigurationError, .duplicateSlotID("front"))
+        }
+    }
+
+    func testSelectingDefaultServiceMovesItToTheNewJobDefaultPosition() {
+        let fullDetail = ServiceOption(name: "Full Detail")
+        let exteriorDetail = ServiceOption(name: "Exterior Detail")
+        let template = CaptureTemplateOption(name: "Standard Detail", slots: CaptureSlot.standard)
+        let configuration = BusinessConfiguration(
+            services: [fullDetail, exteriorDetail],
+            templates: [template],
+            defaultTemplateID: template.id
+        )
+
+        let updated = configuration.makingServiceDefault(exteriorDetail.id)
+
+        XCTAssertEqual(updated.services.map(\.id), [exteriorDetail.id, fullDetail.id])
+    }
+
+    @MainActor
+    func testUpdateDetailsPreservesReportLedgerAndPersistsConfigurationThroughFreshContext() throws {
+        let container = try makeContainer()
+        let repository = BusinessRepository(context: container.mainContext)
+        let profile = try repository.createProfile(businessName: "Northstar Detailing", phone: "", email: "", configuration: .standard)
+        let profileID = profile.id
+        let ledger = Data([0xD0, 0x0D])
+        profile.reportNumberLedgerData = ledger
+        try container.mainContext.save()
+        let template = CaptureTemplateOption(name: "Express", slots: [CaptureSlot(id: "front", name: "Front", isRequired: true)])
+        let configuration = BusinessConfiguration(services: [ServiceOption(name: "Express detail")], templates: [template], defaultTemplateID: template.id)
+
+        try repository.updateDetails(profile, businessName: "  Northstar Mobile  ", phone: " 555-0100 ", email: " hello@example.com ", disclaimer: " Updated disclaimer ", configuration: configuration)
+
+        let freshContext = ModelContext(container)
+        let saved = try XCTUnwrap(try freshContext.fetch(FetchDescriptor<BusinessProfile>(predicate: #Predicate { $0.id == profileID })).first)
+        XCTAssertEqual(saved.businessName, "Northstar Mobile")
+        XCTAssertEqual(saved.phone, "555-0100")
+        XCTAssertEqual(saved.email, "hello@example.com")
+        XCTAssertEqual(saved.disclaimer, "Updated disclaimer")
+        XCTAssertEqual(saved.reportNumberLedgerData, ledger)
+        XCTAssertEqual(try BusinessRepository(context: freshContext).configuration(for: saved), configuration)
+    }
+
+    @MainActor
+    func testFailedBusinessSaveRestoresAllEditableFieldsWithoutChangingLedger() throws {
+        enum SaveFailure: Error { case simulated }
+        let container = try makeContainer()
+        let profile = BusinessProfile(businessName: "Northstar", phone: "555", email: "old@example.com")
+        let ledger = Data([0xAB])
+        profile.reportNumberLedgerData = ledger
+        container.mainContext.insert(profile)
+        try container.mainContext.save()
+        let repository = BusinessRepository(context: container.mainContext) { throw SaveFailure.simulated }
+
+        XCTAssertThrowsError(try repository.updateDetails(profile, businessName: "Changed", phone: "999", email: "new@example.com", disclaimer: "Changed", configuration: .standard))
+
+        XCTAssertEqual(profile.businessName, "Northstar")
+        XCTAssertEqual(profile.phone, "555")
+        XCTAssertEqual(profile.email, "old@example.com")
+        XCTAssertEqual(profile.reportNumberLedgerData, ledger)
+    }
+
+    @MainActor
+    func testCreateProfileWithLogoPersistsProfileAndPrivateLogoTogether() throws {
+        let container = try makeContainer()
+        let mediaRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BusinessRepository-Logo-Success-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: mediaRoot) }
+        let media = MediaStore(root: mediaRoot)
+        let repository = BusinessRepository(context: container.mainContext, media: media)
+
+        let profile = try repository.createProfile(
+            businessName: "Northstar Detailing",
+            phone: "",
+            email: "",
+            configuration: .standard,
+            logoData: try logoJPEG()
+        )
+
+        let path = try XCTUnwrap(profile.logoImagePath)
+        XCTAssertEqual(try media.assetInventory().map(\.path), [path])
+        XCTAssertNotNil(UIImage(data: try Data(contentsOf: media.url(for: path))))
+    }
+
+    @MainActor
+    func testCreateProfileWithInvalidLogoLeavesNoProfileOrFile() throws {
+        let container = try makeContainer()
+        let mediaRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BusinessRepository-Logo-Invalid-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: mediaRoot) }
+        let media = MediaStore(root: mediaRoot)
+        let repository = BusinessRepository(context: container.mainContext, media: media)
+
+        XCTAssertThrowsError(try repository.createProfile(
+            businessName: "Northstar Detailing",
+            phone: "",
+            email: "",
+            configuration: .standard,
+            logoData: Data("not an image".utf8)
+        ))
+
+        XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<BusinessProfile>()).isEmpty)
+        XCTAssertTrue(try media.assetInventory().isEmpty)
+    }
+
+    @MainActor
+    func testCreateProfileWithLogoRollsBackProfileAndFileWhenSaveFails() throws {
+        enum SaveFailure: Error { case simulated }
+        let container = try makeContainer()
+        let mediaRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BusinessRepository-Logo-SaveFailure-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: mediaRoot) }
+        let media = MediaStore(root: mediaRoot)
+        let repository = BusinessRepository(
+            context: container.mainContext,
+            media: media,
+            saveChanges: { throw SaveFailure.simulated }
+        )
+
+        XCTAssertThrowsError(try repository.createProfile(
+            businessName: "Northstar Detailing",
+            phone: "",
+            email: "",
+            configuration: .standard,
+            logoData: try logoJPEG()
+        )) { error in
+            XCTAssertTrue(error is SaveFailure)
+        }
+
+        XCTAssertTrue(try container.mainContext.fetch(FetchDescriptor<BusinessProfile>()).isEmpty)
+        XCTAssertTrue(try media.assetInventory().isEmpty)
+    }
+
+    private func logoJPEG() throws -> Data {
+        try XCTUnwrap(UIGraphicsImageRenderer(size: CGSize(width: 24, height: 24)).jpegData(withCompressionQuality: 0.9) { context in
+            UIColor.systemBlue.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 24, height: 24))
+        })
+    }
+
+    @MainActor
+    private func makeContainer() throws -> ModelContainer {
+        try ModelContainer(for: BusinessProfile.self, JobRecord.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    }
+}

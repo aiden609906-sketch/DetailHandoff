@@ -1,0 +1,245 @@
+import Foundation
+import SwiftData
+
+enum CaptureDocumentCorruption: Error, Equatable {
+    case duplicateSlotID(String)
+    case duplicatePhotoID(UUID)
+    case unknownPhotoSlot(String)
+    case invalidMediaPath(String)
+    case duplicateSkip(slotID: String, phase: CapturePhase)
+    case unknownSkipSlot(String)
+    case duplicateFindingID(UUID)
+    case unknownFindingSlot(String)
+    case duplicateFindingPhoto(UUID)
+    case findingPhotoDoesNotBelongToSlot(UUID)
+    case findingRequiresPhoto(UUID)
+}
+
+enum CaptureRepositoryError: Error, Equatable {
+    case unsupportedSchemaVersion(Int)
+    case corruptDocument(CaptureDocumentCorruption)
+    case immutableJob
+    case unknownSlot(String)
+    case blankSkipReason
+    case unknownPhoto(UUID)
+    case photoLinkedToFinding(UUID)
+    case unknownFinding(UUID)
+    case findingPhotoDoesNotBelongToSlot(UUID)
+    case duplicateFindingPhoto(UUID)
+    case findingRequiresPhoto
+}
+
+struct CaptureRepositoryRollbackError: Error {
+    let saveError: any Error
+    let cleanupError: any Error
+}
+
+@MainActor
+final class CaptureRepository {
+    private let context: ModelContext
+    private let media: MediaStore
+    private let saveChanges: () throws -> Void
+    private let removeStoredImage: (StoredImage) throws -> Void
+
+    init(context: ModelContext, media: MediaStore) {
+        self.context = context
+        self.media = media
+        self.saveChanges = { try context.save() }
+        self.removeStoredImage = { try media.remove($0) }
+    }
+
+    init(context: ModelContext, media: MediaStore, saveChanges: @escaping () throws -> Void) {
+        self.context = context
+        self.media = media
+        self.saveChanges = saveChanges
+        self.removeStoredImage = { try media.remove($0) }
+    }
+
+    init(
+        context: ModelContext,
+        media: MediaStore,
+        saveChanges: @escaping () throws -> Void,
+        removeStoredImage: @escaping (StoredImage) throws -> Void
+    ) {
+        self.context = context
+        self.media = media
+        self.saveChanges = saveChanges
+        self.removeStoredImage = removeStoredImage
+    }
+
+    func document(for job: JobRecord) throws -> CaptureDocument {
+        guard let captureData = job.captureData else { return .empty }
+        let document = try JSONDecoder().decode(CaptureDocument.self, from: captureData)
+        guard document.schemaVersion == CaptureDocument.currentSchemaVersion else {
+            throw CaptureRepositoryError.unsupportedSchemaVersion(document.schemaVersion)
+        }
+        try validateDocument(document)
+        return document
+    }
+
+    func addPhoto(to job: JobRecord, data: Data, slotID: String, phase: CapturePhase) throws {
+        try validateMutable(job)
+        var document = try document(for: job)
+        try validateSlot(slotID, in: document)
+        let stored = try media.storeImage(data, jobID: job.id)
+        document.photos.append(CapturedPhoto(slotID: slotID, phase: phase, imagePath: stored.imagePath, thumbnailPath: stored.thumbnailPath))
+        do {
+            try save(document, on: job)
+        } catch let saveError {
+            do {
+                try removeStoredImage(stored)
+            } catch let cleanupError {
+                throw CaptureRepositoryRollbackError(saveError: saveError, cleanupError: cleanupError)
+            }
+            throw saveError
+        }
+    }
+
+    func removePhoto(from job: JobRecord, photoID: UUID) throws {
+        try validateMutable(job)
+        var document = try document(for: job)
+        guard let index = document.photos.firstIndex(where: { $0.id == photoID }) else { throw CaptureRepositoryError.unknownPhoto(photoID) }
+        guard !document.findings.contains(where: { $0.photoIDs.contains(photoID) }) else {
+            throw CaptureRepositoryError.photoLinkedToFinding(photoID)
+        }
+        // Metadata unlink only: frozen ReportSnapshot references and backups retain both files.
+        // Physical cleanup belongs to an explicit reference-aware retention policy, not editing.
+        document.photos.remove(at: index)
+        try save(document, on: job)
+    }
+
+    func setSkip(on job: JobRecord, slotID: String, phase: CapturePhase, reason: String) throws {
+        try validateMutable(job)
+        var document = try document(for: job)
+        try validateSlot(slotID, in: document)
+        let trimmedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedReason.isEmpty else { throw CaptureRepositoryError.blankSkipReason }
+        document.skips.removeAll { $0.slotID == slotID && $0.phase == phase }
+        document.skips.append(CaptureSkip(slotID: slotID, phase: phase, reason: trimmedReason))
+        try save(document, on: job)
+    }
+
+    func clearSkip(on job: JobRecord, slotID: String, phase: CapturePhase) throws {
+        try validateMutable(job)
+        var document = try document(for: job)
+        try validateSlot(slotID, in: document)
+        document.skips.removeAll { $0.slotID == slotID && $0.phase == phase }
+        try save(document, on: job)
+    }
+
+    func saveFinding(on job: JobRecord, finding: VehicleFinding) throws {
+        try validateMutable(job)
+        var document = try document(for: job)
+        try validateSlot(finding.slotID, in: document)
+        try validatePhotoOwnership(of: finding, in: document)
+        if let index = document.findings.firstIndex(where: { $0.id == finding.id }) {
+            document.findings[index] = finding
+        } else {
+            document.findings.append(finding)
+        }
+        try save(document, on: job)
+    }
+
+    func removeFinding(from job: JobRecord, findingID: UUID) throws {
+        try validateMutable(job)
+        var document = try document(for: job)
+        guard let index = document.findings.firstIndex(where: { $0.id == findingID }) else { throw CaptureRepositoryError.unknownFinding(findingID) }
+        document.findings.remove(at: index)
+        try save(document, on: job)
+    }
+
+    private func save(_ document: CaptureDocument, on job: JobRecord) throws {
+        let previousData = job.captureData
+        let previousUpdatedAt = job.updatedAt
+        let encoded = try JSONEncoder().encode(document)
+        job.captureData = encoded
+        job.updatedAt = Date()
+        do {
+            try saveChanges()
+        } catch {
+            job.captureData = previousData
+            job.updatedAt = previousUpdatedAt
+            throw error
+        }
+    }
+
+    private func validateMutable(_ job: JobRecord) throws {
+        guard job.modelContext === context, !job.isDeleted, job.deletedAt == nil else { throw CaptureRepositoryError.immutableJob }
+        guard job.status != .finalized, job.status != .archived else { throw CaptureRepositoryError.immutableJob }
+    }
+
+    private func validateSlot(_ slotID: String, in document: CaptureDocument) throws {
+        guard document.slots.contains(where: { $0.id == slotID }) else { throw CaptureRepositoryError.unknownSlot(slotID) }
+    }
+
+    private func validatePhotoOwnership(of finding: VehicleFinding, in document: CaptureDocument) throws {
+        guard !finding.photoIDs.isEmpty else { throw CaptureRepositoryError.findingRequiresPhoto }
+        var seenPhotoIDs = Set<UUID>()
+        for photoID in finding.photoIDs {
+            guard seenPhotoIDs.insert(photoID).inserted else { throw CaptureRepositoryError.duplicateFindingPhoto(photoID) }
+            guard document.photos.contains(where: { $0.id == photoID && $0.slotID == finding.slotID }) else {
+                throw CaptureRepositoryError.findingPhotoDoesNotBelongToSlot(photoID)
+            }
+        }
+    }
+
+    private func validateDocument(_ document: CaptureDocument) throws {
+        var slotIDs = Set<String>()
+        for slot in document.slots {
+            guard slotIDs.insert(slot.id).inserted else {
+                throw CaptureRepositoryError.corruptDocument(.duplicateSlotID(slot.id))
+            }
+        }
+
+        var photoIDs = Set<UUID>()
+        var photosByID = [UUID: CapturedPhoto]()
+        for photo in document.photos {
+            guard photoIDs.insert(photo.id).inserted else {
+                throw CaptureRepositoryError.corruptDocument(.duplicatePhotoID(photo.id))
+            }
+            guard slotIDs.contains(photo.slotID) else {
+                throw CaptureRepositoryError.corruptDocument(.unknownPhotoSlot(photo.slotID))
+            }
+            do {
+                _ = try media.url(for: photo.imagePath)
+                _ = try media.url(for: photo.thumbnailPath)
+            } catch {
+                throw CaptureRepositoryError.corruptDocument(.invalidMediaPath(photo.imagePath))
+            }
+            photosByID[photo.id] = photo
+        }
+
+        var skipKeys = Set<String>()
+        for skip in document.skips {
+            guard slotIDs.contains(skip.slotID) else {
+                throw CaptureRepositoryError.corruptDocument(.unknownSkipSlot(skip.slotID))
+            }
+            let key = "\(skip.slotID)\u{0}\(skip.phase.rawValue)"
+            guard skipKeys.insert(key).inserted else {
+                throw CaptureRepositoryError.corruptDocument(.duplicateSkip(slotID: skip.slotID, phase: skip.phase))
+            }
+        }
+
+        var findingIDs = Set<UUID>()
+        for finding in document.findings {
+            guard findingIDs.insert(finding.id).inserted else {
+                throw CaptureRepositoryError.corruptDocument(.duplicateFindingID(finding.id))
+            }
+            guard slotIDs.contains(finding.slotID) else {
+                throw CaptureRepositoryError.corruptDocument(.unknownFindingSlot(finding.slotID))
+            }
+            guard !finding.photoIDs.isEmpty else {
+                throw CaptureRepositoryError.corruptDocument(.findingRequiresPhoto(finding.id))
+            }
+            var linkedPhotoIDs = Set<UUID>()
+            for photoID in finding.photoIDs {
+                guard linkedPhotoIDs.insert(photoID).inserted else {
+                    throw CaptureRepositoryError.corruptDocument(.duplicateFindingPhoto(photoID))
+                }
+                guard photosByID[photoID]?.slotID == finding.slotID else {
+                    throw CaptureRepositoryError.corruptDocument(.findingPhotoDoesNotBelongToSlot(photoID))
+                }
+            }
+        }
+    }
+}
