@@ -4,8 +4,8 @@ This is a release-preparation evidence review, not App Store submission approval
 
 ## Latest automated evidence and image provenance
 
-- Latest verified merged-main CI: [run 34758132729](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34758132729), commit `e7d8e05`: build, 149/0 unit tests, 9/0 iPhone UI tests, 9/0 iPad UI tests. Both device UI steps and attachment export/upload succeeded.
-- Current marketing images: six `iphone` PNGs at 1290×2796 and six `ipad` PNGs at 2048×2732. These are derived from exact simulator captures in earlier green [run 34740399131](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34740399131), commit `933cfb2`, then rendered into marketing frames. They are **not** screenshots of the latest CI run.
+- Latest verified merged-main CI before the current branch: [run 34828946923](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34828946923), commit `e0d07ff`: app build, 149/0 unit tests, 11/0 iPhone UI tests, and 11/0 iPad UI tests passed. The current isolated candidate [run 34848586983, attempt 2](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34848586983/attempts/2), commit `a21c5fc`, passed the build, 149/0 unit tests, and 12/0 UI tests on each simulator, including job relaunch persistence. Attempt 1 had one intermittent iPhone Files-exporter UI-test recognition failure.
+- Current marketing images: six `iphone` PNGs at 1290×2796 and six `ipad` PNGs at 2048×2732. These were regenerated from exact simulator captures in green [run 34803310219](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34803310219), commit `5d901de`, then rendered into marketing frames. They are **not** screenshots of the latest CI run.
 - All 12 derived PNGs were opened and visually reviewed on 2026-09-14. Synthetic fixture names/plates/photos are visible; no real customer identity or contact details were observed. The fixture's color-block images are conspicuously synthetic and require a marketing decision before upload.
 
 ## Per-image copy and visual review
@@ -29,7 +29,7 @@ The marketing frame's `No account, analytics, or developer cloud service` is mor
 
 ## Core-flow evidence gap
 
-- Existing backup, capture, report, and fresh-`ModelContext` persistence tests do not prove process termination/relaunch. The current DEBUG UI fixture removes its store on every launch, so a process-relaunch test needs an isolated fixture-preservation path or a physical-device run. No such run is claimed here.
+- A targeted iPhone simulator UI test now proves that a newly created job remains available and opens after app process termination/relaunch (CI `34848170708`). A DEBUG-only preserve-store flag makes this possible without weakening ordinary UI fixture isolation. This does not prove that photos, signature, sealed PDF, or a complete job survive a physical-device force-quit.
 - No complete-job/PDF run under a verified disconnected network state was found. Static source review found no `URLSession` or CloudKit business-data path, but that cannot replace an airplane-mode end-to-end test.
 - Required physical run: enable airplane mode, create or open a representative job, complete Before/After evidence and acknowledgment, seal/open/share a PDF, force-quit the app, relaunch, and verify the job, photos, signature/unavailable reason, and sealed PDF persist. Repeat on a supported iPhone and iPad; record device/OS/build, screenshots, and any failure.
 
