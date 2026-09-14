@@ -56,11 +56,11 @@ The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. 
 - All six iPhone PNGs are opaque RGB at 1290×2796; all six iPad PNGs are opaque RGB at 2048×2732. These are listed as accepted sizes in [Apple's screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications). The icon master is opaque RGB at 1024×1024. The release archive and store upload remain unverified.
 - The public support and privacy URLs both returned HTTP 200 on 2026-09-14. Their visible text includes the Gmail support address and local-data/backups caveats. Recheck them immediately before submission and after any hosting change.
 - An indexed public search found no exact `DetailHandoff` result on 2026-09-14. The live USPTO trademark database and App Store Connect availability were **not** verified. This does **not** reserve the name or establish trademark clearance; search similar marks and relevant goods/services before finalizing the name.
-- Existing fresh-context tests exercise saved data but do not terminate and relaunch the app. No verified airplane-mode complete-job/PDF run exists. These remain explicit release gates, not implied passes from the current green CI.
+- A targeted iPhone simulator UI test creates a job, terminates and relaunches the app, then reopens that saved job (CI `34848170708`). This is not a physical-device force-quit or full-progress retention test. No verified airplane-mode complete-job/PDF run exists; those release gates remain open.
 
 ## Metadata and account checklist
 
-- [x] Obtain a green macOS build, all 149 unit tests, and all 11 UI tests on both iPhone and iPad (candidate CI `34803310219`, code commit `5d901de`). The current 12 store PNGs derive from the same run; merged-main CI is a separate final check.
+- [x] Obtain a green macOS build, all 149 unit tests, and all 12 UI tests on both iPhone and iPad (candidate CI `34848586983`, attempt 2, code commit `a21c5fc`). The current 12 store PNGs derive from earlier green CI `34803310219`, not this run; merged-main CI is a separate final check. Attempt 1 had one intermittent iPhone Files-exporter UI-test recognition failure.
 - [ ] Verify the archived `PrivacyInfo.xcprivacy` declares DiskSpace reason `E174.1` for the actual capture/import storage check, without tracking or collected-data claims beyond the implementation. The built simulator resource test has passed.
 - [x] Pass the Phase 1 on-disk migration fixture without losing baseline records (included in the 149-test run).
 - [ ] Complete physical iPhone and iPad camera, permissions, interruption, offline, accessibility, performance, Files/share, backup/restore, deletion, and low-storage checks.

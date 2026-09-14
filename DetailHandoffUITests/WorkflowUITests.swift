@@ -209,6 +209,41 @@ final class WorkflowUITests: XCTestCase {
         capture("saved-unavailable-acknowledgment")
     }
 
+    // Catches the UI-test store being reset on process relaunch instead of reopening saved jobs.
+    func testSavedJobSurvivesProcessRelaunch() throws {
+        launch(arguments: ["--ui-testing"])
+
+        require(app.navigationBars["Set up your business"])
+        focusAndTypeText(in: app.textFields["Business name"], with: "Fixture Detail")
+        focusAndTypeText(in: app.textFields["setup.service.0"], with: " Mobile")
+        app.buttons["Save"].tap()
+
+        require(app.navigationBars["Jobs"])
+        app.buttons["New job"].tap()
+        require(app.navigationBars["New job"])
+        let newJobScroll = verticalScroll("newJob.verticalScroll")
+        let vehicle = scrollUntilHittable(
+            { app.textFields["Vehicle"] },
+            in: newJobScroll,
+            preferredDirection: .down
+        )
+        vehicle.tap()
+        vehicle.typeText("Restart Fixture Sedan")
+        require(app.keyboards.buttons["Done"])
+        app.keyboards.buttons["Done"].tap()
+        scrollUntilHittable({ app.buttons["newJob.create"] }, in: newJobScroll).tap()
+        require(app.staticTexts["Restart Fixture Sedan"])
+
+        app.terminate()
+        launch(arguments: ["--ui-testing", "--ui-testing-preserve-store"])
+
+        require(app.navigationBars["Jobs"])
+        let savedJob = app.buttons.containing(.staticText, identifier: "Restart Fixture Sedan").firstMatch
+        require(savedJob)
+        savedJob.tap()
+        require(app.navigationBars["Restart Fixture Sedan"])
+    }
+
     func testCleanLaunchCreatesSearchableJobAndOpensWorkflow() throws {
         launch(arguments: ["--ui-testing"])
 
