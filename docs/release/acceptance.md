@@ -1,10 +1,10 @@
 # V1 acceptance and evidence
 
-Last updated: 2026-09-13
+Last updated: 2026-09-14
 
 ## Release decision
 
-**Automated V1 gate passed on merged `main`; not yet App Store release-ready.** CI `34735856765` built commit `843c46b`, passed all 149 unit tests, and passed all 9 UI tests on both an iPhone 17 Pro and iPad Pro 13-inch (M5) running iOS 26.5. It exported test attachments; representative native-resolution phone, tablet, Files exporter, report, and accessibility images were inspected from earlier green CI `34560087867`, attempt 2, not from this merged run. A 1024×1024 opaque app-icon master is referenced by the asset catalog but still requires signed-archive validation. Public support and privacy pages are available. The remaining blockers are physical-device behavior, signing/archive validation, final account-owned metadata, TestFlight, business setup, and App Review.
+**Automated V1 gate passed on merged `main`; not yet App Store release-ready.** CI `34758132729` built commit `e7d8e05`, passed all 149 unit tests, and passed all 9 UI tests on both the selected iPhone and iPad simulators. The release screenshot set uses exact simulator captures from earlier green CI `34740399131`, not the latest run; see `app-store-assets/README.md` and `pre-membership-audit-2026-09-14.md`. A 1024×1024 opaque app-icon master is referenced by the asset catalog but still requires signed-archive validation. Public support and privacy pages returned HTTP 200 on 2026-09-14. The remaining blockers include physical-device/offline behavior, screenshot corrections, name clearance, signing/archive validation, account-owned metadata, TestFlight, business setup, and App Review.
 
 Legend: **PASS** means the named behavior actually ran successfully in the cited run. **SOURCE** means the statement is supported by source inspection but not by the manual or external observation still named in that row. **MANUAL** is an external or physical check that automation cannot establish.
 
@@ -21,6 +21,8 @@ Legend: **PASS** means the named behavior actually ran successfully in the cited
 | Final-review fix wave | Based on `3b18e27`; see `.superpowers/sdd/2026-09-04-release-verification/final-fix-report.md` | **PASS in CI 34560087867 attempt 2:** all final-review tests are included in the green 149-unit and dual-device 9-test UI suites. Physical camera rendering and release signing are not claimed. |
 | [CI 34560087867, attempt 2](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34560087867/attempts/2) | `9199120` | **PASS:** app build; 149/0 unit tests; 9/0 iPhone UI tests; 9/0 iPad UI tests. Destinations: iPhone 17 Pro and iPad Pro 13-inch (M5), iOS 26.5. Screenshot/test artifacts uploaded (140,160,931 bytes). Representative native-resolution screenshots inspected; no legacy letterboxing or horizontal action-label clipping observed. |
 | [CI 34735856765](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34735856765) | `843c46b` | **PASS on merged `main`:** app build; 149/0 unit tests; 9/0 iPhone UI tests; 9/0 iPad UI tests. Destinations: iPhone 17 Pro and iPad Pro 13-inch (M5), iOS 26.5. Test attachments uploaded but not separately inspected in this run. No physical-device or signed-archive claim. |
+| [CI 34740399131](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34740399131) | `933cfb2` | **PASS:** source of the exact simulator UI captures used in the 12 draft App Store marketing frames. The derived PNGs are committed under `docs/release/app-store-assets/`; this is not creative approval. |
+| [CI 34758132729](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34758132729) | `e7d8e05` | **PASS on merged `main`:** app build; 149/0 unit tests; 9/0 iPhone UI tests; 9/0 iPad UI tests. Build and both UI-test steps, attachment export, and artifact upload succeeded. No physical offline, forced-quit, or signed-archive claim. |
 
 The stable 40-photo PDF outputs and rendered QA pages remain outside product source under `.superpowers/sdd/2026-09-04-reports/ci-33848520274/` and `.superpowers/sdd/2026-09-04-reports/pdf-qa/`. They must not be relocated into the app bundle or deleted during release preparation.
 
@@ -86,7 +88,7 @@ The current automated status below is based on CI `34560087867`, attempt 2. Phys
 |---|---|---|
 | Complete a job and generate PDF in airplane mode | No successful offline end-to-end device run | **MANUAL pending** |
 | Auto-save every photo and field edit | Fresh-context persistence tests for jobs, captures, acknowledgment, reports | **Unit PASS**; force-quit physical check pending |
-| Preserve progress after forced quit/relaunch | Fresh-context tests | **Unit PASS**; physical termination/relaunch pending |
+| Preserve progress after forced quit/relaunch | Fresh-context tests cover disk persistence without terminating the app process | **Unit PASS**; process termination/relaunch and physical force-quit pending |
 | Never pair the wrong Before/After image | `testPairsPhotosOnlyWithTheSameSlotAcrossPhases` | **Unit PASS** |
 | Block sealing when required evidence is missing without a skip reason | capture validation and `testSealRejectsInvalidAcknowledgmentAndIncompleteCaptureWithoutMutation` | **Unit PASS** |
 | Bind signature to the correct job and time/content | acknowledgment digest/currentness tests | **Unit PASS** |
@@ -105,9 +107,11 @@ Run `33936741128` retained earlier diagnostic images showing the failures that d
 
 CI `34560087867`, attempt 2, exported 30 attachments for each device class across setup, list, new job, capture, findings, acknowledgment, report, Draft Preview, sealed version/history, real share cancellation, Settings, backup/Files cancellation, trash/restore, startup retry, and accessibility flows. Representative native-resolution iPhone/iPad accessibility, Files exporter, and report screenshots were inspected: native full-screen geometry is present, primary actions remain horizontally readable at the tested accessibility size, and the system exporter is visibly real. These images are accepted as engineering evidence, not final App Store marketing artwork.
 
+The current 12 App Store marketing PNGs were separately reviewed on 2026-09-14; their source is CI `34740399131`. The iPad Settings/privacy frame exposes a pre-release support placeholder, and its app text oversimplifies cloud/system-backup behavior. Both device classes remain **creative approval pending**. The per-frame findings are in `pre-membership-audit-2026-09-14.md`.
+
 ## Pending release gates
 
-- Preserve the green automated baseline from CI `34735856765` when making release changes. The app build, 149 unit tests, and both 9-test UI suites are complete for merged commit `843c46b`; representative screenshot inspection was performed on earlier green CI `34560087867`, attempt 2.
+- Preserve the green automated baseline from CI `34758132729` when making release changes. The app build, 149 unit tests, and both 9-test UI suites completed for merged commit `e7d8e05`. The current App Store screenshots come from CI `34740399131` and are not yet approved for upload.
 - Verify the privacy manifest in the signed release archive and validate its required-reason declaration against actual runtime behavior. The built simulator resource test is green.
 - Run physical iPhone and iPad tests for camera capture, photo permission states, cancellation, force-quit/interruption, airplane mode, rotation/multitasking, large Dynamic Type/VoiceOver, low storage, 40-photo performance, PDF viewers/share destinations, Files/iCloud/external backup restore, deletion, and cleanup.
 - Establish Apple Developer membership, account owner, team, bundle identifier, certificates, profiles, signing, and release archive validation.

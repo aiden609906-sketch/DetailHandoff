@@ -1,6 +1,6 @@
 # Privacy and local data behavior
 
-Last updated: 2026-09-11
+Last updated: 2026-09-14
 
 This document describes the current V1 source. It is an engineering handoff, not a published privacy policy or legal determination.
 
@@ -62,3 +62,5 @@ The user-created DetailHandoff backup package is separate from system device bac
 The app uses its sandboxed container and validates internal/export paths and file ownership. It uses SHA-256 to detect report and backup asset changes; a hash is an integrity check, not encryption or a digital signature.
 
 Before distribution, confirm file data-protection behavior on locked physical devices, system-backup behavior, network observation, permission copy, retention language, and App Store privacy labels. The public privacy policy is prepared at `https://detailhandoff-support.aiden609906.chatgpt.site/privacy/`, with support contact `aiden609906@gmail.com`; release QA must confirm the deployed page remains publicly reachable before App Store submission.
+
+On 2026-09-14 the support and privacy URLs both returned HTTP 200, and the published text was checked against the local-storage, sharing, backup, system-backup, analytics, and 30-day-deletion statements above. The app's current Settings screen still says `No account, analytics, or cloud service is used.` without distinguishing developer cloud services from possible operating-system backups, and its Support section contains a pre-release placeholder instead of the published contact. Correct both in the app and recapture the affected App Store screenshots before submission. This point-in-time content check is not final privacy-label or signed-binary verification; see `pre-membership-audit-2026-09-14.md`.
