@@ -1,6 +1,6 @@
 # Pre-membership release audit — 2026-09-14
 
-This is a release-preparation evidence review, not App Store submission approval or legal advice. No Apple Developer membership is required for the checks recorded here.
+This is a release-preparation evidence review, not App Store submission approval or legal advice. No Apple Developer membership is required for the checks recorded here. The per-image table below records the **initial** screenshot set from CI `34740399131`; see the remediation follow-up below for the current set.
 
 ## Latest automated evidence and image provenance
 
@@ -39,6 +39,14 @@ The marketing frame's `No account, analytics, or developer cloud service` is mor
 - [Support](https://detailhandoff-support.aiden609906.chatgpt.site/) and [Privacy Policy](https://detailhandoff-support.aiden609906.chatgpt.site/privacy/) each returned HTTP 200 on 2026-09-14 and included `aiden609906@gmail.com`. Both mention local records, user-initiated sharing/backup, and the 30-day Recently Deleted window; the privacy page also distinguishes system iCloud backup from developer cloud sync. Availability is a point-in-time check, not a hosting guarantee.
 - `privacy.md` and the published policy are directionally consistent on local storage, export/share, backup destination, system backup, tracking/analytics, and retention. The app's Settings wording and placeholder Support text are the material inconsistencies to correct. Final App Store privacy labels still require review against the signed binary and physical network observation.
 
+## Frame-06 remediation follow-up — 2026-09-14
+
+- Source cause: `SettingsView.swift` hard-coded a pre-release Support placeholder, omitted the system-backup caveat, used `cloud service` without distinguishing developer sync, and displayed `Detail Handoff` with inconsistent spacing. The screenshot renderer reproduced that app UI faithfully; editing the PNG alone would not fix the app.
+- RED evidence: isolated [CI 34802742503](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34802742503) ran the two new Settings UI tests against the old app; both failed for the missing user-visible backup/sync wording and support email. The temporary narrowed workflow configuration was restored before the fix run.
+- GREEN evidence: [CI 34803310219](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/34803310219), code commit `5d901de`, passed the app build, 149/0 unit tests, and 11/0 UI tests on each iPhone and iPad, including both new Settings tests. The run exported and uploaded fresh screenshot attachments for both devices.
+- All 12 marketing PNGs were regenerated from that green run; all are opaque RGB at the required native dimensions. Both refreshed frame-06 images were inspected at native resolution. The iPad image visibly shows `System device backups may include app data.`, `DetailHandoff`, and the real `aiden609906@gmail.com` link, with no old placeholder or absolute no-cloud claim. The iPhone crop ends after the first Privacy row; it does not display the backup caveat or support email, but its marketing subtitle accurately limits the claim to a developer cloud service.
+- The old frame-06 factual blocker is **resolved**. This does not approve the whole creative set: the synthetic fixture imagery and iPad whitespace observations from the initial review still require a final marketing decision. Offline/force-quit, name clearance, signing, and App Store account gates are unchanged.
+
 ## Release decision
 
-**Do not upload the current screenshots or submit the app.** Re-test offline/relaunch on real devices, correct and recapture Settings, complete name clearance, and keep the public pages reachable. Signing, TestFlight, App Store Connect business/configuration, and App Review remain separate gates.
+**Do not upload without final creative approval or submit the app.** The Settings copy and frame-06 recapture are complete, but synthetic fixture imagery and wide iPad whitespace need a release-owner decision. Re-test offline/relaunch on real devices, complete name clearance, and keep the public pages reachable. Signing, TestFlight, App Store Connect business/configuration, and App Review remain separate gates.

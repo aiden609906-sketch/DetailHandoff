@@ -4,7 +4,7 @@ Last updated: 2026-09-14
 
 ## Submission status
 
-**Do not submit this revision yet.** The merged `main` commit `e7d8e05` passed CI `34758132729`: app build, 149/0 unit tests, and 9/0 UI tests on each selected iPhone and iPad simulator. A selected 1024×1024 app-icon master, native-size draft App Store screenshot sets, a public support page, and a public privacy policy are present. The iPad privacy screenshot exposes a pre-release support placeholder; screenshot correction/creative approval, physical-device checks, name clearance, icon/archive validation, signing, TestFlight, business, and account-owned metadata gates remain open. There has been no archive signing, TestFlight distribution, App Review submission, approval, or publication.
+**Do not submit this revision yet.** Candidate code commit `5d901de` passed CI `34803310219`: app build, 149/0 unit tests, and 11/0 UI tests on each selected iPhone and iPad simulator. A selected 1024×1024 app-icon master, native-size draft App Store screenshot sets regenerated from this same CI run, a public support page, and a public privacy policy are present. The old iPad frame-06 support placeholder and imprecise cloud wording are corrected in the new capture; final screenshot creative approval, physical-device checks, name clearance, icon/archive validation, signing, TestFlight, business, and account-owned metadata gates remain open. There has been no archive signing, TestFlight distribution, App Review submission, approval, or publication.
 
 ## Commercial configuration
 
@@ -43,12 +43,12 @@ Validate the camera permission prompt on physical iPhone and iPad for first deni
 ## Required creative assets
 
 - `Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png` is the selected opaque 1024×1024 master and is referenced by `Contents.json`. Dimensions, RGB opacity, JSON syntax, and visual safe margins were checked locally; Xcode asset compilation and signed-archive validation remain required.
-- Draft English screenshot sets are in `docs/release/app-store-assets/iphone` (1290×2796) and `docs/release/app-store-assets/ipad` (2048×2732). They use the selected dark-navy Product Design direction and exact simulator captures from green CI `34740399131`, without AI-rewritten app UI.
-- The six-frame story covers report creation, guided Before capture, findings, acknowledgment, sealed revision history, and local-data/privacy controls. The 2026-09-14 per-frame review is in `pre-membership-audit-2026-09-14.md`; frame 06 is blocked until the support placeholder and privacy wording are corrected, recaptured, and reviewed. Copy and final creative approval remain required before upload.
+- Draft English screenshot sets are in `docs/release/app-store-assets/iphone` (1290×2796) and `docs/release/app-store-assets/ipad` (2048×2732). They use the selected dark-navy Product Design direction and exact simulator captures from green CI `34803310219`, without AI-rewritten app UI.
+- The six-frame story covers report creation, guided Before capture, findings, acknowledgment, sealed revision history, and local-data/privacy controls. The 2026-09-14 initial per-frame review and frame-06 remediation are in `pre-membership-audit-2026-09-14.md`. Final creative approval remains required before upload, including a decision on visibly synthetic fixture imagery and wide iPad whitespace.
 - Review every image at native resolution for cropping, Dynamic Type overflow, private information, placeholder data, misleading status, and device chrome.
 - Optional promotional art, preview video, and localization are not required by this handoff and have not been produced.
 
-The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. CI `34740399131` is the source of the current store set. The 12 derived PNGs were reviewed at native resolution on 2026-09-14; that review found an upload blocker in the iPad frame 06 and did not grant final creative approval.
+The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. CI `34740399131` is the superseded screenshot source; CI `34803310219` is the source of the current store set. Both current frame-06 outputs were inspected at native resolution and all 12 current PNGs passed dimension/opaque-RGB checks. The previous iPad frame-06 factual blocker is resolved; no final creative approval is claimed.
 
 ## Pre-membership checks (2026-09-14)
 
@@ -60,7 +60,7 @@ The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. 
 
 ## Metadata and account checklist
 
-- [x] Obtain a green macOS build, all 149 unit tests, and all 9 UI tests on both iPhone and iPad (CI `34758132729`, merged `main` commit `e7d8e05`). The current 12 store PNGs derive from CI `34740399131` and have a separate creative review.
+- [x] Obtain a green macOS build, all 149 unit tests, and all 11 UI tests on both iPhone and iPad (candidate CI `34803310219`, code commit `5d901de`). The current 12 store PNGs derive from the same run; merged-main CI is a separate final check.
 - [ ] Verify the archived `PrivacyInfo.xcprivacy` declares DiskSpace reason `E174.1` for the actual capture/import storage check, without tracking or collected-data claims beyond the implementation. The built simulator resource test has passed.
 - [x] Pass the Phase 1 on-disk migration fixture without losing baseline records (included in the 149-test run).
 - [ ] Complete physical iPhone and iPad camera, permissions, interruption, offline, accessibility, performance, Files/share, backup/restore, deletion, and low-storage checks.
@@ -70,7 +70,7 @@ The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. 
 - [x] Publish the privacy policy URL: `https://detailhandoff-support.aiden609906.chatgpt.site/privacy/`.
 - [ ] Complete category, age rating, copyright, seller/developer name, SKU, version/release notes, territories, paid-app price, App Store privacy responses, accessibility information, and export-compliance answers.
 - [x] Prepare length-validated U.S. English product-page copy and truthful App Review notes for the current binary.
-- [ ] Validate the selected 1024px icon and all asset warnings in the release archive; correct the frame-06 support/privacy issue, recapture both device classes, obtain creative approval, then upload approved iPhone/iPad screenshots.
+- [ ] Validate the selected 1024px icon and all asset warnings in the release archive; obtain final creative approval for the recaptured iPhone/iPad screenshots, then upload approved assets. The frame-06 factual correction is complete, but synthetic imagery and iPad whitespace remain creative review points.
 - [ ] Add truthful reviewer notes describing local data, camera/photo selection, synthetic review data, backup/restore, and any non-obvious navigation. No demo account is required by current source because there is no login.
 - [ ] Accept paid-app and other business agreements; complete tax and banking information.
 - [ ] Recruit TestFlight users, distribute a signed build, capture feedback, fix release blockers, and retest. No TestFlight activity is claimed.
