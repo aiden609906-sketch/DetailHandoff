@@ -366,6 +366,26 @@ final class WorkflowUITests: XCTestCase {
         require(app.staticTexts["Trash Fixture Hatchback"])
     }
 
+    func testSettingsDisclosesSystemBackupScope() throws {
+        launch(arguments: ["--ui-testing", "--screenshot-fixture", "trash"])
+        app.buttons["Settings"].firstMatch.tap()
+        require(app.navigationBars["Settings"])
+
+        scrollUntilHittable(app.staticTexts["No account, analytics, or developer cloud sync."])
+        scrollUntilHittable(app.staticTexts["System device backups may include app data."])
+    }
+
+    func testSettingsOffersRealSupportContact() throws {
+        launch(arguments: ["--ui-testing", "--screenshot-fixture", "trash"])
+        app.buttons["Settings"].firstMatch.tap()
+        require(app.navigationBars["Settings"])
+
+        let supportEmail = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "aiden609906@gmail.com"))
+            .firstMatch
+        scrollUntilHittable(supportEmail)
+    }
+
     func testStartupFailureOffersRetryIntoIsolatedStore() throws {
         launch(arguments: ["--ui-testing", "--startup-failure"])
 
