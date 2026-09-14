@@ -8,6 +8,7 @@ enum UITestFixtures {
     private enum FixtureError: Error { case unknownFixture }
     private static let fixtureArgument = "--screenshot-fixture"
     private static let startupFailureArgument = "--startup-failure"
+    private static let preserveStoreArgument = "--ui-testing-preserve-store"
     private static var didPrepareStore = false
     private static var didFailStartup = false
 
@@ -27,7 +28,14 @@ enum UITestFixtures {
             throw CocoaError(.fileReadCorruptFile)
         }
         if !didPrepareStore {
-            try prepareStore()
+            if ProcessInfo.processInfo.arguments.contains(preserveStoreArgument) {
+                let store = root.appendingPathComponent("DetailHandoffUITests.store")
+                guard FileManager.default.fileExists(atPath: store.path) else {
+                    throw CocoaError(.fileNoSuchFile)
+                }
+            } else {
+                try prepareStore()
+            }
             didPrepareStore = true
         }
 
