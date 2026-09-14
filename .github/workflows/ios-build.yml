@@ -88,7 +88,6 @@ jobs:
         run: |
           echo "udid=${{ steps.simulators.outputs.phone_udid }}" >> "$GITHUB_OUTPUT"
       - name: Run full iOS unit-test target
-        if: false # Temporary red-phase probe on this branch only.
         timeout-minutes: 12
         run: >-
           xcodebuild
@@ -107,13 +106,13 @@ jobs:
           -project DetailHandoff.xcodeproj
           -scheme DetailHandoff
           -destination 'platform=iOS Simulator,id=${{ steps.simulators.outputs.phone_udid }}'
-          -only-testing:DetailHandoffUITests/WorkflowUITests/testSavedJobSurvivesProcessRelaunch
+          -only-testing:DetailHandoffUITests
           -parallel-testing-enabled NO
           -maximum-parallel-testing-workers 1
           -resultBundlePath UITestResults-iPhone.xcresult
           CODE_SIGNING_ALLOWED=NO
       - name: Run UI tests on selected iPad
-        if: false # Temporary red-phase probe on this branch only.
+        if: always()
         timeout-minutes: 20
         run: >-
           xcodebuild
