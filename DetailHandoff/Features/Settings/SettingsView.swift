@@ -22,16 +22,16 @@ struct SettingsView: View {
                     NavigationLink("Recently deleted") { RecentlyDeletedView() }
                 }
                 Section("Privacy") {
-                    Text("Records stay on this device.")
-                    Text("No account, analytics, or cloud service is used.")
+                    Text("Records are stored on this device.")
+                    Text("No account, analytics, or developer cloud sync.")
+                    Text("System device backups may include app data.")
                 }
                 Section("About") {
-                    Text("Detail Handoff")
+                    Text("DetailHandoff")
                     Text("Version 0.1.0")
                 }
                 Section("Support") {
-                    Text("Add a real support contact to your release checklist before distribution.")
-                        .foregroundStyle(.secondary)
+                    Link("aiden609906@gmail.com", destination: URL(string: "mailto:aiden609906@gmail.com")!)
                 }
             }
             .navigationTitle("Settings")
