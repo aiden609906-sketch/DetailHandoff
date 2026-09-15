@@ -817,11 +817,9 @@ final class WorkflowUITests: XCTestCase {
             // button with a Browse back button. Return to the picker root so
             // XCTest can use the real, visible Cancel action there.
             let browseBack = root.navigationBars.buttons.matching(
-                NSPredicate(format: "identifier == %@", "BackButton")
-            ).allElementsBoundByIndex.first(where: {
-                $0.isHittable && !$0.frame.isEmpty && windowFrame.intersects($0.frame)
-            })
-            if let browseBack {
+                NSPredicate(format: "identifier == %@ AND label == %@", "BackButton", "Browse")
+            ).firstMatch
+            if browseBack.waitForExistence(timeout: 1), browseBack.isHittable {
                 browseBack.tap()
                 let rootCancel = root.buttons.matching(cancelPredicate).firstMatch
                 if rootCancel.waitForExistence(timeout: 4), rootCancel.isHittable {
