@@ -1,10 +1,10 @@
 # App Store handoff
 
-Last updated: 2026-09-14
+Last updated: 2026-09-15
 
 ## Submission status
 
-**Do not submit this revision yet.** Candidate code commit `5d901de` passed CI `34803310219`: app build, 149/0 unit tests, and 11/0 UI tests on each selected iPhone and iPad simulator. A selected 1024×1024 app-icon master, native-size draft App Store screenshot sets regenerated from this same CI run, a public support page, and a public privacy policy are present. The old iPad frame-06 support placeholder and imprecise cloud wording are corrected in the new capture; final screenshot creative approval, physical-device checks, name clearance, icon/archive validation, signing, TestFlight, business, and account-owned metadata gates remain open. There has been no archive signing, TestFlight distribution, App Review submission, approval, or publication.
+**Do not submit this revision yet.** Candidate code commit `a375036` passed CI `34970645204`: app build, 149/0 unit tests, and 13/0 UI tests on each selected iPhone and iPad simulator. The backup exporter is now tested at the stable app-owned presentation boundary; physical Files save, cancellation, and destination checks remain open. A selected 1024×1024 app-icon master, native-size draft App Store screenshot sets from earlier green CI `34803310219`, a public support page, and a public privacy policy are present. The old iPad frame-06 support placeholder and imprecise cloud wording are corrected in the current capture; final screenshot creative approval, physical-device checks, name clearance, icon/archive validation, signing, TestFlight, business, and account-owned metadata gates remain open. There has been no archive signing, TestFlight distribution, App Review submission, approval, or publication.
 
 ## Commercial configuration
 
@@ -60,7 +60,7 @@ The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. 
 
 ## Metadata and account checklist
 
-- [x] Obtain a green macOS build, all 149 unit tests, and all 12 UI tests on both iPhone and iPad (candidate CI `34848586983`, attempt 2, code commit `a21c5fc`). The current 12 store PNGs derive from earlier green CI `34803310219`, not this run; merged-main CI is a separate final check. Attempt 1 had one intermittent iPhone Files-exporter UI-test recognition failure.
+- [x] Obtain a green macOS build, all 149 unit tests, and all 13 UI tests on both iPhone and iPad (candidate CI `34970645204`, code commit `a375036`). The current 12 store PNGs derive from earlier green CI `34803310219`, not this run; merged-main CI is a separate final check. Files saving/cancellation remains a physical-device check rather than an assertion over Apple's unstable internal window controls.
 - [ ] Verify the archived `PrivacyInfo.xcprivacy` declares DiskSpace reason `E174.1` for the actual capture/import storage check, without tracking or collected-data claims beyond the implementation. The built simulator resource test has passed.
 - [x] Pass the Phase 1 on-disk migration fixture without losing baseline records (included in the 149-test run).
 - [ ] Complete physical iPhone and iPad camera, permissions, interruption, offline, accessibility, performance, Files/share, backup/restore, deletion, and low-storage checks.
