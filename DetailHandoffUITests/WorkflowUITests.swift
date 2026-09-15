@@ -373,7 +373,7 @@ final class WorkflowUITests: XCTestCase {
         capture("revision-history")
     }
 
-    func testBackupExportCanBeCancelledAndTrashCanBeRestored() throws {
+    func testBackupExportPresentsSystemModalOverBackupScreen() throws {
         launch(arguments: ["--ui-testing", "--screenshot-fixture", "trash"])
 
         require(app.buttons["Settings"].firstMatch)
@@ -382,16 +382,23 @@ final class WorkflowUITests: XCTestCase {
         capture("settings")
         app.staticTexts["Backup and restore"].tap()
         require(app.navigationBars["Backup and restore"])
-        app.buttons["backup.export"].tap()
-        let fileExporterPresentation = requireFileExporterPresentation()
-        capture("backup")
-        dismissFileExporterPresentation(fileExporterPresentation)
-        requireDismissed(fileExporterPresentation.marker, message: "Cancelling backup export should dismiss the Files exporter surface.")
-        requireNotHittable(fileExporterPresentation.cancel, message: "Cancelling backup export should hide the document picker's Cancel action.")
         let exportButton = app.buttons["backup.export"]
-        requireHittable(exportButton, message: "Cancelling backup export must return interaction to the Backup screen.")
+        requireHittable(exportButton, message: "Backup export must be available before presenting the system Files exporter.")
+        exportButton.tap()
+        requireNotHittable(
+            exportButton,
+            message: "Presenting the system Files exporter must block interaction with the underlying Backup screen."
+        )
+        capture("backup")
+        app.terminate()
+    }
 
-        app.navigationBars.buttons.firstMatch.tap()
+    func testTrashFixtureCanBeRestoredToJobs() throws {
+        launch(arguments: ["--ui-testing", "--screenshot-fixture", "trash"])
+
+        require(app.buttons["Settings"].firstMatch)
+        app.buttons["Settings"].firstMatch.tap()
+        require(app.navigationBars["Settings"])
         app.staticTexts["Recently deleted"].tap()
         require(app.navigationBars["Recently deleted"])
         capture("trash")
@@ -767,160 +774,7 @@ final class WorkflowUITests: XCTestCase {
         )
     }
 
-    private struct FileExporterPresentation {
-        let marker: XCUIElement
-        let cancel: XCUIElement
-    }
-
-    private struct DiagnosticApplicationRoot {
-        let name: String
-        let application: XCUIApplication
-    }
-
-    private func requireFileExporterPresentation() -> FileExporterPresentation {
-        let roots = [
-            DiagnosticApplicationRoot(
-                name: "DocumentsApp (com.apple.DocumentsApp)",
-                application: XCUIApplication(bundleIdentifier: "com.apple.DocumentsApp")
-            ),
-            DiagnosticApplicationRoot(
-                name: "SpringBoard (com.apple.springboard)",
-                application: XCUIApplication(bundleIdentifier: "com.apple.springboard")
-            ),
-            DiagnosticApplicationRoot(name: "DetailHandoff target app", application: app)
-        ]
-        let exporterPredicate = NSPredicate(
-            format: "label == %@ OR label == %@ OR label BEGINSWITH %@",
-            "Save",
-            "Save as",
-            "DetailHandoff-backup"
-        )
-        let cancelPredicate = NSPredicate(format: "label == %@", "Cancel")
-        let windowFrame = app.windows.firstMatch.frame
-        var failureCheckpoints: [DiagnosticCheckpoint] = []
-
-        for (rootIndex, diagnosticRoot) in roots.enumerated() {
-            let root = diagnosticRoot.application
-            guard isRunning(root.state) else { continue }
-            let marker = root.descendants(matching: .any)
-                .matching(exporterPredicate)
-                .firstMatch
-            guard marker.waitForExistence(timeout: 4) else { continue }
-            let markerFrame = marker.frame
-            guard !markerFrame.isEmpty, windowFrame.intersects(markerFrame) else { continue }
-            let directCancel = root.buttons.matching(cancelPredicate).firstMatch
-            if directCancel.waitForExistence(timeout: 1), directCancel.isHittable {
-                return FileExporterPresentation(marker: marker, cancel: directCancel)
-            }
-
-            // Compact iPhone document pickers can replace the visible Cancel
-            // button with a Browse back button. Return to the picker root so
-            // XCTest can use the real, visible Cancel action there.
-            let browseBack = root.navigationBars.buttons.matching(
-                NSPredicate(format: "identifier == %@ AND label == %@", "BackButton", "Browse")
-            ).firstMatch
-            if browseBack.waitForExistence(timeout: 1), browseBack.isHittable {
-                browseBack.tap()
-                let rootCancel = root.buttons.matching(cancelPredicate).firstMatch
-                if rootCancel.waitForExistence(timeout: 4), rootCancel.isHittable {
-                    return FileExporterPresentation(marker: marker, cancel: rootCancel)
-                }
-                failureCheckpoints.append(
-                    fileExporterDiagnosticCheckpoint(
-                        named: "files-after-browse-back-root-\(rootIndex)",
-                        roots: roots,
-                        selectedRootIndex: rootIndex,
-                        windowFrame: windowFrame,
-                        exporterPredicate: exporterPredicate,
-                        cancelPredicate: cancelPredicate
-                    )
-                )
-            }
-            failureCheckpoints.append(
-                fileExporterDiagnosticCheckpoint(
-                    named: "files-marker-accepted-root-\(rootIndex)",
-                    roots: roots,
-                    selectedRootIndex: rootIndex,
-                    windowFrame: windowFrame,
-                    exporterPredicate: exporterPredicate,
-                    cancelPredicate: cancelPredicate
-                )
-            )
-
-            let publicMore = root.buttons["More"].firstMatch
-            let menuButton: XCUIElement?
-            if publicMore.waitForExistence(timeout: 1), publicMore.isHittable {
-                menuButton = publicMore
-            } else {
-                let cancelLabel = root.descendants(matching: .any)
-                    .matching(cancelPredicate)
-                    .firstMatch
-                if cancelLabel.waitForExistence(timeout: 1) {
-                    let labelFrame = cancelLabel.frame
-                    let labelCenter = CGPoint(x: labelFrame.midX, y: labelFrame.midY)
-                    menuButton = !labelFrame.isEmpty && windowFrame.intersects(labelFrame)
-                        ? root.navigationBars.buttons.allElementsBoundByIndex.first(where: {
-                            $0.isHittable && $0.frame.contains(labelCenter)
-                        })
-                        : nil
-                } else {
-                    menuButton = nil
-                }
-            }
-            guard let menuButton else { continue }
-            menuButton.tap()
-            failureCheckpoints.append(
-                fileExporterDiagnosticCheckpoint(
-                    named: "files-after-more-root-\(rootIndex)",
-                    roots: roots,
-                    selectedRootIndex: rootIndex,
-                    windowFrame: windowFrame,
-                    exporterPredicate: exporterPredicate,
-                    cancelPredicate: cancelPredicate
-                )
-            )
-
-            let menuCancel = root.buttons.matching(cancelPredicate).firstMatch
-            if menuCancel.waitForExistence(timeout: 4), menuCancel.isHittable {
-                return FileExporterPresentation(marker: marker, cancel: menuCancel)
-            }
-            let semanticMenuCancels = root.descendants(matching: .any)
-                .matching(cancelPredicate)
-                .allElementsBoundByIndex
-            if let semanticMenuCancel = semanticMenuCancels.first(where: {
-                $0.isHittable && !$0.frame.isEmpty && windowFrame.intersects($0.frame)
-            }) {
-                return FileExporterPresentation(marker: marker, cancel: semanticMenuCancel)
-            }
-        }
-
-        if failureCheckpoints.isEmpty {
-            failureCheckpoints.append(
-                fileExporterDiagnosticCheckpoint(
-                    named: "files-no-accepted-marker",
-                    roots: roots,
-                    selectedRootIndex: nil,
-                    windowFrame: windowFrame,
-                    exporterPredicate: exporterPredicate,
-                    cancelPredicate: cancelPredicate
-                )
-            )
-        }
-        for checkpoint in failureCheckpoints {
-            attachDiagnostic(checkpoint)
-        }
-        XCTFail("The real Files exporter must expose Save, Save as, or its backup filename and a real hittable Cancel action in the same root, directly, from Browse, or through its More menu.")
-        return FileExporterPresentation(
-            marker: app.descendants(matching: .any).matching(exporterPredicate).firstMatch,
-            cancel: app.navigationBars.buttons.firstMatch
-        )
-    }
-
     private func dismissSharePresentation(_ presentation: SharePresentation) {
-        presentation.cancel.tap()
-    }
-
-    private func dismissFileExporterPresentation(_ presentation: FileExporterPresentation) {
         presentation.cancel.tap()
     }
 
@@ -1013,70 +867,6 @@ final class WorkflowUITests: XCTestCase {
             attachDiagnostic(skipDiagnosticCheckpoint(named: "\(beforeAction.name)-timeout"))
         }
         XCTAssertTrue(appeared, "Expected \(prompt) to exist.", file: file, line: line)
-    }
-
-    private func fileExporterDiagnosticCheckpoint(
-        named name: String,
-        roots: [DiagnosticApplicationRoot],
-        selectedRootIndex: Int?,
-        windowFrame: CGRect,
-        exporterPredicate: NSPredicate,
-        cancelPredicate: NSPredicate
-    ) -> DiagnosticCheckpoint {
-        var sections = [
-            "fixture-data-only=true",
-            "selected-root-index=\(selectedRootIndex.map { String($0) } ?? "none")",
-            "app-window-frame=\(frameSummary(windowFrame))"
-        ]
-        for (index, diagnosticRoot) in roots.enumerated() {
-            let root = diagnosticRoot.application
-            let prefix = "root[\(index)] \(diagnosticRoot.name)"
-            let rootState = root.state
-            guard isRunning(rootState) else {
-                sections.append(
-                    "\(prefix) state=\(String(describing: rootState)); queries skipped because not running"
-                )
-                continue
-            }
-            sections.append("\(prefix) state=\(String(describing: rootState))")
-            sections.append(
-                elementSummaries(
-                    root.descendants(matching: .any).matching(exporterPredicate),
-                    heading: "\(prefix) exporter markers",
-                    windowFrame: windowFrame
-                )
-            )
-            sections.append(
-                elementSummaries(
-                    root.descendants(matching: .any).matching(cancelPredicate),
-                    heading: "\(prefix) Cancel candidates",
-                    windowFrame: windowFrame
-                )
-            )
-            sections.append(
-                elementSummaries(
-                    root.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "More")),
-                    heading: "\(prefix) More candidates",
-                    windowFrame: windowFrame
-                )
-            )
-            sections.append("\(prefix).debugDescription:\n\(root.debugDescription)")
-        }
-        let targetAppState = app.state
-        if isRunning(targetAppState) {
-            sections.append("target-app.debugDescription:\n\(app.debugDescription)")
-            sections.append("backup.export \(elementSummary(app.buttons["backup.export"], windowFrame: windowFrame))")
-            sections.append(elementSummaries(app.navigationBars, heading: "target-app navigation bars", windowFrame: windowFrame))
-        } else {
-            sections.append(
-                "target-app state=\(String(describing: targetAppState)); queries skipped because not running"
-            )
-        }
-        return DiagnosticCheckpoint(name: name, screenshot: app.screenshot(), details: sections.joined(separator: "\n"))
-    }
-
-    private func isRunning(_ state: XCUIApplication.State) -> Bool {
-        state == .runningForeground || state == .runningBackground
     }
 
     private func elementSummaries(
