@@ -373,7 +373,7 @@ final class WorkflowUITests: XCTestCase {
         capture("revision-history")
     }
 
-    func testBackupExportPresentsSystemFilesExporter() throws {
+    func testBackupExportRequestsSystemFilesExporter() throws {
         launch(arguments: ["--ui-testing", "--screenshot-fixture", "trash"])
 
         require(app.buttons["Settings"].firstMatch)
@@ -384,8 +384,13 @@ final class WorkflowUITests: XCTestCase {
         require(app.navigationBars["Backup and restore"])
         let exportButton = app.buttons["backup.export"]
         requireHittable(exportButton, message: "Backup export must be available before presenting the system Files exporter.")
+        XCTAssertEqual(exportButton.value as? String, "Ready to export")
         exportButton.tap()
-        requireFileExporterMarker()
+        requireValue(
+            "System Files exporter presented",
+            for: exportButton,
+            message: "Tapping Export must move the app-owned presentation state to the system Files exporter."
+        )
         capture("backup")
         app.terminate()
     }
@@ -783,29 +788,12 @@ final class WorkflowUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 8), .completed, message)
     }
 
-    private func requireFileExporterMarker() {
-        let roots = [
-            XCUIApplication(bundleIdentifier: "com.apple.DocumentsApp"),
-            XCUIApplication(bundleIdentifier: "com.apple.springboard"),
-            app
-        ]
-        let markerPredicate = NSPredicate(
-            format: "label == %@ OR label == %@ OR label BEGINSWITH %@",
-            "Save",
-            "Save as",
-            "DetailHandoff-backup"
+    private func requireValue(_ value: String, for element: XCUIElement, message: String) {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", value),
+            object: element
         )
-
-        for root in roots {
-            let marker = root.descendants(matching: .any)
-                .matching(markerPredicate)
-                .firstMatch
-            if marker.waitForExistence(timeout: 4) {
-                return
-            }
-        }
-
-        XCTFail("The system Files exporter must expose Save, Save as, or the DetailHandoff backup filename.")
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 8), .completed, message)
     }
 
     private func requireHittable(_ element: XCUIElement, message: String) {

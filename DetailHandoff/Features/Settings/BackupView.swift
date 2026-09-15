@@ -19,6 +19,7 @@ struct BackupView: View {
                 if canExport {
                     Button("Export backup to Files", systemImage: "square.and.arrow.up", action: exportBackup)
                         .accessibilityIdentifier("backup.export")
+                        .accessibilityValue(exporting ? "System Files exporter presented" : "Ready to export")
                 }
                 Button("Restore backup from Files", systemImage: "square.and.arrow.down") { importing = true }
                     .accessibilityIdentifier("backup.restore")
