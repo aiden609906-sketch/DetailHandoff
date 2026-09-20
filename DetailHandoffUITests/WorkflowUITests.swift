@@ -45,7 +45,7 @@ final class WorkflowUITests: XCTestCase {
     // Complete evidence must remain editable in review and revision; edits must block stale resealing.
     func testReviewAndRevisionExposePhotoCorrectionAndRequireNewAcknowledgment() throws {
         for revision in [false, true] {
-            let vehicle = revision ? "Revision Fixture SUV" : "Complete Fixture Sedan"
+            let vehicle = revision ? "Revision Fixture SUV" : "Silver Sedan"
             launch(arguments: ["--ui-testing", "--screenshot-fixture", revision ? "revision" : "complete"])
             openFixtureWorkflow(named: vehicle)
             if revision {
@@ -164,7 +164,7 @@ final class WorkflowUITests: XCTestCase {
     // Saved acknowledgment must be visible on reopen and only change through an explicit replacement.
     func testSavedAcknowledgmentReopensAndReplacementCanBeCancelled() throws {
         launch(arguments: ["--ui-testing", "--screenshot-fixture", "complete"])
-        openFixtureWorkflow(named: "Complete Fixture Sedan")
+        openFixtureWorkflow(named: "Silver Sedan")
         let report = scrollUntilHittable(
             {
                 app.descendants(matching: .any)
@@ -184,7 +184,7 @@ final class WorkflowUITests: XCTestCase {
         app.buttons["report.acknowledgment"].tap()
         let name = app.staticTexts["acknowledgment.savedName"]
         scrollUntilHittable(name)
-        XCTAssertEqual(name.label, "Taylor Fixture")
+        XCTAssertEqual(name.label, "Alex Morgan")
         let recordedAt = app.staticTexts["acknowledgment.savedTime"]
         require(recordedAt)
         let savedTime = recordedAt.label
@@ -194,7 +194,7 @@ final class WorkflowUITests: XCTestCase {
         scrollUntilHittable(app.buttons["acknowledgment.cancelReplacement"])
         app.buttons["acknowledgment.cancelReplacement"].tap()
         XCTAssertEqual(recordedAt.label, savedTime)
-        XCTAssertEqual(name.label, "Taylor Fixture")
+        XCTAssertEqual(name.label, "Alex Morgan")
         tapReachable(app.buttons["acknowledgment.replace"])
         scrollUntilHittable(app.buttons["Customer unavailable"])
         app.buttons["Customer unavailable"].tap()
@@ -305,7 +305,7 @@ final class WorkflowUITests: XCTestCase {
         launch(arguments: ["--ui-testing", "--screenshot-fixture", "complete"])
 
         openCaptureScreen()
-        openFixtureWorkflow(named: "Complete Fixture Sedan")
+        openFixtureWorkflow(named: "Silver Sedan")
         openFindingsScreen()
         let report = scrollUntilHittable(
             {
@@ -523,9 +523,9 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func openCaptureScreen() {
-        require(app.staticTexts["Capture Fixture Coupe"])
-        app.staticTexts["Capture Fixture Coupe"].tap()
-        require(app.navigationBars["Capture Fixture Coupe"])
+        require(app.staticTexts["Silver Sedan Walkaround"])
+        app.staticTexts["Silver Sedan Walkaround"].tap()
+        require(app.navigationBars["Silver Sedan Walkaround"])
         let captureButton = scrollUntilHittable(
             { app.buttons["workflow.openBeforeCapture"] },
             in: verticalScroll("workflow.verticalScroll")

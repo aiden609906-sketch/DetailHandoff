@@ -48,7 +48,7 @@ final class ScreenshotTests: XCTestCase {
             "Expected a modern full-screen app window of at least 375x667 points; observed \(windowFrame)."
         )
         let vehicleQuery = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@", "Complete Fixture Sedan"))
+            .matching(NSPredicate(format: "label == %@", "Silver Sedan"))
         for _ in 0..<5 where !vehicleQuery.firstMatch.isHittable {
             jobsList.swipeUp()
         }
@@ -66,7 +66,7 @@ final class ScreenshotTests: XCTestCase {
         waitForOneSecondDiagnosticCheckpoint(named: "fixture-navigation-post-action")
         record("fixture navigation +1s checkpoint", since: startedAt, in: &timeline)
         failureCheckpoints.append(diagnosticCheckpoint(named: "fixture-navigation-after-1s", app: app))
-        let destinationBar = app.navigationBars["Complete Fixture Sedan"]
+        let destinationBar = app.navigationBars["Silver Sedan"]
         let navigationReady = destinationBar.waitForExistence(timeout: 12)
         record("destination navigation ready=\(navigationReady)", since: startedAt, in: &timeline)
         guard navigationReady else {
@@ -115,12 +115,12 @@ final class ScreenshotTests: XCTestCase {
     private func diagnosticCheckpoint(named name: String, app: XCUIApplication) -> DiagnosticCheckpoint {
         let screenshot = app.screenshot()
         let fixtureQuery = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@", "Complete Fixture Sedan"))
+            .matching(NSPredicate(format: "label == %@", "Silver Sedan"))
         let details = [
             elementSummaries(fixtureQuery, heading: "fixture row candidates"),
             "jobs-scroll \(elementSummary(app.descendants(matching: .any).matching(identifier: "jobs.verticalScroll").firstMatch))",
             "workflow-scroll \(elementSummary(app.descendants(matching: .any).matching(identifier: "workflow.verticalScroll").firstMatch))",
-            "destination-navigation \(elementSummary(app.navigationBars["Complete Fixture Sedan"]))",
+            "destination-navigation \(elementSummary(app.navigationBars["Silver Sedan"]))",
             elementSummaries(app.navigationBars, heading: "navigation bars"),
             "app-window \(elementSummary(app.windows.firstMatch))",
             "app.debugDescription:\n\(app.debugDescription)"
