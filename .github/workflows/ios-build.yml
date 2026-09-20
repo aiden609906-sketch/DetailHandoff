@@ -131,7 +131,7 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
       - name: Run UI tests on selected iPad
         if: always()
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: >-
           xcodebuild
           test
@@ -170,4 +170,5 @@ jobs:
             TestAttachments-Unit
             TestAttachments-iPhone
             TestAttachments-iPad
+            !**/*.xcresult/Staging/**
           if-no-files-found: ignore

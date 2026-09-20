@@ -47,8 +47,7 @@ final class ScreenshotTests: XCTestCase {
             shortWindowSide >= 375 && longWindowSide >= 667,
             "Expected a modern full-screen app window of at least 375x667 points; observed \(windowFrame)."
         )
-        let vehicleQuery = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@", "Silver Sedan"))
+        let vehicleQuery = app.buttons.containing(.staticText, identifier: "Silver Sedan")
         for _ in 0..<5 where !vehicleQuery.firstMatch.isHittable {
             jobsList.swipeUp()
         }
@@ -114,8 +113,7 @@ final class ScreenshotTests: XCTestCase {
 
     private func diagnosticCheckpoint(named name: String, app: XCUIApplication) -> DiagnosticCheckpoint {
         let screenshot = app.screenshot()
-        let fixtureQuery = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@", "Silver Sedan"))
+        let fixtureQuery = app.buttons.containing(.staticText, identifier: "Silver Sedan")
         let details = [
             elementSummaries(fixtureQuery, heading: "fixture row candidates"),
             "jobs-scroll \(elementSummary(app.descendants(matching: .any).matching(identifier: "jobs.verticalScroll").firstMatch))",
