@@ -49,7 +49,7 @@ final class WorkflowUITests: XCTestCase {
             launch(arguments: ["--ui-testing", "--screenshot-fixture", revision ? "revision" : "complete"])
             openFixtureWorkflow(named: vehicle)
             if revision {
-                app.buttons["workflow.sealedReport"].tap()
+                openSealedReport(checkpointName: "revision-correction-sealed-report")
                 require(reportVersion())
                 app.buttons["report.createRevision"].tap()
                 app.navigationBars.buttons.firstMatch.tap()
@@ -363,8 +363,7 @@ final class WorkflowUITests: XCTestCase {
         launch(arguments: ["--ui-testing", "--screenshot-fixture", "revision"])
 
         openFixtureWorkflow(named: "Revision Fixture SUV")
-        app.buttons["workflow.sealedReport"].tap()
-        require(app.navigationBars["Report"])
+        openSealedReport(checkpointName: "revision-history-sealed-report")
         let version = reportVersion()
         require(version)
         app.buttons["report.createRevision"].tap()
@@ -481,6 +480,22 @@ final class WorkflowUITests: XCTestCase {
         app.staticTexts[vehicle].tap()
         require(app.navigationBars[vehicle])
         capture("workflow")
+    }
+
+    private func openSealedReport(checkpointName: String) {
+        let sealedReport = app.buttons["workflow.sealedReport"]
+        requireHittable(sealedReport, message: "The sealed report action must be ready before navigation.")
+        let beforeAction = reportDiagnosticCheckpoint(named: "\(checkpointName)-before-action")
+        tapAtCenter(sealedReport)
+
+        let reportScroll = verticalScroll("report.verticalScroll")
+        if !reportScroll.waitForExistence(timeout: 2), sealedReport.isHittable {
+            tapAtCenter(sealedReport)
+        }
+
+        waitForOneSecondDiagnosticCheckpoint(named: "\(checkpointName)-post-action")
+        let afterAction = reportDiagnosticCheckpoint(named: "\(checkpointName)-after-action")
+        requireReportScreen(beforeAction: beforeAction, afterOneSecond: afterAction)
     }
 
     private func assertModernAppWindowGeometry(

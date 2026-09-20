@@ -1,10 +1,10 @@
 # App Store handoff
 
-Last updated: 2026-09-15
+Last updated: 2026-09-20
 
 ## Submission status
 
-**Do not submit this revision yet.** Candidate code commit `a375036` passed CI `34970645204`: app build, 149/0 unit tests, and 13/0 UI tests on each selected iPhone and iPad simulator. The backup exporter is now tested at the stable app-owned presentation boundary; physical Files save, cancellation, and destination checks remain open. A selected 1024×1024 app-icon master, native-size draft App Store screenshot sets from earlier green CI `34803310219`, a public support page, and a public privacy policy are present. The old iPad frame-06 support placeholder and imprecise cloud wording are corrected in the current capture; final screenshot creative approval, physical-device checks, name clearance, icon/archive validation, signing, TestFlight, business, and account-owned metadata gates remain open. There has been no archive signing, TestFlight distribution, App Review submission, approval, or publication.
+**Do not submit this revision yet.** Merged-main commit `499313b` passed CI `34983689543`, attempt 2: app build, 149/0 unit tests, and 13/0 UI tests on each selected iPhone and iPad simulator. Attempt 1 had one intermittent iPhone sealed-report navigation tap that is being hardened on the current branch; fresh CI is required for that change. The 12 App Store screenshots still come from earlier green CI `34803310219` and remain draft artwork. The icon master and public support/privacy pages exist, but final screenshot creative approval, physical-device checks, legal name clearance, signed-archive validation, account-owned metadata, Paid Apps Agreement, tax/banking setup, TestFlight, and App Review remain open. No publication is claimed.
 
 ## Commercial configuration
 
@@ -27,7 +27,7 @@ The copy-ready U.S. English package is stored in:
 - `docs/release/app-store-metadata.en-US.json` — machine-readable source of truth.
 - `docs/release/app-store-metadata.en-US.md` — copy-friendly product-page text and App Review notes.
 
-The package includes name, subtitle, promotional text, description, keywords, initial release notes, reviewer navigation, category recommendations, paid-download intent, and a list of account-owned values that cannot be invented. `scripts/test-app-store-metadata.ps1` validates required text and Apple's current length limits. The current draft passes at 13/30 name characters, 30/30 subtitle characters, 142/170 promotional-text characters, 1157/4000 description characters, and 94/100 keyword UTF-8 bytes.
+The package includes name, subtitle, promotional text, description, keywords, initial release notes, reviewer navigation, category recommendations, paid-download intent, and a list of account-owned values that cannot be invented. `scripts/test-app-store-metadata.ps1` validates required text and Apple's current length limits. The revised draft is 13/30 name characters, 30/30 subtitle characters, 142/170 promotional-text characters, 1157/4000 description characters, and 92/100 keyword UTF-8 bytes. Apple does not require What's New text for an initial release; it is retained here as a handoff draft.
 
 The copy describes the current binary and explicitly avoids promises of legal protection, guaranteed dispute outcomes, cloud sync, AI damage detection, or features outside V1. Product-name availability and legal/trademark clearance are still not verified.
 
@@ -44,7 +44,7 @@ Validate the camera permission prompt on physical iPhone and iPad for first deni
 
 - `Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png` is the selected opaque 1024×1024 master and is referenced by `Contents.json`. Dimensions, RGB opacity, JSON syntax, and visual safe margins were checked locally; Xcode asset compilation and signed-archive validation remain required.
 - Draft English screenshot sets are in `docs/release/app-store-assets/iphone` (1290×2796) and `docs/release/app-store-assets/ipad` (2048×2732). They use the selected dark-navy Product Design direction and exact simulator captures from green CI `34803310219`, without AI-rewritten app UI.
-- The six-frame story covers report creation, guided Before capture, findings, acknowledgment, sealed revision history, and local-data/privacy controls. The 2026-09-14 initial per-frame review and frame-06 remediation are in `pre-membership-audit-2026-09-14.md`. Final creative approval remains required before upload, including a decision on visibly synthetic fixture imagery and wide iPad whitespace.
+- The six-frame story covers report creation, guided Before capture, findings, acknowledgment, sealed revision history, and local-data/privacy controls. The current Product Design review is in `app-store-creative-audit-2026-09-16.md`: retain the chosen visual direction, but recapture with realistic fictional fixture data before upload. Wide iPad whitespace and thumbnail readability also need a final creative pass.
 - Review every image at native resolution for cropping, Dynamic Type overflow, private information, placeholder data, misleading status, and device chrome.
 - Optional promotional art, preview video, and localization are not required by this handoff and have not been produced.
 
@@ -52,18 +52,18 @@ The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. 
 
 ## Pre-membership checks (2026-09-14)
 
-- The English metadata validator passed: name 13/30 characters, subtitle 30/30, promotional text 142/170, description 1157/4000, and keywords 94/100 UTF-8 bytes. This is a length/completeness check, not App Store Connect acceptance or final copy approval.
+- The revised English metadata uses 92/100 keyword UTF-8 bytes, avoiding duplicate terms from the name/subtitle. Re-run the validator before copying into App Store Connect; local length checks are not App Store Connect acceptance.
 - All six iPhone PNGs are opaque RGB at 1290×2796; all six iPad PNGs are opaque RGB at 2048×2732. These are listed as accepted sizes in [Apple's screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications). The icon master is opaque RGB at 1024×1024. The release archive and store upload remain unverified.
-- The public support and privacy URLs both returned HTTP 200 on 2026-09-14. Their visible text includes the Gmail support address and local-data/backups caveats. Recheck them immediately before submission and after any hosting change.
-- An indexed public search found no exact `DetailHandoff` result on 2026-09-14. The live USPTO trademark database and App Store Connect availability were **not** verified. This does **not** reserve the name or establish trademark clearance; search similar marks and relevant goods/services before finalizing the name.
+- The public support and privacy URLs both returned HTTP 200 on 2026-09-16. Recheck them immediately before submission and after any hosting change.
+- Apple's public U.S. app search returned no exact `DetailHandoff` or `Detail Handoff` app-name match on 2026-09-16. The live USPTO/WIPO/EUIPO records and App Store Connect availability were **not** verified; see `name-clearance-precheck-2026-09-16.md`. This does **not** reserve the name or establish trademark clearance.
 - A targeted iPhone simulator UI test creates a job, terminates and relaunches the app, then reopens that saved job (CI `34848170708`). This is not a physical-device force-quit or full-progress retention test. No verified airplane-mode complete-job/PDF run exists; those release gates remain open.
 
 ## Metadata and account checklist
 
-- [x] Obtain a green macOS build, all 149 unit tests, and all 13 UI tests on both iPhone and iPad (candidate CI `34970645204`, code commit `a375036`). The current 12 store PNGs derive from earlier green CI `34803310219`, not this run; merged-main CI is a separate final check. Files saving/cancellation remains a physical-device check rather than an assertion over Apple's unstable internal window controls.
+- [x] Obtain a green merged-main macOS build, all 149 unit tests, and all 13 UI tests on both iPhone and iPad (CI `34983689543`, attempt 2, commit `499313b`). A new CI pass is still required for this branch's UI-test hardening. Files saving/cancellation remains a physical-device check.
 - [ ] Verify the archived `PrivacyInfo.xcprivacy` declares DiskSpace reason `E174.1` for the actual capture/import storage check, without tracking or collected-data claims beyond the implementation. The built simulator resource test has passed.
 - [x] Pass the Phase 1 on-disk migration fixture without losing baseline records (included in the 149-test run).
-- [ ] Complete physical iPhone and iPad camera, permissions, interruption, offline, accessibility, performance, Files/share, backup/restore, deletion, and low-storage checks.
+- [ ] Complete physical iPhone and iPad camera, permissions, interruption, offline, accessibility, performance, Files/share, backup/restore, deletion, and low-storage checks using `physical-device-checklist.zh-CN.md`.
 - [ ] Confirm Apple Developer Program membership, legal account holder, team, bundle identifier, certificates, provisioning profiles, signing, entitlements, release archive, and upload validation.
 - [ ] Perform product-name availability and legal/trademark clearance. No clearance is claimed.
 - [x] Provide support contact `aiden609906@gmail.com` and publish the reachable support URL: `https://detailhandoff-support.aiden609906.chatgpt.site/`.

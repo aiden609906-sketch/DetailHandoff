@@ -37,10 +37,12 @@ No account is required. Core job records stay on the device. Export a full backu
 DetailHandoff is a documentation and handoff tool. It does not identify damage automatically or provide legal, insurance, or inspection advice.
 
 **Keywords**  
-`auto detailing,vehicle inspection,before after,car photos,service report,work order,pdf report`
+`auto detailing,car inspection,condition photos,service proof,work order,pdf,customer signoff`
 
 **What's New**  
 Initial release with guided Before and After photos, condition findings, customer acknowledgment, sealed PDF reports, revision history, and local backup and restore.
+
+Prepared for the release handoff; App Store Connect does not require What's New text for the first published version.
 
 ## App Review notes
 
