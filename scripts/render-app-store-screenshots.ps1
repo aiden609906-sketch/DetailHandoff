@@ -104,13 +104,13 @@ function Draw-FittedSegmentedText {
     $size = $PreferredSize
     do {
         $font = [System.Drawing.Font]::new("Segoe UI Semibold", $size, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
-        $prefixWidth = if ($Prefix) { $Graphics.MeasureString($Prefix, $font, [System.Drawing.PointF]::new(0, 0), [System.Drawing.StringFormat]::GenericTypographic).Width } else { 0 }
+        $prefixWidth = if ($Prefix) { $Graphics.MeasureString($Prefix.TrimEnd(), $font, [System.Drawing.PointF]::new(0, 0), [System.Drawing.StringFormat]::GenericTypographic).Width + ($size * 0.25) } else { 0 }
         $accentWidth = $Graphics.MeasureString($Accent, $font, [System.Drawing.PointF]::new(0, 0), [System.Drawing.StringFormat]::GenericTypographic).Width
         if (($prefixWidth + $accentWidth) -le $MaxWidth -or $size -le $MinimumSize) { break }
         $font.Dispose()
         $size -= 2
     } while ($true)
-    if ($Prefix) { $Graphics.DrawString($Prefix, $font, $PrefixBrush, $X, $Y, [System.Drawing.StringFormat]::GenericTypographic) }
+    if ($Prefix) { $Graphics.DrawString($Prefix.TrimEnd(), $font, $PrefixBrush, $X, $Y, [System.Drawing.StringFormat]::GenericTypographic) }
     $Graphics.DrawString($Accent, $font, $AccentBrush, $X + $prefixWidth, $Y, [System.Drawing.StringFormat]::GenericTypographic)
     $height = $font.GetHeight($Graphics)
     $font.Dispose()

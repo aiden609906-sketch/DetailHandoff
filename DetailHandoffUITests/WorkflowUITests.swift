@@ -532,6 +532,7 @@ final class WorkflowUITests: XCTestCase {
         )
         captureButton.tap()
         require(app.navigationBars["Before photos"])
+        require(app.staticTexts["1 photo across 12 views. Add as many photos to a view as needed."])
         capture("capture")
         returnToJobs()
     }
