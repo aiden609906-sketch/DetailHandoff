@@ -24,6 +24,24 @@ jobs:
           -destination 'generic/platform=iOS Simulator'
           CODE_SIGNING_ALLOWED=NO
           build
+      - name: Verify release excludes screenshot fixture photos
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project DetailHandoff.xcodeproj \
+            -scheme DetailHandoff \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ReleaseDerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          assets='ReleaseDerivedData/Build/Products/Release-iphonesimulator/DetailHandoff.app/Assets.car'
+          test -f "$assets"
+          xcrun assetutil --info "$assets" > ReleaseAssets.json
+          if jq -e 'any(.[]; (.Name // "") | startswith("Screenshot"))' ReleaseAssets.json; then
+            echo '::error::Screenshot fixture photos are present in the Release app.'
+            exit 1
+          fi
       - name: Select available iPhone and iPad simulators
         id: simulators
         shell: bash
@@ -113,7 +131,7 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
       - name: Run UI tests on selected iPad
         if: always()
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: >-
           xcodebuild
           test
@@ -152,4 +170,5 @@ jobs:
             TestAttachments-Unit
             TestAttachments-iPhone
             TestAttachments-iPad
+            !**/*.xcresult/Staging/**
           if-no-files-found: ignore

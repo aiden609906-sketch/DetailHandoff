@@ -30,6 +30,9 @@ targets:
         INFOPLIST_FILE: DetailHandoff/Info.plist
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
+      configs:
+        Release:
+          EXCLUDED_SOURCE_FILE_NAMES: ScreenshotFixtures.xcassets
     scheme:
       testTargets:
         - DetailHandoffTests

@@ -5,7 +5,10 @@ import UIKit
 
 @MainActor
 enum UITestFixtures {
-    private enum FixtureError: Error { case unknownFixture }
+    private enum FixtureError: Error {
+        case unknownFixture
+        case missingPhoto(String)
+    }
     private static let fixtureArgument = "--screenshot-fixture"
     private static let startupFailureArgument = "--startup-failure"
     private static let preserveStoreArgument = "--ui-testing-preserve-store"
@@ -75,7 +78,7 @@ enum UITestFixtures {
         let media = MediaStore(root: root.appendingPathComponent("CaptureMedia", isDirectory: true))
         let business = BusinessRepository(context: context, media: media)
         let profile = try business.createProfile(
-            businessName: "Fixture Detail",
+            businessName: "Northline Detail Studio",
             phone: "555-0100",
             email: "fixtures@example.test",
             configuration: .standard
@@ -85,8 +88,8 @@ enum UITestFixtures {
         case "complete":
             let captureJob = try makeCaptureFixture(in: context, media: media)
             let completeJob = try makeReviewReadyJob(
-                vehicle: "Complete Fixture Sedan",
-                customer: "Taylor Fixture",
+                vehicle: "Silver Sedan",
+                customer: "Alex Morgan",
                 in: context,
                 media: media
             )
@@ -115,12 +118,12 @@ enum UITestFixtures {
     }
 
     private static func makeCaptureFixture(in context: ModelContext, media: MediaStore) throws -> JobRecord {
-        let job = try makeJob(vehicle: "Capture Fixture Coupe", customer: "Casey Fixture", in: context)
+        let job = try makeJob(vehicle: "Silver Sedan Walkaround", customer: "Alex Morgan", in: context)
         let jobs = JobRepository(context: context)
         try jobs.advance(job)
         try CaptureRepository(context: context, media: media).addPhoto(
             to: job,
-            data: imageData(index: 0),
+            data: try imageData(for: "front"),
             slotID: "front",
             phase: .before
         )
@@ -147,7 +150,7 @@ enum UITestFixtures {
                     slotID: beforePhoto.slotID,
                     kind: FindingKind.scratch.rawValue,
                     severity: FindingSeverity.minor.rawValue,
-                    notes: "Fixture door-edge mark",
+                    notes: "Small scuff on the front bumper",
                     photoIDs: [beforePhoto.id]
                 )
             )
@@ -173,10 +176,10 @@ enum UITestFixtures {
         try JobRepository(context: context).createJob(
             customerName: customer,
             vehicleLabel: vehicle,
-            plate: "FIX-017",
+            plate: "SAMPLE",
             color: "Silver",
             serviceName: "Full detail",
-            notes: "Generated only for DEBUG UI verification."
+            notes: "Before-service walkaround and full detail."
         )
     }
 
@@ -185,21 +188,32 @@ enum UITestFixtures {
         phase: CapturePhase,
         capture: CaptureRepository
     ) throws {
-        for (index, slot) in CaptureSlot.standard.enumerated() where slot.isRequired {
-            try capture.addPhoto(to: job, data: imageData(index: index), slotID: slot.id, phase: phase)
+        for slot in CaptureSlot.standard where slot.isRequired {
+            try capture.addPhoto(to: job, data: imageData(for: slot.id), slotID: slot.id, phase: phase)
         }
     }
 
-    private static func imageData(index: Int) -> Data {
-        let size = CGSize(width: index.isMultiple(of: 2) ? 480 : 240, height: index.isMultiple(of: 2) ? 240 : 480)
-        return UIGraphicsImageRenderer(size: size).jpegData(withCompressionQuality: 0.85) { context in
-            UIColor(hue: CGFloat(index) / 12, saturation: 0.45, brightness: 0.85, alpha: 1).setFill()
-            context.fill(CGRect(origin: .zero, size: size))
-            ("Fixture evidence \(index + 1)" as NSString).draw(
-                at: CGPoint(x: 20, y: 40),
-                withAttributes: [.font: UIFont.boldSystemFont(ofSize: 20), .foregroundColor: UIColor.black]
-            )
+    private static func imageData(for slotID: String) throws -> Data {
+        let photos = [
+            "front": "ScreenshotFront",
+            "rear": "ScreenshotRear",
+            "driver-side": "ScreenshotSide",
+            "passenger-side": "ScreenshotPassengerSide",
+            "front-bumper": "ScreenshotFront",
+            "rear-bumper": "ScreenshotRear",
+            "hood-windshield": "ScreenshotFront",
+            "wheels-tires": "ScreenshotWheel",
+            "front-seats": "ScreenshotInterior",
+            "rear-seats": "ScreenshotRearSeats",
+            "dashboard-console": "ScreenshotInterior",
+            "trunk": "ScreenshotCargo"
+        ]
+        guard let name = photos[slotID],
+              let image = UIImage(named: name),
+              let data = image.jpegData(compressionQuality: 0.85) else {
+            throw FixtureError.missingPhoto(slotID)
         }
+        return data
     }
 }
 #endif

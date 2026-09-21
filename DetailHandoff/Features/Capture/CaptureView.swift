@@ -156,10 +156,11 @@ struct CaptureView: View {
 
     private var header: some View {
         let count = document.photos.filter { $0.phase == phase }.count
+        let photoNoun = count == 1 ? "photo" : "photos"
         return VStack(alignment: .leading, spacing: AppTheme.spacing8) {
             Text(phase == .before ? "Document starting condition" : "Match the Before views")
                 .font(.title3.weight(.semibold))
-            Text("\(count) photos across \(document.slots.count) views. Add as many photos to a view as needed.")
+            Text("\(count) \(photoNoun) across \(document.slots.count) views. Add as many photos to a view as needed.")
                 .foregroundStyle(.secondary)
         }
         .reportCard()

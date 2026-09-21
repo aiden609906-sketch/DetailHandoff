@@ -39,6 +39,28 @@ if ($cyanLeft -lt 300) {
     $failures.Add("Highlighted 'Every time.' starts too far left ($cyanLeft); it should follow 'record.' on the same line.")
 }
 
+function Assert-TitleWordGap {
+    param([System.Drawing.Bitmap]$Bitmap, [int]$SampleY, [string]$Platform)
+    $lastWhite = -1
+    $firstCyan = $Bitmap.Width
+    for ($y = $SampleY; $y -lt ($SampleY + 20); $y += 2) {
+        for ($x = 40; $x -lt 1100; $x += 2) {
+            $pixel = $Bitmap.GetPixel($x, $y)
+            if ($pixel.R -gt 220 -and $pixel.G -gt 220 -and $pixel.B -gt 220) {
+                $lastWhite = [Math]::Max($lastWhite, $x)
+            }
+            if ($pixel.R -lt 100 -and $pixel.G -gt 190 -and $pixel.B -gt 180) {
+                $firstCyan = [Math]::Min($firstCyan, $x)
+            }
+        }
+    }
+    if ($lastWhite -lt 0 -or $firstCyan -eq $Bitmap.Width -or ($firstCyan - $lastWhite) -lt 34) {
+        $failures.Add("$Platform title needs a visible word gap between 'record.' and 'Every time.' (white=$lastWhite cyan=$firstCyan).")
+    }
+}
+
+Assert-TitleWordGap -Bitmap $image -SampleY 570 -Platform iPhone
+
 function Find-WhiteTop([int]$X) {
     for ($y = 850; $y -lt 1350; $y++) {
         $pixel = $image.GetPixel($X, $y)
@@ -71,6 +93,7 @@ $ipadImage = [System.Drawing.Bitmap]::FromFile($ipadImagePath)
 if ($ipadImage.Width -ne 2048 -or $ipadImage.Height -ne 2732) {
     $failures.Add("iPad screenshot has unexpected dimensions ($($ipadImage.Width)x$($ipadImage.Height)).")
 }
+Assert-TitleWordGap -Bitmap $ipadImage -SampleY 550 -Platform iPad
 $ipadImage.Dispose()
 
 if ($failures.Count -gt 0) {
