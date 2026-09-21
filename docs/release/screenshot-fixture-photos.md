@@ -17,4 +17,4 @@ Shared prompt: *Natural, candid smartphone condition-documentation photo of the 
 | `ScreenshotRearSeats` | Rear bench from passenger-side door | Rear seats |
 | `ScreenshotCargo` | Open trunk and cargo area | Trunk or cargo area |
 
-The same fictional image set is used for Before and After in the automated fixture. It demonstrates the app's workflow, **not** a documented real-world detailing outcome. App Store review notes already disclose synthetic screenshot data. Before upload, visually inspect the newly rendered iPhone and iPad screenshots at full size and thumbnail scale; the existing 12 PNGs remain the previous draft until explicitly regenerated.
+The same fictional image set is used for Before and After in the automated fixture. It demonstrates the app's workflow, **not** a documented real-world detailing outcome. App Store review notes already disclose synthetic screenshot data. The 12 draft PNGs were regenerated from CI `35514766784` and visually inspected on 2026-09-21. They are not final upload assets; see `app-store-creative-audit-2026-09-21.md` for remaining content and legibility issues.
