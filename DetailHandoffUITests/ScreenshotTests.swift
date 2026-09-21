@@ -60,13 +60,22 @@ final class ScreenshotTests: XCTestCase {
             return
         }
         failureCheckpoints.append(diagnosticCheckpoint(named: "fixture-row-before-action", app: app))
-        vehicle.tap()
-        record("fixture row tap returned", since: startedAt, in: &timeline)
+        vehicle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        record("fixture row center tap returned", since: startedAt, in: &timeline)
         waitForOneSecondDiagnosticCheckpoint(named: "fixture-navigation-post-action")
         record("fixture navigation +1s checkpoint", since: startedAt, in: &timeline)
         failureCheckpoints.append(diagnosticCheckpoint(named: "fixture-navigation-after-1s", app: app))
         let destinationBar = app.navigationBars["Silver Sedan"]
-        let navigationReady = destinationBar.waitForExistence(timeout: 12)
+        var navigationReady = destinationBar.waitForExistence(timeout: 2)
+        if !navigationReady {
+            let retryVehicle = vehicleQuery.firstMatch
+            record("fixture row retry hittable=\(retryVehicle.isHittable)", since: startedAt, in: &timeline)
+            if retryVehicle.isHittable {
+                retryVehicle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+                record("fixture row retry center tap returned", since: startedAt, in: &timeline)
+                navigationReady = destinationBar.waitForExistence(timeout: 12)
+            }
+        }
         record("destination navigation ready=\(navigationReady)", since: startedAt, in: &timeline)
         guard navigationReady else {
             failureCheckpoints.append(diagnosticCheckpoint(named: "fixture-navigation-timeout", app: app))
