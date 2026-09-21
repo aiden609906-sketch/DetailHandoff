@@ -1,30 +1,33 @@
 # App Store creative audit — 2026-09-21
 
-Scope: the six iPhone and six iPad draft marketing PNGs in `app-store-assets/`, regenerated from successful simulator CI [`35514766784`](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/35514766784) at commit `b1d27eb`. Every output was opened and inspected in this audit. This is a visual/content review, not an App Review, legal, or accessibility approval.
+Scope: the six iPhone and six iPad marketing PNGs in `app-store-assets/`, regenerated from successful merged-main simulator CI [`35573487842`](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/35573487842) at commit `97d931f`. Every output was opened and inspected after rendering. This is a visual/content review, not an App Review, legal, signed-build, physical-device, or accessibility approval.
 
 ## Decision
 
-**Keep the selected dark-navy direction and the new fictional vehicle imagery; do not upload this draft set yet.** The earlier solid-color evidence blocks and fixture-style vehicle name are gone, the headline spacing and single-photo grammar are corrected, and the privacy claim remains qualified. The iPad story still loses impact to empty app space, while the iPhone acknowledgment frame does not show the recorded signature. The finding text calls out a small scuff that cannot be verified from its tiny full-car thumbnail.
+**Creative review passes for the current English screenshot draft.** The selected dark-navy, white, and cyan direction remains consistent. The previously open composition issues are resolved: iPad frames 01, 03, and 05 use focused truthful crops instead of presenting broad empty app space; frame 03 uses a fictional close-up that visibly matches the bumper-scuff finding; and iPhone frame 04 shows the saved customer name, timestamp, and complete signature.
+
+The images may move to product-owner signoff and eventual App Store Connect upload after the remaining account, legal, signed-archive, and physical-device gates are complete. This decision does not claim Apple acceptance or name clearance.
 
 ## Six-step story
 
-| Step | Screen pair | Health | Evidence and next change |
+| Step | Screen pair | Health | Evidence |
 |---|---|---|---|
-| 1 | Professional record | Needs polish | Report actions are legible on iPhone; iPad places a small action group above a large empty white area. Use a denser, truthful report state for the iPad frame. |
-| 2 | Guided capture | Needs polish | A realistic fictional front photo replaces the color block, and `1 photo` is grammatical. One small photo beside several empty capture rows weakly supports “every angle”; capture a richer but accurate state. |
-| 3 | Findings | Needs revision | Severity, area, note, and supporting photo are visible. The whole-car thumbnail does not visibly substantiate the stated scuff; use a matching close-up or change the fictional finding to match the photo. The iPad frame is mostly empty. |
-| 4 | Acknowledgment | Needs revision | The iPad frame shows service, vehicle photos, customer name, timestamp, and signature. The iPhone frame stops above the signature, so it does not show the core action promised by the headline. Recapture the phone after scrolling to the acknowledgment. |
-| 5 | Seal and revise | Needs polish | Version, checksum, Preview, Share, and Create revision are visible. On iPad, the version card is small above a broad empty area; use a more focused truthful state. |
-| 6 | Local control | Acceptable with pre-upload recheck | The iPad Settings capture shows the system-backup caveat and support email. The iPhone capture crops those below the fold, while the marketing subtitle correctly limits “no cloud” to developer service. |
+| 1 | Professional record | Pass | Both devices show the report identity and the Preview, Seal, and acknowledgment actions. The iPad composition focuses the meaningful report region without altering the simulator UI. |
+| 2 | Guided capture | Pass with product note | The real capture screen shows the guided position list and a fictional vehicle photo. It demonstrates the workflow structure, not a completed twelve-angle job. |
+| 3 | Findings | Pass | Kind, severity, position, note, and supporting evidence are visible. The linked fictional close-up visibly shows the described minor front-bumper scuff. |
+| 4 | Acknowledgment | Pass | Both devices show recorded acknowledgment context. The iPhone composition now includes the saved customer, timestamp, and complete signature; the iPad view retains the broader service and evidence context. |
+| 5 | Seal and revise | Pass | Version identifier, sealed time, checksum, Preview, Share, and Create revision are visible. The iPad composition focuses the stored-version controls. |
+| 6 | Local control | Pass with pre-upload recheck | The privacy wording is limited to developer services. The iPad Settings capture also shows the system-backup caveat and support email. Recheck the published support/privacy URLs immediately before upload. |
 
-## Strengths and risks
+## Integrity and presentation checks
 
-- The selected icon, navy/white/cyan treatment, tilted-report composition, and six-part sequence remain consistent.
-- Source app UI comes from the actual simulator run; generated photos are fixture data, not AI-redrawn controls or real customer records. The photo catalog is excluded from the Release build.
-- Each pair is an opaque 24-bit RGB PNG at its intended 1290×2796 or 2048×2732 size.
-- At store-thumbnail size, iPad interface labels in frames 01, 03, and 05 will be hard to read. Screenshot inspection cannot prove VoiceOver behavior, contrast after storefront compression, or physical-device Dynamic Type/reflow.
-- “Scratch · Minor” describes fictional test data; the associated photo is too small to verify a real mark. Do not imply these images prove a documented real-world service outcome.
+- App UI is taken from the actual CI simulator captures. The renderer crops and frames those captures but does not redraw their controls or invent app states.
+- Vehicle imagery is fictional screenshot-fixture data. The close-up in frame 03 is synthetic demo evidence, not a real customer record or claimed service result.
+- CI verifies the screenshot-only photo catalog is excluded from the Release build.
+- All 12 outputs are opaque 24-bit RGB PNGs at 1290×2796 for iPhone or 2048×2732 for iPad.
+- No support placeholder, private customer data, real plate, third-party logo, or absolute “no backup/cloud anywhere” claim was observed.
+- Text remains readable in the reviewed native files; storefront compression and physical-device appearance remain outside this audit.
 
 ## Evidence limits
 
-The audit did not test App Store compression, signed builds, Apple review acceptance, VoiceOver, keyboard/focus order, rotation, split view, or physical camera behavior. No real customer/vehicle data or real Before/After service result was used. The 12 images are useful design drafts and CI-backed UI evidence, but final screenshot creative approval remains open.
+This audit does not test App Store compression, Apple review acceptance, VoiceOver, keyboard/focus order, rotation, split view, physical camera behavior, signed archives, or legal rights to the working product name. Product-owner approval remains required before upload, and every image must stay paired with the binary represented by CI `35573487842` or a later equivalently verified build.
