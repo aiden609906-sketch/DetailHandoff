@@ -14,11 +14,11 @@ Add-Type -AssemblyName System.Drawing
 $iconPath = Join-Path $PSScriptRoot "../DetailHandoff/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
 
 $copy = @(
-    @{ File = "01-professional-record.png"; Line1 = "A professional"; Line2Prefix = "record. "; Line2Accent = "Every time."; Subtitle = "Document the work. Seal the report. Hand it off with confidence." },
+    @{ File = "01-professional-record.png"; Line1 = "A professional"; Line2Prefix = "record. "; Line2Accent = "Every time."; Subtitle = "Document the work. Seal the report. Hand it off with confidence."; iPadFocusHeight = 0.43 },
     @{ File = "02-capture-every-angle.png"; Line1 = "Capture every angle."; Line2Prefix = ""; Line2Accent = "Stay consistent."; Subtitle = "Use guided Before and After views for every vehicle." },
-    @{ File = "03-record-findings.png"; Line1 = "Record what you see."; Line2Prefix = ""; Line2Accent = "Right where it matters."; Subtitle = "Add findings, severity, notes, and supporting photos." },
+    @{ File = "03-record-findings.png"; Line1 = "Record what you see."; Line2Prefix = ""; Line2Accent = "Right where it matters."; Subtitle = "Add findings, severity, notes, and supporting photos."; iPadFocusHeight = 0.40 },
     @{ File = "04-confirm-before-service.png"; Line1 = "Confirm before service."; Line2Prefix = ""; Line2Accent = "Keep the context."; Subtitle = "Record the customer's acknowledgment with the job." },
-    @{ File = "05-seal-and-revise.png"; Line1 = "Seal the report."; Line2Prefix = ""; Line2Accent = "Keep every revision."; Subtitle = "Create shareable PDF versions without overwriting history." },
+    @{ File = "05-seal-and-revise.png"; Line1 = "Seal the report."; Line2Prefix = ""; Line2Accent = "Keep every revision."; Subtitle = "Create shareable PDF versions without overwriting history."; iPadFocusHeight = 0.46 },
     @{ File = "06-private-by-design.png"; Line1 = "Your records."; Line2Prefix = ""; Line2Accent = "Your control."; Subtitle = "No account, analytics, or developer cloud service." }
 )
 
@@ -127,8 +127,17 @@ function Draw-RotatedSheet {
         [float]$Height,
         [float]$Inset,
         [float]$Angle,
-        [bool]$IsPrimary
+        [bool]$IsPrimary,
+        [float]$CropHeightFraction = 1.0
     )
+    $sourceWidth = [float]$Screen.Width
+    $sourceHeight = [float]$Screen.Height * [Math]::Min(1.0, [Math]::Max(0.1, $CropHeightFraction))
+    $innerWidth = $Width - (2 * $Inset)
+    $innerHeight = $innerWidth * $sourceHeight / $sourceWidth
+    if ($CropHeightFraction -lt 1.0) {
+        $Height = [Math]::Max(1040, $innerHeight + (2 * $Inset) + 84)
+    }
+
     $state = $Graphics.Save()
     $centerX = $X + ($Width / 2)
     $centerY = $Y + ($Height / 2)
@@ -149,12 +158,12 @@ function Draw-RotatedSheet {
 
     $innerX = $X + $Inset
     $innerY = $Y + $Inset + 6
-    $innerWidth = $Width - (2 * $Inset)
-    $innerHeight = $innerWidth * $Screen.Height / $Screen.Width
     $screenPath = New-RoundedPath -X $innerX -Y $innerY -Width $innerWidth -Height $innerHeight -Radius 44
     $clipState = $Graphics.Save()
     $Graphics.SetClip($screenPath)
-    $Graphics.DrawImage($Screen, $innerX, $innerY, $innerWidth, $innerHeight)
+    $destination = [System.Drawing.RectangleF]::new($innerX, $innerY, $innerWidth, $innerHeight)
+    $source = [System.Drawing.RectangleF]::new(0, 0, $sourceWidth, $sourceHeight)
+    $Graphics.DrawImage($Screen, $destination, $source, [System.Drawing.GraphicsUnit]::Pixel)
     if (-not $IsPrimary) {
         $veil = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(190, 103, 127, 151))
         $Graphics.FillRectangle($veil, $innerX, $innerY, $innerWidth, $innerHeight)
@@ -249,9 +258,10 @@ foreach ($slide in $slides) {
     $panelY = [float]$layout.PanelY
     $panelWidth = [float]$layout.PanelWidth
     $panelHeight = [float]$layout.PanelHeight
-    Draw-RotatedSheet -Graphics $graphics -Screen $screen -X ($panelX - ($panelWidth * 0.13)) -Y ($panelY + 105) -Width ($panelWidth * 0.96) -Height $panelHeight -Inset $layout.PanelInset -Angle ($layout.PanelAngle - 4.2) -IsPrimary $false
-    Draw-RotatedSheet -Graphics $graphics -Screen $screen -X ($panelX - ($panelWidth * 0.06)) -Y ($panelY + 58) -Width ($panelWidth * 0.98) -Height $panelHeight -Inset $layout.PanelInset -Angle ($layout.PanelAngle - 2.1) -IsPrimary $false
-    Draw-RotatedSheet -Graphics $graphics -Screen $screen -X $panelX -Y $panelY -Width $panelWidth -Height $panelHeight -Inset $layout.PanelInset -Angle $layout.PanelAngle -IsPrimary $true
+    $focusHeight = if ($Platform -eq "iPad" -and $slide.iPadFocusHeight) { [float]$slide.iPadFocusHeight } else { 1.0 }
+    Draw-RotatedSheet -Graphics $graphics -Screen $screen -X ($panelX - ($panelWidth * 0.13)) -Y ($panelY + 105) -Width ($panelWidth * 0.96) -Height $panelHeight -Inset $layout.PanelInset -Angle ($layout.PanelAngle - 4.2) -IsPrimary $false -CropHeightFraction $focusHeight
+    Draw-RotatedSheet -Graphics $graphics -Screen $screen -X ($panelX - ($panelWidth * 0.06)) -Y ($panelY + 58) -Width ($panelWidth * 0.98) -Height $panelHeight -Inset $layout.PanelInset -Angle ($layout.PanelAngle - 2.1) -IsPrimary $false -CropHeightFraction $focusHeight
+    Draw-RotatedSheet -Graphics $graphics -Screen $screen -X $panelX -Y $panelY -Width $panelWidth -Height $panelHeight -Inset $layout.PanelInset -Angle $layout.PanelAngle -IsPrimary $true -CropHeightFraction $focusHeight
     $screen.Dispose()
 
     $white.Dispose(); $cyan.Dispose(); $muted.Dispose()

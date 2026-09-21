@@ -142,7 +142,15 @@ enum UITestFixtures {
 
         try jobs.advance(job)
         try addRequiredImages(to: job, phase: .before, capture: capture)
-        let beforePhoto = try capture.document(for: job).photos.first { $0.phase == .before }
+        try capture.addPhoto(
+            to: job,
+            data: try imageData(for: "scratch-closeup"),
+            slotID: "front",
+            phase: .before
+        )
+        let beforePhoto = try capture.document(for: job).photos.last {
+            $0.phase == .before && $0.slotID == "front"
+        }
         if let beforePhoto {
             try capture.saveFinding(
                 on: job,
@@ -206,7 +214,8 @@ enum UITestFixtures {
             "front-seats": "ScreenshotInterior",
             "rear-seats": "ScreenshotRearSeats",
             "dashboard-console": "ScreenshotInterior",
-            "trunk": "ScreenshotCargo"
+            "trunk": "ScreenshotCargo",
+            "scratch-closeup": "ScreenshotScratchCloseup"
         ]
         guard let name = photos[slotID],
               let image = UIImage(named: name),

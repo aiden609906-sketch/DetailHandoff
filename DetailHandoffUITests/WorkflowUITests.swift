@@ -328,6 +328,14 @@ final class WorkflowUITests: XCTestCase {
 
         app.buttons["report.acknowledgment"].tap()
         require(app.navigationBars["Acknowledgment"])
+        _ = scrollUntilHittable(
+            {
+                app.descendants(matching: .any)
+                    .matching(identifier: "acknowledgment.savedSignature")
+                    .firstMatch
+            },
+            in: app.scrollViews.firstMatch
+        )
         capture("acknowledgment")
         app.navigationBars.buttons.firstMatch.tap()
 
