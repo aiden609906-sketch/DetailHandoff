@@ -4,7 +4,7 @@ Last updated: 2026-09-21
 
 ## Submission status
 
-**Do not submit this revision yet.** Candidate commit `b1d27eb` passed CI [`35514766784`](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/35514766784): app and Release builds, 149/0 unit tests, 13/0 UI tests on each selected iPhone and iPad simulator, screenshot-fixture exclusion, and attachment upload. The 12 App Store screenshots now come from that run, but remain draft artwork after visual audit. The last merged-main baseline is CI `34983689543`, attempt 2. Final screenshot creative approval, physical-device checks, legal name clearance, signed-archive validation, account-owned metadata, Paid Apps Agreement, tax/banking setup, TestFlight, and App Review remain open. No publication is claimed.
+**Do not submit this revision yet.** Merged-main commit `63890ad` passed CI [`35556722554`](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/35556722554): app and Release builds, 149/0 unit tests, 13/0 UI tests on each selected iPhone and iPad simulator, screenshot-fixture exclusion, and attachment upload. The 12 App Store screenshots come from the equivalent green candidate run `35514766784`, but remain draft artwork after visual audit. Final screenshot creative approval, physical-device checks, legal name clearance, signed-archive validation, account-owned metadata, Paid Apps Agreement, tax/banking setup, TestFlight, and App Review remain open. No publication is claimed.
 
 ## Commercial configuration
 
@@ -60,7 +60,7 @@ The 27 PNGs from CI `33936741128` remain failure diagnostics, not store assets. 
 
 ## Metadata and account checklist
 
-- [x] Obtain a green merged-main macOS baseline (CI `34983689543`, attempt 2, commit `499313b`) and a green candidate run (CI `35514766784`, commit `b1d27eb`), each with 149 unit tests and 13 UI tests on both iPhone and iPad. A merged-main run of this candidate is still required after integration. Files saving/cancellation remains a physical-device check.
+- [x] Obtain a green candidate run (CI `35514766784`, commit `b1d27eb`) and green merged-main run (CI `35556722554`, commit `63890ad`), each with 149 unit tests and 13 UI tests on both iPhone and iPad. Files saving/cancellation remains a physical-device check.
 - [ ] Verify the archived `PrivacyInfo.xcprivacy` declares DiskSpace reason `E174.1` for the actual capture/import storage check, without tracking or collected-data claims beyond the implementation. The built simulator resource test has passed.
 - [x] Pass the Phase 1 on-disk migration fixture without losing baseline records (included in the 149-test run).
 - [ ] Complete physical iPhone and iPad camera, permissions, interruption, offline, accessibility, performance, Files/share, backup/restore, deletion, and low-storage checks using `physical-device-checklist.zh-CN.md`.
