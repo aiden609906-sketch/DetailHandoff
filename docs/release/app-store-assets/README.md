@@ -1,6 +1,6 @@
 # App Store screenshot set
 
-These English-first draft screenshots implement the selected dark-navy Product Design direction with exact UI captures from green CI run [`35514766784`](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/35514766784) (code commit `b1d27eb`). All 12 frames were regenerated from that run's iPhone and iPad attachment manifests on 2026-09-21. The previous set came from CI `34803310219` and is superseded. Screenshot-only vehicle photos are fictional and excluded from Release builds.
+These English-first draft screenshots implement the selected dark-navy Product Design direction with exact UI captures from green merged-main CI run [`35573487842`](https://github.com/aiden609906-sketch/DetailHandoff/actions/runs/35573487842) (code commit `97d931f`). All 12 frames were regenerated from that run's iPhone and iPad attachment manifests on 2026-09-21. Earlier candidate-branch and pre-remediation sets are superseded. Screenshot-only vehicle photos are fictional and excluded from Release builds.
 
 ## Upload order
 
@@ -18,7 +18,7 @@ These English-first draft screenshots implement the selected dark-navy Product D
 
 Both sizes are accepted by the current App Store Connect screenshot specification. Recheck Apple's specification immediately before upload because supported device classes can change.
 
-The refreshed iPad frame 06 visibly includes the system-backup caveat, `DetailHandoff`, and the real support email; the old support placeholder is absent. The iPhone frame 06 crops below the first Privacy row, so its app capture does not show the backup caveat or email; its marketing subtitle explicitly limits the no-cloud statement to a developer cloud service. All 12 frames were visually inspected and passed 24-bit RGB/dimension checks. They remain **drafts**, not approved uploads: iPad frames 01, 03, and 05 have substantial empty app space; iPhone frame 04 does not show the acknowledgment signature; the small finding photo does not independently prove the fictional scuff described in text. See `../app-store-creative-audit-2026-09-21.md`.
+The refreshed iPad frame 06 visibly includes the system-backup caveat, `DetailHandoff`, and the real support email; the old support placeholder is absent. The iPhone frame 06 crops below the first Privacy row, so its app capture does not show the backup caveat or email; its marketing subtitle explicitly limits the no-cloud statement to a developer cloud service. All 12 frames were visually inspected and passed 24-bit RGB/dimension checks. The focused iPad compositions resolve the former whitespace issue, iPhone frame 04 shows the complete saved signature, and frame 03 uses a matching fictional bumper-scuff close-up. Creative review passes, but the images remain **drafts** pending product-owner approval and the remaining physical-device, account, legal, signed-archive, and upload gates. See `../app-store-creative-audit-2026-09-21.md`.
 
 ## Regeneration
 
