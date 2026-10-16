@@ -1,0 +1,209 @@
+name: TestFlight Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight-release
+  cancel-in-progress: false
+
+jobs:
+  archive-and-upload:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      APP_BUNDLE_ID: com.aiden609906.detailhandoff
+      APP_MARKETING_VERSION: "1.0"
+      APPLE_TEAM_ID: 5M4V37TWVA
+      PROFILE_NAME: DetailHandoff App Store 1.0
+      APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+      APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Verify signing secrets are available
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            APPLE_CERTIFICATE_BASE64
+            APPLE_CERTIFICATE_PASSWORD
+            APPLE_PROVISIONING_PROFILE_BASE64
+            APP_STORE_CONNECT_API_KEY_BASE64
+            APP_STORE_CONNECT_API_KEY_ID
+            APP_STORE_CONNECT_API_ISSUER_ID
+          )
+          for name in "${required[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing required GitHub Actions secret: $name"
+              exit 1
+            fi
+          done
+
+      - name: Verify Xcode upload requirement
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcode_major="$(xcodebuild -version | awk '/Xcode/{split($2,v,"."); print v[1]}')"
+          if [[ -z "$xcode_major" || "$xcode_major" -lt 26 ]]; then
+            echo "::error::App Store uploads require Xcode 26 or later. Runner has Xcode ${xcode_major:-unknown}."
+            exit 1
+          fi
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Install signing certificate and provisioning profile
+        id: signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          certificate_path="$RUNNER_TEMP/DetailHandoff-distribution.p12"
+          profile_path="$RUNNER_TEMP/DetailHandoff.mobileprovision"
+          keychain_path="$RUNNER_TEMP/DetailHandoff-signing.keychain-db"
+          keychain_password="$(openssl rand -base64 24)"
+
+          printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          printf '%s' "$APPLE_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$profile_path"
+
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$keychain_path"
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -k "$keychain_password" \
+            "$keychain_path"
+          security list-keychains -d user -s "$keychain_path" login.keychain-db
+
+          profile_plist="$RUNNER_TEMP/DetailHandoff-profile.plist"
+          security cms -D -i "$profile_path" > "$profile_plist"
+          profile_uuid="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$profile_plist")"
+          profile_name="$(/usr/libexec/PlistBuddy -c 'Print Name' "$profile_plist")"
+          application_identifier="$(/usr/libexec/PlistBuddy -c 'Print Entitlements:application-identifier' "$profile_plist")"
+
+          if [[ "$profile_name" != "$PROFILE_NAME" ]]; then
+            echo "::error::Unexpected provisioning profile name: $profile_name"
+            exit 1
+          fi
+          if [[ "$application_identifier" != "$APPLE_TEAM_ID.$APP_BUNDLE_ID" ]]; then
+            echo "::error::Provisioning profile is for $application_identifier, not $APPLE_TEAM_ID.$APP_BUNDLE_ID"
+            exit 1
+          fi
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          installed_profile="$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+          cp "$profile_path" "$installed_profile"
+
+          api_key_dir="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$api_key_dir"
+          api_key_path="$api_key_dir/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$api_key_path"
+          chmod 600 "$api_key_path"
+
+          echo "keychain_path=$keychain_path" >> "$GITHUB_OUTPUT"
+          echo "installed_profile=$installed_profile" >> "$GITHUB_OUTPUT"
+          echo "api_key_path=$api_key_path" >> "$GITHUB_OUTPUT"
+
+      - name: Archive signed app
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project DetailHandoff.xcodeproj \
+            -scheme DetailHandoff \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/DetailHandoff.xcarchive" \
+            MARKETING_VERSION="$APP_MARKETING_VERSION" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_IDENTITY='Apple Distribution' \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            clean archive
+
+      - name: Create export options
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>destination</key>
+            <string>export</string>
+            <key>manageAppVersionAndBuildNumber</key>
+            <false/>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$APP_BUNDLE_ID</key>
+              <string>$PROFILE_NAME</string>
+            </dict>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>teamID</key>
+            <string>$APPLE_TEAM_ID</string>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Export IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/DetailHandoff.xcarchive" \
+            -exportPath "$RUNNER_TEMP/DetailHandoff-export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Upload build to TestFlight
+        shell: bash
+        run: |
+          set -euo pipefail
+          ipa_path="$(find "$RUNNER_TEMP/DetailHandoff-export" -maxdepth 1 -name '*.ipa' -print -quit)"
+          if [[ -z "$ipa_path" ]]; then
+            echo '::error::No IPA was produced by the export step.'
+            exit 1
+          fi
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$ipa_path" \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
+
+      - name: Remove temporary signing material
+        if: always()
+        shell: bash
+        run: |
+          security delete-keychain '${{ steps.signing.outputs.keychain_path }}' 2>/dev/null || true
+          rm -f '${{ steps.signing.outputs.installed_profile }}'
+          rm -f '${{ steps.signing.outputs.api_key_path }}'
+          rm -f "$RUNNER_TEMP/DetailHandoff-distribution.p12"
+          rm -f "$RUNNER_TEMP/DetailHandoff.mobileprovision"
