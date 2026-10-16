@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $projectPath = Join-Path $repoRoot 'project.yml'
 $workflowPath = Join-Path $repoRoot '.github/workflows/testflight-release.yml'
+$plistPath = Join-Path $repoRoot 'DetailHandoff/Info.plist'
 
 $project = Get-Content -LiteralPath $projectPath -Raw
 if ($project -notmatch '(?m)^\s*MARKETING_VERSION:\s*"1\.0"\s*$') {
@@ -32,6 +33,18 @@ foreach ($fragment in $requiredFragments) {
     if (-not $workflow.Contains($fragment)) {
         throw "Release workflow is missing required fragment: $fragment"
     }
+}
+
+[xml]$plist = Get-Content -LiteralPath $plistPath -Raw
+$plistDict = $plist.SelectSingleNode('/plist/dict')
+$encryptionKey = $plistDict.SelectSingleNode("key[.='ITSAppUsesNonExemptEncryption']")
+if ($null -eq $encryptionKey) {
+    throw 'Info.plist must declare ITSAppUsesNonExemptEncryption.'
+}
+
+$encryptionValue = $encryptionKey.SelectSingleNode('following-sibling::*[1]')
+if ($null -eq $encryptionValue -or $encryptionValue.Name -ne 'false') {
+    throw 'ITSAppUsesNonExemptEncryption must be false.'
 }
 
 Write-Output 'TestFlight release configuration checks passed.'
