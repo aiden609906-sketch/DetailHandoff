@@ -89,7 +89,7 @@ final class AcknowledgmentRepository {
 
     private func contentDigest(for job: JobRecord, stage: AcknowledgmentStage) throws -> String {
         let document = try captureRepository.document(for: job)
-        switch stage {
+        return switch stage {
         case .preService: try AcknowledgmentContentDigest.make(for: job, document: document)
         case .completion: try CompletionAcknowledgmentContentDigest.make(for: job, document: document)
         }
