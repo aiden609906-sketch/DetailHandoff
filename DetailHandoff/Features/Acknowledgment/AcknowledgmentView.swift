@@ -5,6 +5,12 @@ struct AcknowledgmentView: View {
     @Environment(\.modelContext) private var modelContext
 
     let job: JobRecord
+    let stage: AcknowledgmentStage
+
+    init(job: JobRecord, stage: AcknowledgmentStage = .preService) {
+        self.job = job
+        self.stage = stage
+    }
 
     @State private var document = CaptureDocument.empty
     @State private var customerName = ""
@@ -19,13 +25,15 @@ struct AcknowledgmentView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppTheme.spacing16) {
-                Text("Confirm before service")
+                Text(stage == .preService ? "Confirm before service" : "Confirm completed service")
                     .font(.title2.weight(.semibold))
-                Text("Review the visible starting condition and selected service before recording the customer’s acknowledgment.")
+                Text(stage == .preService
+                     ? "Review the visible starting condition and selected service before recording the customer’s acknowledgment."
+                     : "Review the completed service and final vehicle condition before recording the customer’s acknowledgment.")
                     .foregroundStyle(.secondary)
 
                 serviceSummary
-                beforeEvidence
+                evidence
                 findings
 
                 if let savedRecord {
@@ -60,7 +68,7 @@ struct AcknowledgmentView: View {
 
     private func savedAcknowledgment(_ record: AcknowledgmentRecord) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.spacing12) {
-            Text(savedRecordIsCurrent ? "Current acknowledgment" : "Before-service evidence changed. A new acknowledgment is required.")
+            Text(savedRecordIsCurrent ? "Current acknowledgment" : "The reviewed evidence changed. A new acknowledgment is required.")
                 .font(.headline)
                 .accessibilityIdentifier("acknowledgment.status")
             Text(record.confirmationText)
@@ -96,7 +104,7 @@ struct AcknowledgmentView: View {
 
     private var acknowledgmentEditor: some View {
         VStack(alignment: .leading, spacing: AppTheme.spacing12) {
-            Text(AcknowledgmentRecord.confirmationText)
+            Text(stage.confirmationText)
                 .font(.body.weight(.medium))
             TextField("Customer name", text: $customerName)
                 .textFieldStyle(.roundedBorder)
@@ -135,12 +143,13 @@ struct AcknowledgmentView: View {
     }
 
     @ViewBuilder
-    private var beforeEvidence: some View {
-        let photos = document.photos.filter { $0.phase == .before }
+    private var evidence: some View {
+        let phases: [CapturePhase] = stage == .preService ? [.before] : CapturePhase.allCases
+        let photos = document.photos.filter { phases.contains($0.phase) }
         VStack(alignment: .leading, spacing: AppTheme.spacing8) {
-            Text("Before photos").font(.headline)
+            Text(stage == .preService ? "Before photos" : "Before and After photos").font(.headline)
             if photos.isEmpty {
-                Text("No Before photos are recorded; any skipped views are listed below.")
+                Text("No reviewed photos are recorded; any skipped views are listed below.")
                     .foregroundStyle(.secondary)
             } else {
                 ScrollView(.horizontal) {
@@ -153,8 +162,8 @@ struct AcknowledgmentView: View {
                     }
                 }
             }
-            ForEach(document.skips.filter { $0.phase == .before }, id: \.slotID) { skip in
-                Text("\(slotName(for: skip.slotID)): skipped — \(skip.reason)")
+            ForEach(Array(document.skips.filter { phases.contains($0.phase) }.enumerated()), id: \.offset) { _, skip in
+                Text("\(skip.phase == .before ? "Before" : "After") · \(slotName(for: skip.slotID)): skipped — \(skip.reason)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -188,8 +197,8 @@ struct AcknowledgmentView: View {
         do {
             document = try CaptureRepository(context: modelContext, media: MediaStore(root: MediaStore.defaultRoot)).document(for: job)
             let repository = AcknowledgmentRepository(context: modelContext)
-            savedRecord = try repository.record(for: job)
-            savedRecordIsCurrent = try repository.isCurrent(job: job)
+            savedRecord = try repository.record(for: job, stage: stage)
+            savedRecordIsCurrent = try repository.isCurrent(job: job, stage: stage)
         } catch {
             errorMessage = "Acknowledgment evidence could not be read. \(error.localizedDescription)"
         }
@@ -197,7 +206,7 @@ struct AcknowledgmentView: View {
 
     private func recordSignature() {
         do {
-            try AcknowledgmentRepository(context: modelContext).sign(job: job, name: customerName, strokes: strokes)
+            try AcknowledgmentRepository(context: modelContext).sign(job: job, stage: stage, name: customerName, strokes: strokes)
             isReplacingRecord = false
             strokes = []
             reloadDocument()
@@ -208,7 +217,7 @@ struct AcknowledgmentView: View {
 
     private func recordUnavailable() {
         do {
-            try AcknowledgmentRepository(context: modelContext).markUnavailable(job: job, reason: unavailableReason)
+            try AcknowledgmentRepository(context: modelContext).markUnavailable(job: job, stage: stage, reason: unavailableReason)
             isReplacingRecord = false
             unavailableReason = ""
             reloadDocument()

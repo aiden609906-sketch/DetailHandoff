@@ -125,6 +125,14 @@ struct JobWorkflowView: View {
             .accessibilityIdentifier("workflow.acknowledgment")
         case .afterCapture:
             captureActions(phase: .after)
+        case .awaitingCompletionAcknowledgment:
+            NavigationLink {
+                AcknowledgmentView(job: job, stage: .completion)
+            } label: {
+                WorkflowActionLabel("Record completion acknowledgment", systemImage: "signature")
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("workflow.completionAcknowledgment")
         case .review:
             VStack(spacing: AppTheme.spacing8) {
                 NavigationLink {
@@ -244,6 +252,12 @@ struct JobWorkflowView: View {
                 advanceErrorMessage = "Before-service evidence changed. Review it and record a new acknowledgment before continuing."
             case .corruptAcknowledgment:
                 advanceErrorMessage = "The saved acknowledgment cannot be read. Record it again before continuing."
+            case .missingCompletionAcknowledgment:
+                advanceErrorMessage = "Record the customer's completion acknowledgment before reviewing the report."
+            case .staleCompletionAcknowledgment:
+                advanceErrorMessage = "The completed-service evidence changed. Review it and record a new completion acknowledgment."
+            case .corruptCompletionAcknowledgment:
+                advanceErrorMessage = "The saved completion acknowledgment cannot be read. Record it again before continuing."
             case .reportSealRequired:
                 advanceErrorMessage = "Generate and seal a report to finalize this job."
             case .immutableJob, .blankVehicle, .blankService:

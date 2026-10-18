@@ -28,11 +28,11 @@ final class AcknowledgmentRepository {
         captureRepository = CaptureRepository(context: context, media: MediaStore(root: MediaStore.defaultRoot))
     }
 
-    func record(for job: JobRecord) throws -> AcknowledgmentRecord? {
-        guard let data = job.acknowledgmentData else { return nil }
+    func record(for job: JobRecord, stage: AcknowledgmentStage = .preService) throws -> AcknowledgmentRecord? {
+        guard let data = data(for: job, stage: stage) else { return nil }
         do {
             let record = try JSONDecoder().decode(AcknowledgmentRecord.self, from: data)
-            try validate(record)
+            try validate(record, stage: stage)
             return record
         } catch let error as AcknowledgmentRepositoryError {
             throw error
@@ -41,7 +41,7 @@ final class AcknowledgmentRepository {
         }
     }
 
-    func sign(job: JobRecord, name: String, strokes: [SignatureStroke]) throws {
+    func sign(job: JobRecord, stage: AcknowledgmentStage = .preService, name: String, strokes: [SignatureStroke]) throws {
         try validateMutable(job)
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { throw AcknowledgmentRepositoryError.blankCustomerName }
@@ -51,17 +51,18 @@ final class AcknowledgmentRepository {
                 method: .signature,
                 customerName: trimmedName,
                 recordedAt: Date(),
-                confirmationText: AcknowledgmentRecord.confirmationText,
+                confirmationText: stage.confirmationText,
                 unavailableReason: "",
                 strokes: strokes,
-                contentDigest: try contentDigest(for: job),
+                contentDigest: try contentDigest(for: job, stage: stage),
                 contentDigestVersion: 2
             ),
-            on: job
+            on: job,
+            stage: stage
         )
     }
 
-    func markUnavailable(job: JobRecord, reason: String) throws {
+    func markUnavailable(job: JobRecord, stage: AcknowledgmentStage = .preService, reason: String) throws {
         try validateMutable(job)
         let trimmedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedReason.isEmpty else { throw AcknowledgmentRepositoryError.blankUnavailableReason }
@@ -70,34 +71,39 @@ final class AcknowledgmentRepository {
                 method: .customerUnavailable,
                 customerName: job.customerName.trimmingCharacters(in: .whitespacesAndNewlines),
                 recordedAt: Date(),
-                confirmationText: AcknowledgmentRecord.confirmationText,
+                confirmationText: stage.confirmationText,
                 unavailableReason: trimmedReason,
                 strokes: [],
-                contentDigest: try contentDigest(for: job),
+                contentDigest: try contentDigest(for: job, stage: stage),
                 contentDigestVersion: 2
             ),
-            on: job
+            on: job,
+            stage: stage
         )
     }
 
-    func isCurrent(job: JobRecord) throws -> Bool {
-        guard let record = try record(for: job) else { return false }
-        return record.contentDigest == (try contentDigest(for: job))
+    func isCurrent(job: JobRecord, stage: AcknowledgmentStage = .preService) throws -> Bool {
+        guard let record = try record(for: job, stage: stage) else { return false }
+        return record.contentDigest == (try contentDigest(for: job, stage: stage))
     }
 
-    private func contentDigest(for job: JobRecord) throws -> String {
-        try AcknowledgmentContentDigest.make(for: job, document: captureRepository.document(for: job))
+    private func contentDigest(for job: JobRecord, stage: AcknowledgmentStage) throws -> String {
+        let document = try captureRepository.document(for: job)
+        switch stage {
+        case .preService: try AcknowledgmentContentDigest.make(for: job, document: document)
+        case .completion: try CompletionAcknowledgmentContentDigest.make(for: job, document: document)
+        }
     }
 
-    private func save(_ record: AcknowledgmentRecord, on job: JobRecord) throws {
-        let previousData = job.acknowledgmentData
+    private func save(_ record: AcknowledgmentRecord, on job: JobRecord, stage: AcknowledgmentStage) throws {
+        let previousData = data(for: job, stage: stage)
         let previousUpdatedAt = job.updatedAt
-        job.acknowledgmentData = try JSONEncoder().encode(record)
+        setData(try JSONEncoder().encode(record), on: job, stage: stage)
         job.updatedAt = Date()
         do {
             try saveChanges()
         } catch {
-            job.acknowledgmentData = previousData
+            setData(previousData, on: job, stage: stage)
             job.updatedAt = previousUpdatedAt
             throw error
         }
@@ -110,11 +116,11 @@ final class AcknowledgmentRepository {
         }
     }
 
-    private func validate(_ record: AcknowledgmentRecord) throws {
+    private func validate(_ record: AcknowledgmentRecord, stage: AcknowledgmentStage) throws {
         guard record.contentDigestVersion == nil || record.contentDigestVersion == 2 else {
             throw AcknowledgmentRepositoryError.corruptRecord
         }
-        guard record.confirmationText == AcknowledgmentRecord.confirmationText, !record.contentDigest.isEmpty else {
+        guard record.confirmationText == stage.confirmationText, !record.contentDigest.isEmpty else {
             throw AcknowledgmentRepositoryError.corruptRecord
         }
         switch record.method {
@@ -134,6 +140,15 @@ final class AcknowledgmentRepository {
                 throw AcknowledgmentRepositoryError.corruptRecord
             }
         }
+    }
+
+    private func data(for job: JobRecord, stage: AcknowledgmentStage) -> Data? {
+        stage == .preService ? job.acknowledgmentData : job.completionAcknowledgmentData
+    }
+
+    private func setData(_ data: Data?, on job: JobRecord, stage: AcknowledgmentStage) {
+        if stage == .preService { job.acknowledgmentData = data }
+        else { job.completionAcknowledgmentData = data }
     }
 
     private func validateSignature(_ strokes: [SignatureStroke]) throws {

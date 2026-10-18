@@ -19,6 +19,7 @@ final class JobRecord {
     var deletedAt: Date?
     var captureData: Data?
     var acknowledgmentData: Data?
+    var completionAcknowledgmentData: Data?
     var reportsData: Data?
     var serviceStartedAt: Date?
     var serviceFinishedAt: Date?
@@ -45,6 +46,7 @@ final class JobRecord {
         deletedAt: Date? = nil,
         captureData: Data? = nil,
         acknowledgmentData: Data? = nil,
+        completionAcknowledgmentData: Data? = nil,
         reportsData: Data? = nil,
         serviceStartedAt: Date? = nil,
         serviceFinishedAt: Date? = nil
@@ -65,6 +67,7 @@ final class JobRecord {
         self.deletedAt = deletedAt
         self.captureData = captureData
         self.acknowledgmentData = acknowledgmentData
+        self.completionAcknowledgmentData = completionAcknowledgmentData
         self.reportsData = reportsData
         self.serviceStartedAt = serviceStartedAt
         self.serviceFinishedAt = serviceFinishedAt

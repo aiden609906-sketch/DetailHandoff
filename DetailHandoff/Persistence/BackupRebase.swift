@@ -24,6 +24,17 @@ enum BackupRebase {
                     guard acknowledgment.contentDigest != newDigest else { throw BackupError.invalidPackage("stale acknowledgment became current during migration") }
                 }
             }
+            if let data = job.completionAcknowledgmentData {
+                var acknowledgment = try JSONDecoder().decode(AcknowledgmentRecord.self, from: data)
+                let capture = try job.captureData.map { try JSONDecoder().decode(CaptureDocument.self, from: $0) } ?? .empty
+                let newDigest = try CompletionAcknowledgmentContentDigest.make(for: job.makeModel(), document: capture)
+                if graph.currentCompletionAcknowledgments.contains(job.id) {
+                    acknowledgment.contentDigest = newDigest
+                    job.completionAcknowledgmentData = try JSONEncoder().encode(acknowledgment)
+                } else {
+                    guard acknowledgment.contentDigest != newDigest else { throw BackupError.invalidPackage("stale completion acknowledgment became current during migration") }
+                }
+            }
             if let data = job.reportsData {
                 var reports = try JSONDecoder().decode([ReportVersion].self, from: data)
                 for reportIndex in reports.indices {
@@ -33,6 +44,10 @@ enum BackupRebase {
                     snapshot.capture = try remap(snapshot.capture, paths: paths)
                     // Every original frozen snapshot was verified against its recorded digest scope.
                     snapshot.acknowledgment.contentDigest = try AcknowledgmentContentDigest.makeForFrozenRecord(snapshot.acknowledgment, job: BackupGraph.snapshotJob(snapshot), document: snapshot.capture)
+                    if var completion = snapshot.completionAcknowledgment {
+                        completion.contentDigest = try CompletionAcknowledgmentContentDigest.make(for: BackupGraph.snapshotJob(snapshot), document: snapshot.capture)
+                        snapshot.completionAcknowledgment = completion
+                    }
                     reports[reportIndex].snapshot = snapshot
                 }
                 job.reportsData = try JSONEncoder().encode(reports)

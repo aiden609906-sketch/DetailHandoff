@@ -584,6 +584,7 @@ private final class ReportFixture {
         } else {
             try acknowledgment.markUnavailable(job: fixtureJob, reason: "Keys left with office")
         }
+        try acknowledgment.markUnavailable(job: fixtureJob, stage: .completion, reason: "Completion confirmed remotely")
         container = fixtureContainer
         root = fixtureRoot
         media = fixtureMedia
@@ -598,6 +599,7 @@ private final class ReportFixture {
         additional.captureData = try JSONEncoder().encode(CaptureDocument(skips: CapturePhase.allCases.flatMap { phase in CaptureSlot.standard.map { CaptureSkip(slotID: $0.id, phase: phase, reason: "Not accessible") } }))
         container.mainContext.insert(additional)
         try AcknowledgmentRepository(context: container.mainContext).markUnavailable(job: additional, reason: "Customer away")
+        try AcknowledgmentRepository(context: container.mainContext).markUnavailable(job: additional, stage: .completion, reason: "Completion confirmed remotely")
         return additional
     }
 

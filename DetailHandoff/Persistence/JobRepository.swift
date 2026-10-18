@@ -8,6 +8,9 @@ enum JobRepositoryError: Error, Equatable {
     case missingAcknowledgment
     case staleAcknowledgment
     case corruptAcknowledgment
+    case missingCompletionAcknowledgment
+    case staleCompletionAcknowledgment
+    case corruptCompletionAcknowledgment
     case reportSealRequired
     case immutableJob
     case blankVehicle
@@ -155,6 +158,22 @@ final class JobRepository {
                 throw error
             } catch {
                 throw JobRepositoryError.corruptAcknowledgment
+            }
+        }
+
+        if job.status == .awaitingCompletionAcknowledgment {
+            do {
+                let acknowledgments = AcknowledgmentRepository(context: context)
+                guard try acknowledgments.record(for: job, stage: .completion) != nil else {
+                    throw JobRepositoryError.missingCompletionAcknowledgment
+                }
+                guard try acknowledgments.isCurrent(job: job, stage: .completion) else {
+                    throw JobRepositoryError.staleCompletionAcknowledgment
+                }
+            } catch let error as JobRepositoryError {
+                throw error
+            } catch {
+                throw JobRepositoryError.corruptCompletionAcknowledgment
             }
         }
 

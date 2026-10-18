@@ -6,6 +6,18 @@ enum AcknowledgmentMethod: String, Codable {
     case customerUnavailable
 }
 
+enum AcknowledgmentStage: String, Codable {
+    case preService
+    case completion
+
+    var confirmationText: String {
+        switch self {
+        case .preService: AcknowledgmentRecord.confirmationText
+        case .completion: AcknowledgmentRecord.completionConfirmationText
+        }
+    }
+}
+
 struct SignaturePoint: Codable, Equatable {
     var x: Double
     var y: Double
@@ -17,6 +29,7 @@ struct SignatureStroke: Codable, Equatable {
 
 struct AcknowledgmentRecord: Codable, Equatable {
     static let confirmationText = "I have reviewed the visible vehicle condition and the selected services recorded here before work begins."
+    static let completionConfirmationText = "I have reviewed the completed service and the final vehicle condition recorded here."
 
     var method: AcknowledgmentMethod
     var customerName: String
@@ -27,6 +40,39 @@ struct AcknowledgmentRecord: Codable, Equatable {
     var contentDigest: String
     // Absent in legacy records. Version 2 includes the Before portion of mixed-phase findings.
     var contentDigestVersion: Int? = nil
+}
+
+enum CompletionAcknowledgmentContentDigest {
+    static func make(for job: JobRecord, document: CaptureDocument) throws -> String {
+        let content = CompletionContent(
+            jobID: job.id,
+            customerName: job.customerName,
+            customerPhone: job.customerPhone,
+            customerEmail: job.customerEmail,
+            vehicleLabel: job.vehicleLabel,
+            plate: job.plate,
+            color: job.color,
+            serviceName: job.serviceName,
+            serviceLocation: job.location,
+            capture: document
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        return SHA256.hash(data: try encoder.encode(content)).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+private struct CompletionContent: Codable {
+    var jobID: UUID
+    var customerName: String
+    var customerPhone: String?
+    var customerEmail: String?
+    var vehicleLabel: String
+    var plate: String
+    var color: String
+    var serviceName: String
+    var serviceLocation: String?
+    var capture: CaptureDocument
 }
 
 enum AcknowledgmentContentDigest {

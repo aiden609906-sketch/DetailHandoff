@@ -551,6 +551,7 @@ private final class BackupFixture {
         job.captureData = try JSONEncoder().encode(capture)
         try context.save()
         try AcknowledgmentRepository(context: context).sign(job: job, name: "Ada Signed", strokes: [SignatureStroke(points: [SignaturePoint(x: 0.1, y: 0.2), SignaturePoint(x: 0.8, y: 0.6)])])
+        try AcknowledgmentRepository(context: context).markUnavailable(job: job, stage: .completion, reason: "Completion confirmed remotely")
         _ = try reports.seal(job: job, business: business)
     }
 

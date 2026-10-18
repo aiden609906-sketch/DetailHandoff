@@ -37,24 +37,30 @@ enum ReportRenderer {
                 canvas.text("Notes", style: .heading)
                 canvas.text(snapshot.notes.isEmpty ? "None recorded" : snapshot.notes)
 
-                for phase in CapturePhase.allCases {
+                for slot in snapshot.capture.slots {
                     canvas.newPage()
-                    let phaseName = phase == .before ? "Before" : "After"
-                    canvas.text("\(phaseName) evidence", style: .title)
-                    for slot in snapshot.capture.slots {
-                        canvas.text("\(phaseName) / \(slot.name)", style: .heading)
-                        let photos = snapshot.capture.photos.filter { $0.phase == phase && $0.slotID == slot.id }
-                        let skips = snapshot.capture.skips.filter { $0.phase == phase && $0.slotID == slot.id }
-                        for skip in skips { canvas.text("Skipped: \(skip.reason)") }
-                        if photos.isEmpty && skips.isEmpty { canvas.text("No photo recorded (optional view)") }
-                        for photo in photos {
-                            // Keep ordinary captions with their image when they fit on one page.
-                            canvas.ensureSpace(340)
-                            canvas.text("\(phaseName) / \(slot.name)\nPhoto: \(photo.id.uuidString)\nCaptured: \(timestamp(photo.capturedAt))", style: .caption)
-                            try autoreleasepool {
-                                canvas.image(try loadImage(photo.imagePath, media: media), maximumHeight: 260)
-                            }
+                    canvas.text(slot.name, style: .title)
+                    let before = snapshot.capture.photos.filter { $0.phase == .before && $0.slotID == slot.id }
+                    let after = snapshot.capture.photos.filter { $0.phase == .after && $0.slotID == slot.id }
+                    let count = max(before.count, after.count)
+                    if count == 0 {
+                        for phase in CapturePhase.allCases {
+                            let phaseName = phase == .before ? "BEFORE" : "AFTER"
+                            let skips = snapshot.capture.skips.filter { $0.phase == phase && $0.slotID == slot.id }
+                            canvas.text("\(phaseName): \(skips.first.map { "Skipped — \($0.reason)" } ?? "No photo recorded (optional view)")")
                         }
+                    }
+                    for index in 0..<count {
+                        let beforePhoto = index < before.count ? before[index] : nil
+                        let afterPhoto = index < after.count ? after[index] : nil
+                        let beforeImage = try beforePhoto.map { photo in try autoreleasepool { try loadImage(photo.imagePath, media: media) } }
+                        let afterImage = try afterPhoto.map { photo in try autoreleasepool { try loadImage(photo.imagePath, media: media) } }
+                        canvas.photoPair(
+                            before: beforeImage,
+                            after: afterImage,
+                            beforeCaption: beforePhoto.map { "Photo: \($0.id.uuidString)\nCaptured: \(timestamp($0.capturedAt))" } ?? "No photo",
+                            afterCaption: afterPhoto.map { "Photo: \($0.id.uuidString)\nCaptured: \(timestamp($0.capturedAt))" } ?? "No photo"
+                        )
                     }
                 }
 
@@ -68,8 +74,22 @@ enum ReportRenderer {
                     canvas.text("Linked photos: \(finding.photoIDs.map(\.uuidString).joined(separator: ", "))", style: .caption)
                 }
 
-                canvas.text("Acknowledgment", style: .title)
-                let acknowledgment = snapshot.acknowledgment
+                renderAcknowledgment(snapshot.acknowledgment, title: "Pre-service acknowledgment", canvas: canvas)
+                if let completion = snapshot.completionAcknowledgment {
+                    renderAcknowledgment(completion, title: "Completion acknowledgment", canvas: canvas)
+                }
+                canvas.text("Disclaimer", style: .heading)
+                canvas.text(snapshot.disclaimer.isEmpty ? "No business disclaimer provided" : snapshot.disclaimer)
+            } catch {
+                renderError = error
+            }
+        }
+        if let renderError { throw renderError }
+        return data
+    }
+
+    private static func renderAcknowledgment(_ acknowledgment: AcknowledgmentRecord, title: String, canvas: ReportCanvas) {
+                canvas.text(title, style: .title)
                 canvas.text(acknowledgment.confirmationText)
                 canvas.text("Name: \(acknowledgment.customerName)\nRecorded: \(timestamp(acknowledgment.recordedAt))")
                 switch acknowledgment.method {
@@ -80,14 +100,6 @@ enum ReportRenderer {
                     canvas.text("CUSTOMER UNAVAILABLE - NO SIGNATURE", style: .heading)
                     canvas.text("Reason: \(acknowledgment.unavailableReason)")
                 }
-                canvas.text("Disclaimer", style: .heading)
-                canvas.text(snapshot.disclaimer.isEmpty ? "No business disclaimer provided" : snapshot.disclaimer)
-            } catch {
-                renderError = error
-            }
-        }
-        if let renderError { throw renderError }
-        return data
     }
 
     private static func loadImage(_ path: String, media: MediaStore) throws -> UIImage {
@@ -202,6 +214,38 @@ private final class ReportCanvas {
         ensureSpace(size.height + 12)
         image.draw(in: CGRect(x: left + (width - size.width) / 2, y: y, width: size.width, height: size.height))
         y += size.height + 12
+    }
+
+    func photoPair(before: UIImage?, after: UIImage?, beforeCaption: String, afterCaption: String) {
+        ensureSpace(300)
+        let columnWidth = (width - 16) / 2
+        let startY = y
+        drawLabel("BEFORE", x: left, width: columnWidth)
+        drawLabel("AFTER", x: left + columnWidth + 16, width: columnWidth)
+        let imageY = startY + 24
+        drawPairedImage(before, x: left, y: imageY, width: columnWidth, height: 190)
+        drawPairedImage(after, x: left + columnWidth + 16, y: imageY, width: columnWidth, height: 190)
+        drawCaption(beforeCaption, x: left, y: imageY + 198, width: columnWidth)
+        drawCaption(afterCaption, x: left + columnWidth + 16, y: imageY + 198, width: columnWidth)
+        y = startY + 278
+    }
+
+    private func drawLabel(_ value: String, x: CGFloat, width: CGFloat) {
+        (value as NSString).draw(in: CGRect(x: x, y: y, width: width, height: 18), withAttributes: [.font: UIFont.boldSystemFont(ofSize: 12), .foregroundColor: UIColor.black])
+    }
+
+    private func drawPairedImage(_ image: UIImage?, x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
+        let rect = CGRect(x: x, y: y, width: width, height: height)
+        UIColor.systemGray6.setFill()
+        context.cgContext.fill(rect)
+        guard let image else { return }
+        let scale = min(width / image.size.width, height / image.size.height)
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        image.draw(in: CGRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height))
+    }
+
+    private func drawCaption(_ value: String, x: CGFloat, y: CGFloat, width: CGFloat) {
+        (value as NSString).draw(in: CGRect(x: x, y: y, width: width, height: 64), withAttributes: [.font: UIFont.systemFont(ofSize: 8), .foregroundColor: UIColor.darkGray])
     }
 
     func signature(_ strokes: [SignatureStroke]) {

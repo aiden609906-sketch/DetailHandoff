@@ -105,24 +105,33 @@ final class BackupService {
         NotificationCenter.default.post(name: .evidenceStoreRestored, object: context.container)
     }
 
-    func exportPhotos(for job: JobRecord) throws -> FileWrapper {
+    func exportPhotosZip(for job: JobRecord) throws -> Data {
         let capture = try CaptureRepository(context: context, media: media).document(for: job)
         var entries: [PhotoExportEntry] = []
-        var files: [String: FileWrapper] = [:]
-        for (index, photo) in capture.photos.enumerated() {
+        var archiveEntries: [ZipArchive.Entry] = []
+        var counts: [String: Int] = [:]
+        for photo in capture.photos {
             let bytes = try media.readRegularAsset(at: photo.imagePath)
             guard UIImage(data: bytes)?.cgImage != nil,
                   let slot = capture.slots.first(where: { $0.id == photo.slotID }) else { throw BackupError.invalidPackage("unreadable photo") }
-            let filename = "\(photo.phase.rawValue)-\(index + 1)-\(photo.id.uuidString).jpg"
-            files[filename] = FileWrapper(regularFileWithContents: bytes)
+            let folder = "\(photo.phase.rawValue)/\(safePathComponent(slot.id))"
+            counts[folder, default: 0] += 1
+            let filename = String(format: "%@/%02d.jpg", folder, counts[folder]!)
+            archiveEntries.append(.init(path: filename, data: bytes))
             entries.append(PhotoExportEntry(photoID: photo.id, phase: photo.phase, slotID: slot.id, slotName: slot.name, capturedAt: photo.capturedAt, filename: filename, sha256: BackupPackage.digest(bytes)))
         }
         let manifest = PhotoExportManifest(jobID: job.id, vehicleLabel: job.vehicleLabel, photos: entries)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        files["manifest.json"] = FileWrapper(regularFileWithContents: try encoder.encode(manifest))
-        return FileWrapper(directoryWithFileWrappers: files)
+        archiveEntries.append(.init(path: "manifest.json", data: try encoder.encode(manifest)))
+        return ZipArchive.make(entries: archiveEntries)
+    }
+
+    private func safePathComponent(_ value: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let result = value.lowercased().unicodeScalars.map { allowed.contains($0) ? Character(String($0)) : "-" }
+        return String(result).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
     }
 
     private func mergedLedger(incoming: BackupManifest, currentProfiles: [BusinessProfile], currentJobs: [JobRecord], context: ModelContext) throws -> ReportNumberLedger {

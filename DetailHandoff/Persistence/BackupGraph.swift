@@ -22,6 +22,7 @@ struct BackupGraph {
     enum AssetKind: Equatable { case image, pdf(String) }
     private(set) var assets: [String: AssetKind] = [:]
     private(set) var currentAcknowledgments: Set<UUID> = []
+    private(set) var currentCompletionAcknowledgments: Set<UUID> = []
 
     init(manifest: BackupManifest, context: ModelContext, media: MediaStore) throws {
         guard manifest.schemaVersion == 1 else { throw BackupError.invalidPackage("unsupported schema version") }
@@ -58,6 +59,12 @@ struct BackupGraph {
                     currentAcknowledgments.insert(job.id)
                 }
             }
+            if let completion = try acknowledgments.record(for: job, stage: .completion) {
+                try validateDigest(completion.contentDigest)
+                if completion.contentDigest == (try CompletionAcknowledgmentContentDigest.make(for: job, document: capture)) {
+                    currentCompletionAcknowledgments.insert(job.id)
+                }
+            }
             var numberLedger = ReportNumberLedger()
             for report in try reports.versions(for: job) {
                 try numberLedger.observe(reportNumber: report.reportNumber)
@@ -78,6 +85,12 @@ struct BackupGraph {
                 guard let acknowledgment = try acknowledgments.record(for: snapshotJob),
                       acknowledgment.contentDigest == (try AcknowledgmentContentDigest.makeForFrozenRecord(acknowledgment, job: snapshotJob, document: frozenCapture)) else {
                     throw BackupError.invalidPackage("invalid frozen report acknowledgment")
+                }
+                if report.snapshot.completionAcknowledgment != nil {
+                    guard let completion = try acknowledgments.record(for: snapshotJob, stage: .completion),
+                          completion.contentDigest == (try CompletionAcknowledgmentContentDigest.make(for: snapshotJob, document: frozenCapture)) else {
+                        throw BackupError.invalidPackage("invalid frozen completion acknowledgment")
+                    }
                 }
                 if let logo = report.snapshot.logoImagePath { try add(logo, kind: .image) }
                 try add(report.pdfPath, kind: .pdf(report.sha256))
@@ -109,6 +122,7 @@ struct BackupGraph {
                   location: snapshot.serviceLocation, createdAt: snapshot.createdAt,
                   captureData: try JSONEncoder().encode(snapshot.capture),
                   acknowledgmentData: try JSONEncoder().encode(snapshot.acknowledgment),
+                  completionAcknowledgmentData: try snapshot.completionAcknowledgment.map { try JSONEncoder().encode($0) },
                   serviceStartedAt: snapshot.serviceStartedAt, serviceFinishedAt: snapshot.serviceFinishedAt)
     }
 

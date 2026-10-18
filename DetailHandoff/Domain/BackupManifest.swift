@@ -79,6 +79,7 @@ struct BackupJobDTO: Codable, Equatable {
     var deletedAt: Date?
     var captureData: Data?
     var acknowledgmentData: Data?
+    var completionAcknowledgmentData: Data?
     var reportsData: Data?
     var serviceStartedAt: Date?
     var serviceFinishedAt: Date?
@@ -101,6 +102,7 @@ struct BackupJobDTO: Codable, Equatable {
         deletedAt = job.deletedAt
         captureData = job.captureData
         acknowledgmentData = job.acknowledgmentData
+        completionAcknowledgmentData = job.completionAcknowledgmentData
         reportsData = job.reportsData
         serviceStartedAt = job.serviceStartedAt
         serviceFinishedAt = job.serviceFinishedAt
@@ -130,6 +132,7 @@ struct BackupJobDTO: Codable, Equatable {
         job.deletedAt = deletedAt
         job.captureData = captureData
         job.acknowledgmentData = acknowledgmentData
+        job.completionAcknowledgmentData = completionAcknowledgmentData
         job.reportsData = reportsData
         job.serviceStartedAt = serviceStartedAt
         job.serviceFinishedAt = serviceFinishedAt

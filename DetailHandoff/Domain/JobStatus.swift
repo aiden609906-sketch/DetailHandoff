@@ -6,6 +6,7 @@ enum JobStatus: String, Codable, CaseIterable, Identifiable {
     case awaitingAcknowledgment
     case inProgress
     case afterCapture
+    case awaitingCompletionAcknowledgment
     case review
     case finalized
     case archived
@@ -18,7 +19,8 @@ enum JobStatus: String, Codable, CaseIterable, Identifiable {
         case .beforeCapture: .awaitingAcknowledgment
         case .awaitingAcknowledgment: .inProgress
         case .inProgress: .afterCapture
-        case .afterCapture: .review
+        case .afterCapture: .awaitingCompletionAcknowledgment
+        case .awaitingCompletionAcknowledgment: .review
         case .review: .finalized
         case .finalized: .archived
         case .archived: nil
@@ -36,6 +38,7 @@ enum JobStatus: String, Codable, CaseIterable, Identifiable {
         case .awaitingAcknowledgment: "Awaiting acknowledgment"
         case .inProgress: "In progress"
         case .afterCapture: "After photos"
+        case .awaitingCompletionAcknowledgment: "Awaiting completion acknowledgment"
         case .review: "Ready to review"
         case .finalized: "Finalized"
         case .archived: "Archived"

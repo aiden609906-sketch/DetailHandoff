@@ -85,6 +85,8 @@ struct ReportView: View {
                 CaptureView(job: job, phase: phase)
             case .acknowledgment:
                 AcknowledgmentView(job: job)
+            case .completionAcknowledgment:
+                AcknowledgmentView(job: job, stage: .completion)
             }
         }
     }
@@ -128,6 +130,13 @@ struct ReportView: View {
                 AcknowledgmentView(job: job)
             } label: {
                 Label("Review customer acknowledgment", systemImage: "signature")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            NavigationLink {
+                AcknowledgmentView(job: job, stage: .completion)
+            } label: {
+                Label("Review completion acknowledgment", systemImage: "signature")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
@@ -266,6 +275,9 @@ struct ReportView: View {
         case ReportRepositoryError.missingAcknowledgment, ReportRepositoryError.staleAcknowledgment:
             suggestedRepair = .acknowledgment
             present(message: "Record a current customer acknowledgment before sealing this report.")
+        case ReportRepositoryError.missingCompletionAcknowledgment, ReportRepositoryError.staleCompletionAcknowledgment:
+            suggestedRepair = .completionAcknowledgment
+            present(message: "Record a current completion acknowledgment before sealing this report.")
         case let error as LocalizedError:
             present(message: error.errorDescription ?? "The report could not be completed.")
         default:
@@ -292,11 +304,13 @@ private struct ReportShareItem: Identifiable {
 private enum ReportRepairDestination: Identifiable, Hashable {
     case capture(CapturePhase)
     case acknowledgment
+    case completionAcknowledgment
 
     var id: String {
         switch self {
         case let .capture(phase): "capture-\(phase.rawValue)"
         case .acknowledgment: "acknowledgment"
+        case .completionAcknowledgment: "completion-acknowledgment"
         }
     }
 
@@ -304,6 +318,7 @@ private enum ReportRepairDestination: Identifiable, Hashable {
         switch self {
         case let .capture(phase): "Open \(phase == .before ? "Before" : "After") capture"
         case .acknowledgment: "Open acknowledgment"
+        case .completionAcknowledgment: "Open completion acknowledgment"
         }
     }
 }

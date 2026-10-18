@@ -27,6 +27,8 @@ struct WorkflowStepContent: View {
             "The service is underway."
         case .afterCapture:
             "Capture the finished vehicle from the same positions."
+        case .awaitingCompletionAcknowledgment:
+            "Review the completed service and final condition with the customer."
         case .review:
             "Check the record before creating the report."
         case .finalized:

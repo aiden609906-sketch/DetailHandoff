@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 struct PhotoExportView: View {
     @Environment(\.modelContext) private var modelContext
     let job: JobRecord
-    @State private var document: EvidencePackageDocument?
+    @State private var document: ZipExportDocument?
     @State private var exporting = false
     @State private var resultMessage: String?
 
@@ -15,14 +15,14 @@ struct PhotoExportView: View {
             Button("Export photos to Files", systemImage: "square.and.arrow.up") {
                 do {
                     let service = BackupService(context: modelContext, media: MediaStore(root: MediaStore.defaultRoot))
-                    document = EvidencePackageDocument(package: try service.exportPhotos(for: job))
+                    document = ZipExportDocument(data: try service.exportPhotosZip(for: job))
                     exporting = true
                 } catch { resultMessage = "Photo export failed: \(error.localizedDescription)" }
             }
             .accessibilityIdentifier("job.exportPhotos")
         }
         .navigationTitle("Export photos")
-        .fileExporter(isPresented: $exporting, document: document, contentType: .detailHandoffPhotos, defaultFilename: "DetailHandoff-photos-\(job.id.uuidString)") { result in
+        .fileExporter(isPresented: $exporting, document: document, contentType: .zip, defaultFilename: "DetailHandoff-photos-\(job.id.uuidString).zip") { result in
             document = nil
             switch result {
             case .success: resultMessage = "Photo export complete."

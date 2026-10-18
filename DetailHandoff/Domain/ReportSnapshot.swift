@@ -22,9 +22,10 @@ struct ReportSnapshot: Codable, Equatable {
     var serviceFinishedAt: Date?
     var capture: CaptureDocument
     var acknowledgment: AcknowledgmentRecord
+    var completionAcknowledgment: AcknowledgmentRecord? = nil
 
     @MainActor
-    init(job: JobRecord, business: BusinessProfile, capture: CaptureDocument, acknowledgment: AcknowledgmentRecord) {
+    init(job: JobRecord, business: BusinessProfile, capture: CaptureDocument, acknowledgment: AcknowledgmentRecord, completionAcknowledgment: AcknowledgmentRecord? = nil) {
         jobID = job.id
         businessName = business.businessName
         businessPhone = business.phone
@@ -45,6 +46,7 @@ struct ReportSnapshot: Codable, Equatable {
         serviceFinishedAt = job.serviceFinishedAt
         self.capture = capture
         self.acknowledgment = acknowledgment
+        self.completionAcknowledgment = completionAcknowledgment
     }
 
     /// Unlinked originals, thumbnails and logos must remain available for report history/backups.

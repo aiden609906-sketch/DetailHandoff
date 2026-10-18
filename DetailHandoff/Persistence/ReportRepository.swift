@@ -11,6 +11,8 @@ enum ReportRepositoryError: Error, Equatable {
     case incompleteCapture(CapturePhase)
     case missingAcknowledgment
     case staleAcknowledgment
+    case missingCompletionAcknowledgment
+    case staleCompletionAcknowledgment
     case numberExhausted
     case versionExhausted
     case invalidSaveContext
@@ -157,7 +159,13 @@ final class ReportRepository {
         // The comparison above proved the current scope, even for a still-current legacy record.
         // Store that scope in the new snapshot without changing the live record or its signing time.
         acknowledgment.contentDigestVersion = 2
-        return ReportSnapshot(job: job, business: business, capture: document, acknowledgment: acknowledgment)
+        guard let completionAcknowledgment = try acknowledgmentRepository.record(for: job, stage: .completion) else {
+            throw ReportRepositoryError.missingCompletionAcknowledgment
+        }
+        guard completionAcknowledgment.contentDigest == (try CompletionAcknowledgmentContentDigest.make(for: job, document: document)) else {
+            throw ReportRepositoryError.staleCompletionAcknowledgment
+        }
+        return ReportSnapshot(job: job, business: business, capture: document, acknowledgment: acknowledgment, completionAcknowledgment: completionAcknowledgment)
     }
 
     private func nextVersion(_ history: [ReportVersion]) throws -> Int {
