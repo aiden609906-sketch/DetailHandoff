@@ -130,7 +130,6 @@ jobs:
           -resultBundlePath UITestResults-iPhone.xcresult
           CODE_SIGNING_ALLOWED=NO
       - name: Run UI tests on selected iPad
-        if: always()
         timeout-minutes: 25
         run: >-
           xcodebuild
