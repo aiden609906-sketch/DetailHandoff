@@ -22,7 +22,7 @@ struct PhotoExportView: View {
             .accessibilityIdentifier("job.exportPhotos")
         }
         .navigationTitle("Export photos")
-        .fileExporter(isPresented: $exporting, document: document, contentType: .zip, defaultFilename: "DetailHandoff-photos-\(job.id.uuidString).zip") { result in
+        .fileExporter(isPresented: $exporting, document: document, contentType: .zip, defaultFilename: "DetailHandoff-photos-\(job.id.uuidString)") { result in
             document = nil
             switch result {
             case .success: resultMessage = "Photo export complete."

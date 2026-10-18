@@ -45,6 +45,7 @@ final class ReportRepositoryTests: XCTestCase {
         finding.photoIDs.append(try XCTUnwrap(document.photos.first { $0.phase == .after }).id)
         try capture.saveFinding(on: fixture.job, finding: finding)
         XCTAssertTrue(try acknowledgments.isCurrent(job: fixture.job))
+        try acknowledgments.markUnavailable(job: fixture.job, stage: .completion, reason: "Completion confirmed after update")
         let version = try fixture.repository.seal(job: fixture.job, business: fixture.business)
         XCTAssertEqual(version.snapshot.acknowledgment.contentDigestVersion, 2)
         XCTAssertEqual(version.snapshot.acknowledgment.recordedAt, legacy.recordedAt)
@@ -70,6 +71,7 @@ final class ReportRepositoryTests: XCTestCase {
         }
         XCTAssertEqual(try fixture.repository.versions(for: fixture.job), [first])
         try AcknowledgmentRepository(context: fixture.container.mainContext).markUnavailable(job: fixture.job, reason: "Customer away during correction")
+        try AcknowledgmentRepository(context: fixture.container.mainContext).markUnavailable(job: fixture.job, stage: .completion, reason: "Completion reconfirmed after correction")
         let second = try fixture.repository.seal(job: fixture.job, business: fixture.business)
         XCTAssertEqual(second.version, 2)
         XCTAssertEqual(second.snapshot.capture.photos.count, 2)
@@ -89,7 +91,7 @@ final class ReportRepositoryTests: XCTestCase {
         let pdf = try XCTUnwrap(PDFDocument(data: data))
         let content = try XCTUnwrap(pdf.string)
         XCTAssertGreaterThan(pdf.pageCount, 10)
-        for required in ["North Star Detail", "Marcus Lee", "Honda Accord", "7HKL248", "Pearl White", "Full detail", "Service started", "Service finished", "END-OF-LONG-NOTES", "Scratch", "Minor", "Door edge mark", "Acknowledgment", "visible vehicle condition", "Evidence only", version.reportNumber, "Version 1"] {
+        for required in ["North Star Detail", "Marcus Lee", "Honda Accord", "7HKL248", "Pearl White", "Full detail", "Service started", "Service finished", "END-OF-LONG-NOTES", "Scratch", "Minor", "Door edge mark", "acknowledgment", "visible vehicle condition", "Evidence only", version.reportNumber, "Version 1"] {
             XCTAssertTrue(content.contains(required), "Missing PDF text: \(required)")
         }
         for phase in ["Before", "After"] {
@@ -275,6 +277,7 @@ final class ReportRepositoryTests: XCTestCase {
         fourthJob.captureData = try JSONEncoder().encode(fixture.document)
         fresh.insert(fourthJob)
         try AcknowledgmentRepository(context: fresh).markUnavailable(job: fourthJob, reason: "Customer away")
+        try AcknowledgmentRepository(context: fresh).markUnavailable(job: fourthJob, stage: .completion, reason: "Completion confirmed remotely")
         let repository = ReportRepository(context: fresh, media: fixture.media, now: { fixture.now }, calendar: fixture.calendar)
         XCTAssertEqual(try repository.seal(job: fourthJob, business: business).reportNumber, "DH-20260904-0004")
         let secondFresh = ModelContext(fixture.container)

@@ -427,6 +427,7 @@ private final class TrashFixture {
         target.captureData = try JSONEncoder().encode(capture)
         target.status = .review
         try AcknowledgmentRepository(context: context).markUnavailable(job: target, reason: "Absent")
+        try AcknowledgmentRepository(context: context).markUnavailable(job: target, stage: .completion, reason: "Completion confirmed remotely")
     }
 
     func seal() throws -> ReportVersion {

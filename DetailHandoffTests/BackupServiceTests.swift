@@ -56,6 +56,7 @@ final class BackupServiceTests: XCTestCase {
         report.snapshot.acknowledgment.contentDigestVersion = nil
         report.snapshot.acknowledgment.contentDigest = try AcknowledgmentContentDigest.make(
             for: BackupGraph.snapshotJob(report.snapshot), document: legacySignedContent)
+        report.snapshot.completionAcknowledgment = nil
         f.job.captureData = try JSONEncoder().encode(report.snapshot.capture)
         f.job.acknowledgmentData = try JSONEncoder().encode(report.snapshot.acknowledgment)
         f.job.reportsData = try JSONEncoder().encode([report])
@@ -92,6 +93,7 @@ final class BackupServiceTests: XCTestCase {
         var actual = BackupJobDTO(restored)
         actual.captureData = original.captureData
         actual.acknowledgmentData = original.acknowledgmentData
+        actual.completionAcknowledgmentData = original.completionAcknowledgmentData
         actual.reportsData = original.reportsData
         XCTAssertEqual(actual, original)
         let trash = try XCTUnwrap(try fresh.fetch(FetchDescriptor<JobRecord>()).first { $0.id != f.job.id })
@@ -125,6 +127,7 @@ final class BackupServiceTests: XCTestCase {
         visibleSnapshot.logoImagePath = oldReport.snapshot.logoImagePath
         visibleSnapshot.capture = oldReport.snapshot.capture
         visibleSnapshot.acknowledgment.contentDigest = oldReport.snapshot.acknowledgment.contentDigest
+        visibleSnapshot.completionAcknowledgment?.contentDigest = oldReport.snapshot.completionAcknowledgment?.contentDigest ?? ""
         XCTAssertEqual(visibleSnapshot, oldReport.snapshot)
         var visibleReport = report
         visibleReport.pdfPath = oldReport.pdfPath
