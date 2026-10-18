@@ -261,6 +261,26 @@ final class JobRepositoryTests: XCTestCase {
     }
 
     @MainActor
+    func testAdvanceFromCompletionAcknowledgmentRequiresCurrentCompletionRecord() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        job.status = .awaitingCompletionAcknowledgment
+        job.captureData = try JSONEncoder().encode(completedCaptureDocument(for: .after))
+        let repository = JobRepository(context: container.mainContext)
+
+        XCTAssertThrowsError(try repository.advance(job)) {
+            XCTAssertEqual($0 as? JobRepositoryError, .missingCompletionAcknowledgment)
+        }
+        try AcknowledgmentRepository(context: container.mainContext).markUnavailable(
+            job: job,
+            stage: .completion,
+            reason: "Customer collected vehicle remotely"
+        )
+        try repository.advance(job)
+        XCTAssertEqual(job.status, .review)
+    }
+
+    @MainActor
     func testAdvanceRejectsArchivedJobWithNoNextStatusError() throws {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(

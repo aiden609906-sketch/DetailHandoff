@@ -6,6 +6,28 @@ import XCTest
 @testable import DetailHandoff
 
 final class ReportRepositoryTests: XCTestCase {
+    @MainActor
+    func testPDFPairsBeforeAndAfterBySlotAndIncludesBothAcknowledgments() throws {
+        let fixture = try ReportFixture(photoCount: 1, signed: true)
+        defer { fixture.cleanUp() }
+        let capture = CaptureRepository(context: fixture.container.mainContext, media: fixture.media)
+        try capture.addPhoto(to: fixture.job, data: ReportFixture.imageData(index: 2), slotID: "front", phase: .after)
+        try AcknowledgmentRepository(context: fixture.container.mainContext).sign(
+            job: fixture.job,
+            stage: .completion,
+            name: "Completion signer",
+            strokes: [SignatureStroke(points: [SignaturePoint(x: 0.2, y: 0.8), SignaturePoint(x: 0.8, y: 0.2)])]
+        )
+
+        let data = try fixture.repository.preview(job: fixture.job, business: fixture.business)
+        let pdf = try XCTUnwrap(PDFDocument(data: data))
+        let pages = (0..<pdf.pageCount).compactMap { pdf.page(at: $0)?.string }
+        XCTAssertTrue(pages.contains { $0.contains("Front") && $0.contains("BEFORE") && $0.contains("AFTER") })
+        let text = pages.joined(separator: "\n")
+        XCTAssertTrue(text.contains("Pre-service acknowledgment"))
+        XCTAssertTrue(text.contains("Completion acknowledgment"))
+        XCTAssertTrue(text.contains("Completion signer"))
+    }
     // A still-current legacy Before-only signature can gain After links without breaking new backup history.
     @MainActor
     func testSealingCurrentLegacyAcknowledgmentWithAfterLinkRecordsCurrentDigestScope() throws {

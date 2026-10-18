@@ -4,6 +4,41 @@ import XCTest
 @testable import DetailHandoff
 
 final class AcknowledgmentRepositoryTests: XCTestCase {
+    @MainActor
+    func testPreServiceAndCompletionAcknowledgmentsPersistIndependently() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        job.captureData = try JSONEncoder().encode(completedBothPhaseDocument())
+        let repository = AcknowledgmentRepository(context: container.mainContext)
+
+        try repository.sign(job: job, stage: .preService, name: "Before signer", strokes: validStrokes())
+        let before = try XCTUnwrap(try repository.record(for: job, stage: .preService))
+        let completionStrokes = [SignatureStroke(points: [SignaturePoint(x: 0.2, y: 0.8), SignaturePoint(x: 0.9, y: 0.1)])]
+        try repository.sign(job: job, stage: .completion, name: "Completion signer", strokes: completionStrokes)
+
+        XCTAssertEqual(try repository.record(for: job, stage: .preService), before)
+        XCTAssertEqual(try repository.record(for: job, stage: .completion)?.customerName, "Completion signer")
+        XCTAssertEqual(try repository.record(for: job, stage: .completion)?.strokes, completionStrokes)
+        XCTAssertNotEqual(job.acknowledgmentData, job.completionAcknowledgmentData)
+    }
+
+    @MainActor
+    func testAfterEvidenceInvalidatesOnlyCompletionAcknowledgment() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        var document = completedBothPhaseDocument()
+        job.captureData = try JSONEncoder().encode(document)
+        let repository = AcknowledgmentRepository(context: container.mainContext)
+        try repository.markUnavailable(job: job, stage: .preService, reason: "Before customer away")
+        try repository.markUnavailable(job: job, stage: .completion, reason: "Completion customer away")
+
+        document.skips.removeAll { $0.phase == .after && $0.slotID == "front" }
+        document.photos.append(CapturedPhoto(slotID: "front", phase: .after, imagePath: "changed-after.jpg", thumbnailPath: "changed-after-thumb.jpg"))
+        job.captureData = try JSONEncoder().encode(document)
+
+        XCTAssertTrue(try repository.isCurrent(job: job, stage: .preService))
+        XCTAssertFalse(try repository.isCurrent(job: job, stage: .completion))
+    }
     // Unknown digest schemes cannot be treated as legacy/current acknowledgment evidence.
     @MainActor
     func testRecordRejectsUnsupportedDigestVersion() throws {
@@ -281,6 +316,12 @@ final class AcknowledgmentRepositoryTests: XCTestCase {
     private func beforeCompleteDocument() -> CaptureDocument {
         CaptureDocument(skips: CaptureSlot.standard.map {
             CaptureSkip(slotID: $0.id, phase: .before, reason: "Not accessible")
+        })
+    }
+
+    private func completedBothPhaseDocument() -> CaptureDocument {
+        CaptureDocument(skips: CapturePhase.allCases.flatMap { phase in
+            CaptureSlot.standard.map { CaptureSkip(slotID: $0.id, phase: phase, reason: "Not accessible") }
         })
     }
 }

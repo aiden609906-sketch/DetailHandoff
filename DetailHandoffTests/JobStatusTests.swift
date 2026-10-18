@@ -9,6 +9,7 @@ final class JobStatusTests: XCTestCase {
             .awaitingAcknowledgment,
             .inProgress,
             .afterCapture,
+            .awaitingCompletionAcknowledgment,
             .review,
             .finalized,
             .archived
@@ -28,6 +29,7 @@ final class JobStatusTests: XCTestCase {
     func testDisplayNamesAreCustomerReadableEnglish() {
         XCTAssertEqual(JobStatus.beforeCapture.displayName, "Before photos")
         XCTAssertEqual(JobStatus.awaitingAcknowledgment.displayName, "Awaiting acknowledgment")
+        XCTAssertEqual(JobStatus.awaitingCompletionAcknowledgment.displayName, "Awaiting completion acknowledgment")
         XCTAssertEqual(JobStatus.finalized.displayName, "Finalized")
     }
 }

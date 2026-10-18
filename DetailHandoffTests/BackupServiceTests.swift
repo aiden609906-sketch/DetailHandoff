@@ -335,20 +335,22 @@ final class BackupServiceTests: XCTestCase {
 
     // Catches exporting thumbnails instead of originals or losing phase/slot/date context.
     @MainActor
-    func testPhotoExportIncludesFullBeforeAfterPhotosAndManifest() throws {
+    func testPhotoExportZipIncludesGroupedFullBeforeAfterPhotosAndManifest() throws {
         let f = try BackupFixture()
         defer { f.cleanUp() }
-        let package = try f.service.exportPhotos(for: f.job)
+        let archive = try f.service.exportPhotosZip(for: f.job)
+        let package = try TestZipReader.entries(in: archive)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let manifest = try decoder.decode(PhotoExportManifest.self, from: XCTUnwrap(package.fileWrappers?["manifest.json"]?.regularFileContents))
+        let manifest = try decoder.decode(PhotoExportManifest.self, from: XCTUnwrap(package["manifest.json"]))
         XCTAssertEqual(manifest.jobID, f.job.id)
         XCTAssertEqual(manifest.photos.map(\.phase), [.before, .after])
         XCTAssertEqual(manifest.photos.map(\.slotName), ["Front", "Front"])
         XCTAssertTrue(manifest.photos.allSatisfy { $0.capturedAt == f.date })
+        XCTAssertEqual(manifest.photos.map(\.filename), ["before/front/01.jpg", "after/front/01.jpg"])
         let capture = try CaptureRepository(context: f.context, media: f.media).document(for: f.job)
         for (entry, photo) in zip(manifest.photos, capture.photos) {
-            XCTAssertEqual(package.fileWrappers?[entry.filename]?.regularFileContents, try Data(contentsOf: f.media.url(for: photo.imagePath)))
+            XCTAssertEqual(package[entry.filename], try Data(contentsOf: f.media.url(for: photo.imagePath)))
         }
     }
 
@@ -558,4 +560,40 @@ private final class BackupFixture {
     }
 
     func cleanUp() { try? FileManager.default.removeItem(at: root) }
+}
+
+private enum TestZipReader {
+    static func entries(in archive: Data) throws -> [String: Data] {
+        var offset = 0
+        var result: [String: Data] = [:]
+        while offset + 4 <= archive.count, archive.uint32LE(at: offset) == 0x04034B50 {
+            let compression = archive.uint16LE(at: offset + 8)
+            let size = Int(archive.uint32LE(at: offset + 18))
+            let nameLength = Int(archive.uint16LE(at: offset + 26))
+            let extraLength = Int(archive.uint16LE(at: offset + 28))
+            XCTAssertEqual(compression, 0, "Test reader expects valid stored ZIP entries")
+            let nameStart = offset + 30
+            let dataStart = nameStart + nameLength + extraLength
+            guard dataStart + size <= archive.count,
+                  let name = String(data: archive[nameStart..<(nameStart + nameLength)], encoding: .utf8) else {
+                throw NSError(domain: "TestZipReader", code: 1)
+            }
+            result[name] = Data(archive[dataStart..<(dataStart + size)])
+            offset = dataStart + size
+        }
+        guard archive.uint32LE(at: offset) == 0x02014B50 else {
+            throw NSError(domain: "TestZipReader", code: 2)
+        }
+        return result
+    }
+}
+
+private extension Data {
+    func uint16LE(at offset: Int) -> UInt16 {
+        UInt16(self[offset]) | UInt16(self[offset + 1]) << 8
+    }
+
+    func uint32LE(at offset: Int) -> UInt32 {
+        UInt32(self[offset]) | UInt32(self[offset + 1]) << 8 | UInt32(self[offset + 2]) << 16 | UInt32(self[offset + 3]) << 24
+    }
 }
