@@ -140,6 +140,22 @@ final class WorkflowUITests: XCTestCase {
             require(app.navigationBars["Report"])
             app.buttons["report.seal"].tap()
             confirmSeal()
+            require(app.alerts["Report issue"])
+            app.alerts.buttons["Open completion acknowledgment"].tap()
+            require(app.navigationBars["Acknowledgment"])
+            let staleCompletion = app.staticTexts["acknowledgment.status"]
+            scrollUntilHittable(staleCompletion)
+            XCTAssertTrue(staleCompletion.label.contains("changed"))
+            tapReachable(app.buttons["acknowledgment.replace"])
+            let completionUnavailable = app.buttons["Customer unavailable"]
+            scrollUntilHittable(completionUnavailable)
+            completionUnavailable.tap()
+            app.alerts.textFields.firstMatch.typeText("Customer unavailable for final correction")
+            app.alerts.buttons["Record"].tap()
+            app.navigationBars.buttons.firstMatch.tap()
+            require(app.navigationBars["Report"])
+            app.buttons["report.seal"].tap()
+            confirmSeal()
             require(reportVersion())
             let expectedVersion = revision ? "Version 2" : "Version 1"
             require(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", expectedVersion)).firstMatch)
