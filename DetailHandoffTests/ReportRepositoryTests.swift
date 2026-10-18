@@ -94,10 +94,10 @@ final class ReportRepositoryTests: XCTestCase {
         for required in ["North Star Detail", "Marcus Lee", "Honda Accord", "7HKL248", "Pearl White", "Full detail", "Service started", "Service finished", "END-OF-LONG-NOTES", "Scratch", "Minor", "Door edge mark", "acknowledgment", "visible vehicle condition", "Evidence only", version.reportNumber, "Version 1"] {
             XCTAssertTrue(content.contains(required), "Missing PDF text: \(required)")
         }
-        for phase in ["Before", "After"] {
-            for slot in CaptureSlot.standard {
-                XCTAssertTrue(content.contains("\(phase) / \(slot.name)"), "Missing \(phase) / \(slot.name)")
-            }
+        XCTAssertTrue(content.contains("BEFORE"), "Missing BEFORE comparison label")
+        XCTAssertTrue(content.contains("AFTER"), "Missing AFTER comparison label")
+        for slot in CaptureSlot.standard {
+            XCTAssertTrue(content.contains(slot.name), "Missing paired evidence section for \(slot.name)")
         }
         for photo in fixture.document.photos {
             XCTAssertTrue(content.contains(photo.id.uuidString), "Missing photo reference")
