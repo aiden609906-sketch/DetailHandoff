@@ -177,6 +177,17 @@ enum UITestFixtures {
         try jobs.advance(job)
         try addRequiredImages(to: job, phase: .after, capture: capture)
         try jobs.advance(job)
+        try AcknowledgmentRepository(context: context).sign(
+            job: job,
+            stage: .completion,
+            name: customer,
+            strokes: [SignatureStroke(points: [
+                SignaturePoint(x: 0.15, y: 0.65),
+                SignaturePoint(x: 0.50, y: 0.25),
+                SignaturePoint(x: 0.85, y: 0.60)
+            ])]
+        )
+        try jobs.advance(job)
         return job
     }
 
