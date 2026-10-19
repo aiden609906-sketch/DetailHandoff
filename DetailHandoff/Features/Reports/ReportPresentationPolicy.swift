@@ -21,4 +21,8 @@ enum ReportPresentationPolicy {
     static func canShareStoredVersion(for status: JobStatus) -> Bool {
         canOpenStoredVersion(for: status)
     }
+
+    static func isDraftRevision(status: JobStatus, sealedVersionCount: Int) -> Bool {
+        status == .review && sealedVersionCount > 0
+    }
 }

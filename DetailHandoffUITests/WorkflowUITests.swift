@@ -364,6 +364,7 @@ final class WorkflowUITests: XCTestCase {
         confirmSeal()
         let version = reportVersion()
         XCTAssertTrue(version.waitForExistence(timeout: 12), "Sealing a valid fixture should create a stored version.")
+        require(app.descendants(matching: .any).matching(identifier: "report.sealedConfirmation").firstMatch)
         capture("sealed-version")
 
         let share = scrollUntilHittable(
@@ -392,6 +393,7 @@ final class WorkflowUITests: XCTestCase {
         require(version)
         app.buttons["report.createRevision"].tap()
         require(app.navigationBars["Report"])
+        require(app.descendants(matching: .any).matching(identifier: "report.draftRevisionNotice").firstMatch)
         XCTAssertTrue(version.exists, "Existing report history must stay reachable while a revision is in progress.")
         capture("revision-history")
     }

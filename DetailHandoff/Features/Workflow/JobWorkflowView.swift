@@ -8,6 +8,8 @@ struct JobWorkflowView: View {
     let job: JobRecord
 
     @State private var advanceErrorMessage: String?
+    @State private var workflowContentMetrics = WorkflowScrollContentMetrics()
+    @State private var workflowViewportWidth: CGFloat = 0
 
     var body: some View {
         ScrollView {
@@ -24,13 +26,7 @@ struct JobWorkflowView: View {
                     WorkflowActionLabel("Export job photos", systemImage: "square.and.arrow.up")
                 }
 
-                if job.status != .archived {
-                    Button(action: advanceJob) {
-                        WorkflowActionLabel(nextStepTitle, systemImage: "arrow.right.circle.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                }
+                primaryWorkflowAction
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(AppTheme.spacing16)
@@ -70,7 +66,7 @@ struct JobWorkflowView: View {
             Text("Workflow progress")
                 .font(.headline)
 
-            ScrollView(.horizontal) {
+            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: AppTheme.spacing8) {
                     ForEach(JobStatus.allCases) { status in
                         let stepState = WorkflowProgressLayout.state(
@@ -101,9 +97,59 @@ struct JobWorkflowView: View {
                     }
                 }
                 .padding(.vertical, 2)
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.preference(
+                            key: WorkflowScrollContentMetricsPreferenceKey.self,
+                            value: WorkflowScrollContentMetrics(
+                                width: proxy.size.width,
+                                minX: proxy.frame(in: .named("workflowProgressScroll")).minX
+                            )
+                        )
+                    }
+                }
             }
-            .scrollIndicators(.visible)
+            .coordinateSpace(name: "workflowProgressScroll")
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: WorkflowScrollViewportWidthPreferenceKey.self,
+                        value: proxy.size.width
+                    )
+                }
+            }
+            .onPreferenceChange(WorkflowScrollContentMetricsPreferenceKey.self) {
+                workflowContentMetrics = $0
+            }
+            .onPreferenceChange(WorkflowScrollViewportWidthPreferenceKey.self) {
+                workflowViewportWidth = $0
+            }
+
+            persistentScrollIndicator
         }
+    }
+
+    private var persistentScrollIndicator: some View {
+        GeometryReader { proxy in
+            let metrics = WorkflowProgressLayout.scrollIndicatorMetrics(
+                contentWidth: workflowContentMetrics.width,
+                viewportWidth: workflowViewportWidth,
+                contentMinX: workflowContentMetrics.minX,
+                trackWidth: proxy.size.width
+            )
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.18))
+                Capsule()
+                    .fill(Color.accentColor.opacity(0.75))
+                    .frame(width: metrics.thumbWidth)
+                    .offset(x: metrics.thumbOffset)
+            }
+            .opacity(metrics.isScrollable ? 1 : 0)
+        }
+        .frame(height: 5)
+        .accessibilityHidden(true)
     }
 
     private var customerName: String {
@@ -214,12 +260,27 @@ struct JobWorkflowView: View {
         }
     }
 
-    private var nextStepTitle: String {
-        guard let nextStatus = job.status.next else {
-            return "Continue"
+    @ViewBuilder
+    private var primaryWorkflowAction: some View {
+        switch WorkflowPresentationPolicy.primaryAction(for: job.status) {
+        case let .advance(nextStatus):
+            Button(action: advanceJob) {
+                WorkflowActionLabel("Continue to \(nextStatus.displayName)", systemImage: "arrow.right.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+        case .reviewAndSealCurrentRevision:
+            NavigationLink {
+                ReportView(job: job)
+            } label: {
+                WorkflowActionLabel("Review and seal current revision", systemImage: "checkmark.seal")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .accessibilityIdentifier("workflow.reviewAndSeal")
+        case .none:
+            EmptyView()
         }
-
-        return "Continue to \(nextStatus.displayName)"
     }
 
     private var isShowingAdvanceError: Binding<Bool> {
@@ -270,6 +331,27 @@ struct JobWorkflowView: View {
 
     private func progressColor(for stepState: WorkflowProgressStepState) -> Color {
         stepState == .upcoming ? .secondary.opacity(0.25) : .accentColor
+    }
+}
+
+private struct WorkflowScrollContentMetrics: Equatable {
+    var width: CGFloat = 0
+    var minX: CGFloat = 0
+}
+
+private struct WorkflowScrollContentMetricsPreferenceKey: PreferenceKey {
+    static let defaultValue = WorkflowScrollContentMetrics()
+
+    static func reduce(value: inout WorkflowScrollContentMetrics, nextValue: () -> WorkflowScrollContentMetrics) {
+        value = nextValue()
+    }
+}
+
+private struct WorkflowScrollViewportWidthPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 

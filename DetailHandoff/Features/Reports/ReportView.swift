@@ -14,11 +14,21 @@ struct ReportView: View {
     @State private var errorMessage: String?
     @State private var repairDestination: ReportRepairDestination?
     @State private var suggestedRepair: ReportRepairDestination?
+    @State private var recentlySealedVersion: Int?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppTheme.spacing16) {
                 reportSummary
+
+                if let recentlySealedVersion {
+                    sealedConfirmation(version: recentlySealedVersion)
+                } else if ReportPresentationPolicy.isDraftRevision(
+                    status: job.status,
+                    sealedVersionCount: history.count
+                ) {
+                    draftRevisionNotice
+                }
 
                 if ReportPresentationPolicy.canPreviewDraft(for: job.status) {
                     reviewActions
@@ -106,7 +116,7 @@ struct ReportView: View {
     private var reviewActions: some View {
         VStack(alignment: .leading, spacing: AppTheme.spacing12) {
             Text("Review and seal").font(.headline)
-            Text("Preview is marked draft and does not create a report version.")
+            Text("Preview is marked draft and does not finalize this revision. Seal the report to finalize the job.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -143,6 +153,38 @@ struct ReportView: View {
             .accessibilityIdentifier("report.acknowledgment")
         }
         .reportCard()
+    }
+
+    private var draftRevisionNotice: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Draft revision in progress")
+                    .font(.headline)
+                Text("The sealed versions below are previous versions. Seal this revision to finalize the job.")
+                    .font(.subheadline)
+            }
+        } icon: {
+            Image(systemName: "pencil.and.list.clipboard")
+        }
+        .foregroundStyle(.orange)
+        .reportCard()
+        .accessibilityIdentifier("report.draftRevisionNotice")
+    }
+
+    private func sealedConfirmation(version: Int) -> some View {
+        Label {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Report sealed · Job finalized")
+                    .font(.headline)
+                Text("Version \(version) is saved and the current revision is complete.")
+                    .font(.subheadline)
+            }
+        } icon: {
+            Image(systemName: "checkmark.seal.fill")
+        }
+        .foregroundStyle(.green)
+        .reportCard()
+        .accessibilityIdentifier("report.sealedConfirmation")
     }
 
     private var storedVersions: some View {
@@ -232,7 +274,8 @@ struct ReportView: View {
             return
         }
         do {
-            _ = try ReportRepository(context: modelContext, media: MediaStore(root: MediaStore.defaultRoot)).seal(job: job, business: business)
+            let version = try ReportRepository(context: modelContext, media: MediaStore(root: MediaStore.defaultRoot)).seal(job: job, business: business)
+            recentlySealedVersion = version.version
             reloadHistory()
         } catch {
             present(error: error)
@@ -242,6 +285,7 @@ struct ReportView: View {
     private func createRevision() {
         do {
             try ReportRepository(context: modelContext, media: MediaStore(root: MediaStore.defaultRoot)).beginRevision(job: job)
+            recentlySealedVersion = nil
             reloadHistory()
         } catch {
             present(error: error)

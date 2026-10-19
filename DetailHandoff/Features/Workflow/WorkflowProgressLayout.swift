@@ -37,4 +37,38 @@ enum WorkflowProgressLayout {
 
         return statusIndex == currentIndex ? .current : .upcoming
     }
+
+    static func scrollIndicatorMetrics(
+        contentWidth: CGFloat,
+        viewportWidth: CGFloat,
+        contentMinX: CGFloat,
+        trackWidth: CGFloat
+    ) -> WorkflowScrollIndicatorMetrics {
+        let safeTrackWidth = max(trackWidth, 0)
+        guard contentWidth > viewportWidth, viewportWidth > 0, safeTrackWidth > 0 else {
+            return WorkflowScrollIndicatorMetrics(
+                isScrollable: false,
+                thumbWidth: safeTrackWidth,
+                thumbOffset: 0
+            )
+        }
+
+        let thumbWidth = max(24, safeTrackWidth * viewportWidth / contentWidth)
+        let maximumContentOffset = contentWidth - viewportWidth
+        let contentOffset = min(max(-contentMinX, 0), maximumContentOffset)
+        let maximumThumbOffset = max(safeTrackWidth - thumbWidth, 0)
+        let thumbOffset = maximumThumbOffset * contentOffset / maximumContentOffset
+
+        return WorkflowScrollIndicatorMetrics(
+            isScrollable: true,
+            thumbWidth: thumbWidth,
+            thumbOffset: thumbOffset
+        )
+    }
+}
+
+struct WorkflowScrollIndicatorMetrics: Equatable {
+    let isScrollable: Bool
+    let thumbWidth: CGFloat
+    let thumbOffset: CGFloat
 }
