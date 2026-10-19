@@ -9,6 +9,8 @@ final class ReportPresentationPolicyTests: XCTestCase {
         XCTAssertFalse(ReportPresentationPolicy.canCreateRevision(for: .review))
         XCTAssertTrue(ReportPresentationPolicy.canOpenStoredVersion(for: .review))
         XCTAssertTrue(ReportPresentationPolicy.canShareStoredVersion(for: .review))
+        XCTAssertTrue(ReportPresentationPolicy.isDraftRevision(status: .review, sealedVersionCount: 4))
+        XCTAssertFalse(ReportPresentationPolicy.isDraftRevision(status: .review, sealedVersionCount: 0))
     }
 
     // Catches exposing a new draft or seal control after a report has already become immutable.
