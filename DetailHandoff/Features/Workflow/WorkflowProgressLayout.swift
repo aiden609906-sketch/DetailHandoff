@@ -31,6 +31,13 @@ enum WorkflowProgressLayout {
         return (CGFloat(stepCount) * stepWidth) + (CGFloat(stepCount - 1) * spacing)
     }
 
+    static func resolvedViewportWidth(
+        measuredWidth: CGFloat,
+        trackWidth: CGFloat
+    ) -> CGFloat {
+        measuredWidth > 0 ? measuredWidth : max(trackWidth, 0)
+    }
+
     static func state(
         for status: JobStatus,
         current currentStatus: JobStatus

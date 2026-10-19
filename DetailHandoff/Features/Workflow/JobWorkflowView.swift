@@ -141,12 +141,16 @@ struct JobWorkflowView: View {
 
     private var persistentScrollIndicator: some View {
         GeometryReader { proxy in
+            let viewportWidth = WorkflowProgressLayout.resolvedViewportWidth(
+                measuredWidth: workflowViewportWidth,
+                trackWidth: proxy.size.width
+            )
             let metrics = WorkflowProgressLayout.scrollIndicatorMetrics(
                 contentWidth: max(
                     workflowContentMetrics.width,
                     minimumWorkflowContentWidth
                 ),
-                viewportWidth: workflowViewportWidth,
+                viewportWidth: viewportWidth,
                 contentMinX: workflowContentMetrics.minX,
                 trackWidth: proxy.size.width
             )

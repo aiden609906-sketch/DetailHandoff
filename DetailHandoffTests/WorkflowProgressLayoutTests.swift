@@ -61,6 +61,23 @@ final class WorkflowProgressLayoutTests: XCTestCase {
         )
     }
 
+    func testViewportWidthFallsBackToVisibleTrackBeforePreferencesArrive() {
+        XCTAssertEqual(
+            WorkflowProgressLayout.resolvedViewportWidth(
+                measuredWidth: 0,
+                trackWidth: 358
+            ),
+            358
+        )
+        XCTAssertEqual(
+            WorkflowProgressLayout.resolvedViewportWidth(
+                measuredWidth: 320,
+                trackWidth: 358
+            ),
+            320
+        )
+    }
+
     func testPersistentScrollIndicatorFillsTrackWhenContentFits() {
         XCTAssertEqual(
             WorkflowProgressLayout.scrollIndicatorMetrics(
