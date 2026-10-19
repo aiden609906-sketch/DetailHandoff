@@ -19,6 +19,10 @@ struct JobWorkflowView: View {
                 workflowProgress
                 WorkflowStepContent(status: job.status)
 
+                if job.status == .review {
+                    primaryWorkflowAction
+                }
+
                 captureDestination
 
                 NavigationLink {
@@ -27,7 +31,9 @@ struct JobWorkflowView: View {
                     WorkflowActionLabel("Export job photos", systemImage: "square.and.arrow.up")
                 }
 
-                primaryWorkflowAction
+                if job.status != .review {
+                    primaryWorkflowAction
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(AppTheme.spacing16)
