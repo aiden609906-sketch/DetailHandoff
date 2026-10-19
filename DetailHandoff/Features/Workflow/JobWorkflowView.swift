@@ -182,13 +182,6 @@ struct JobWorkflowView: View {
         case .review:
             VStack(spacing: AppTheme.spacing8) {
                 NavigationLink {
-                    ReportView(job: job)
-                } label: {
-                    WorkflowActionLabel("Review report", systemImage: "doc.text")
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("workflow.report")
-                NavigationLink {
                     PhotoPairView(job: job)
                 } label: {
                     WorkflowActionLabel("Inspect photo pairs", systemImage: "rectangle.split.2x1")
@@ -277,7 +270,7 @@ struct JobWorkflowView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .accessibilityIdentifier("workflow.reviewAndSeal")
+            .accessibilityIdentifier("workflow.report")
         case .none:
             EmptyView()
         }
