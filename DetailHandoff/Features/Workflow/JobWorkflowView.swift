@@ -8,6 +8,7 @@ struct JobWorkflowView: View {
     let job: JobRecord
 
     @State private var advanceErrorMessage: String?
+    @State private var isShowingReport = false
     @State private var workflowContentMetrics = WorkflowScrollContentMetrics()
     @State private var workflowViewportWidth: CGFloat = 0
 
@@ -34,6 +35,9 @@ struct JobWorkflowView: View {
         .accessibilityIdentifier("workflow.verticalScroll")
         .navigationTitle(job.vehicleLabel)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $isShowingReport) {
+            ReportView(job: job)
+        }
         .alert("Unable to advance job", isPresented: isShowingAdvanceError) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -263,8 +267,8 @@ struct JobWorkflowView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
         case .reviewAndSealCurrentRevision:
-            NavigationLink {
-                ReportView(job: job)
+            Button {
+                isShowingReport = true
             } label: {
                 WorkflowActionLabel("Review and seal current revision", systemImage: "checkmark.seal")
             }
