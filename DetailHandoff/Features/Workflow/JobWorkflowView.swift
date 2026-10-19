@@ -142,7 +142,10 @@ struct JobWorkflowView: View {
     private var persistentScrollIndicator: some View {
         GeometryReader { proxy in
             let metrics = WorkflowProgressLayout.scrollIndicatorMetrics(
-                contentWidth: workflowContentMetrics.width,
+                contentWidth: max(
+                    workflowContentMetrics.width,
+                    minimumWorkflowContentWidth
+                ),
                 viewportWidth: workflowViewportWidth,
                 contentMinX: workflowContentMetrics.minX,
                 trackWidth: proxy.size.width
@@ -160,6 +163,14 @@ struct JobWorkflowView: View {
         }
         .frame(height: 5)
         .accessibilityHidden(true)
+    }
+
+    private var minimumWorkflowContentWidth: CGFloat {
+        WorkflowProgressLayout.minimumContentWidth(
+            stepCount: JobStatus.allCases.count,
+            stepWidth: WorkflowProgressLayout.minimumStepWidth(for: dynamicTypeSize),
+            spacing: AppTheme.spacing8
+        )
     }
 
     private var customerName: String {

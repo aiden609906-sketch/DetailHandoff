@@ -50,6 +50,17 @@ final class WorkflowProgressLayoutTests: XCTestCase {
         XCTAssertEqual(trailing, .init(isScrollable: true, thumbWidth: 40, thumbOffset: 60))
     }
 
+    func testMinimumContentWidthDoesNotDependOnRuntimeGeometryMeasurement() {
+        XCTAssertEqual(
+            WorkflowProgressLayout.minimumContentWidth(
+                stepCount: 6,
+                stepWidth: 132,
+                spacing: 8
+            ),
+            832
+        )
+    }
+
     func testPersistentScrollIndicatorFillsTrackWhenContentFits() {
         XCTAssertEqual(
             WorkflowProgressLayout.scrollIndicatorMetrics(

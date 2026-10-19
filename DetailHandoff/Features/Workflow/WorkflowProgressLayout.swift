@@ -22,6 +22,15 @@ enum WorkflowProgressLayout {
         dynamicTypeSize.isAccessibilitySize ? 196 : 132
     }
 
+    static func minimumContentWidth(
+        stepCount: Int,
+        stepWidth: CGFloat,
+        spacing: CGFloat
+    ) -> CGFloat {
+        guard stepCount > 0 else { return 0 }
+        return (CGFloat(stepCount) * stepWidth) + (CGFloat(stepCount - 1) * spacing)
+    }
+
     static func state(
         for status: JobStatus,
         current currentStatus: JobStatus
