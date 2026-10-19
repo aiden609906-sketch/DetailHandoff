@@ -360,7 +360,13 @@ final class WorkflowUITests: XCTestCase {
         capture("draft-pdf")
         dismissDraftPreview()
 
-        app.buttons["report.seal"].tap()
+        let sealReport = app.buttons["report.seal"]
+        require(sealReport)
+        requireHittable(
+            sealReport,
+            message: "The seal report action must settle before the test taps it."
+        )
+        tapAtCenter(sealReport)
         confirmSeal()
         let version = reportVersion()
         XCTAssertTrue(version.waitForExistence(timeout: 12), "Sealing a valid fixture should create a stored version.")
@@ -503,8 +509,22 @@ final class WorkflowUITests: XCTestCase {
         require(app.navigationBars["Jobs"])
         assertModernAppWindowGeometry()
         capture("fixture-list")
-        app.staticTexts[vehicle].tap()
-        require(app.navigationBars[vehicle])
+        let fixture = app.staticTexts[vehicle]
+        let destination = app.navigationBars[vehicle]
+        require(fixture)
+
+        for _ in 0..<3 where !destination.exists {
+            requireHittable(
+                fixture,
+                message: "The fixture row must settle before navigation."
+            )
+            fixture.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            if destination.waitForExistence(timeout: 5) {
+                break
+            }
+        }
+
+        require(destination, timeout: 2)
         capture("workflow")
     }
 
