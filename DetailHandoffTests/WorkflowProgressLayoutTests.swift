@@ -50,6 +50,31 @@ final class WorkflowProgressLayoutTests: XCTestCase {
         XCTAssertEqual(trailing, .init(isScrollable: true, thumbWidth: 40, thumbOffset: 60))
     }
 
+    func testScrollIndicatorClampsObservedBounceOffsets() {
+        let leadingBounce = WorkflowProgressLayout.scrollIndicatorMetrics(
+            contentWidth: 1_000,
+            viewportWidth: 400,
+            contentMinX: 40,
+            trackWidth: 100
+        )
+        let middle = WorkflowProgressLayout.scrollIndicatorMetrics(
+            contentWidth: 1_000,
+            viewportWidth: 400,
+            contentMinX: -275,
+            trackWidth: 100
+        )
+        let trailingOverscroll = WorkflowProgressLayout.scrollIndicatorMetrics(
+            contentWidth: 1_000,
+            viewportWidth: 400,
+            contentMinX: -680,
+            trackWidth: 100
+        )
+
+        XCTAssertEqual(leadingBounce.thumbOffset, 0)
+        XCTAssertEqual(middle.thumbOffset, 27.5, accuracy: 0.001)
+        XCTAssertEqual(trailingOverscroll.thumbOffset, 60)
+    }
+
     func testMinimumContentWidthDoesNotDependOnRuntimeGeometryMeasurement() {
         XCTAssertEqual(
             WorkflowProgressLayout.minimumContentWidth(

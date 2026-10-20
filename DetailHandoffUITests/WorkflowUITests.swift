@@ -390,6 +390,33 @@ final class WorkflowUITests: XCTestCase {
         require(app.staticTexts["Sealed versions"])
     }
 
+    func testWorkflowIndicatorMovesAfterHorizontalDrag() throws {
+        launch(arguments: ["--ui-testing", "--screenshot-fixture", "complete"])
+        openFixtureWorkflow(named: "Silver Sedan")
+
+        let indicator = app.descendants(matching: .any)
+            .matching(identifier: "diagnostic.workflow.scrollIndicator")
+            .firstMatch
+        let horizontalScroll = app.scrollViews["workflow.horizontalScroll"]
+        require(indicator)
+        require(horizontalScroll)
+        let leadingOffset = try XCTUnwrap(Double(indicator.value as? String ?? ""))
+
+        let start = horizontalScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.82, dy: 0.5))
+        let end = horizontalScroll.coordinate(withNormalizedOffset: CGVector(dx: 0.18, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: end)
+
+        let moved = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value.doubleValue > %f", leadingOffset),
+            object: indicator
+        )
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [moved], timeout: 5),
+            .completed,
+            "The custom workflow thumb must follow the real horizontal scroll offset."
+        )
+    }
+
     func testCompleteFixtureAllowsHistoryAccessWhileCreatingRevision() throws {
         launch(arguments: ["--ui-testing", "--screenshot-fixture", "revision"])
 
