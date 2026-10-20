@@ -132,7 +132,8 @@ struct CaptureView: View {
                 }
                 .accessibilityIdentifier("capture.choosePhotos")
             }
-            Button("Cancel", role: .cancel) { photoSourceSlot = nil }
+            Button("Cancel") { photoSourceSlot = nil }
+                .accessibilityIdentifier("capture.cancelPhotoSource")
         } message: {
             Text("Add one photo or as many as this view needs.")
         }

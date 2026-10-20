@@ -648,7 +648,7 @@ final class WorkflowUITests: XCTestCase {
         require(app.buttons["capture.takePhotos"])
         require(app.buttons["capture.choosePhotos"])
         XCTAssertFalse(app.buttons["Retake"].exists)
-        app.buttons["Cancel"].tap()
+        app.buttons["capture.cancelPhotoSource"].tap()
         capture("capture")
         returnToJobs()
     }

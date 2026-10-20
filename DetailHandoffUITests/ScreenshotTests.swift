@@ -119,7 +119,7 @@ final class ScreenshotTests: XCTestCase {
         let reportQuery = app.descendants(matching: .any)
             .matching(identifier: "workflow.report")
         for _ in 0..<5 where !reportQuery.firstMatch.isHittable {
-            workflowScroll.swipeUp()
+            workflowScroll.swipeDown()
         }
         let report = reportQuery.firstMatch
         XCTAssertTrue(report.isHittable, "The primary workflow action must remain visible and reachable at accessibility text sizes.")
