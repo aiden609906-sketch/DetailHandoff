@@ -61,10 +61,13 @@ private struct BusinessDetailsView: View {
         Form {
             Section("Branding") {
                 TextField("Business name", text: $name)
-                TextField("Phone (optional)", text: $phone).keyboardType(.phonePad)
-                TextField("Email (optional)", text: $email)
+                TextField("Customer-facing phone (optional)", text: $phone).keyboardType(.phonePad)
+                TextField("Customer-facing email (optional)", text: $email)
                     .textInputAutocapitalization(.never)
                     .keyboardType(.emailAddress)
+                Text("These details appear on customer reports only when provided.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                 PhotosPicker(selection: $selectedLogo, matching: .images) {
                     Label(profile.logoImagePath == nil ? "Add logo (optional)" : "Replace logo", systemImage: "photo")
                 }

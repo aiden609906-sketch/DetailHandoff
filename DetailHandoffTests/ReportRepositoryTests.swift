@@ -91,7 +91,7 @@ final class ReportRepositoryTests: XCTestCase {
         let pdf = try XCTUnwrap(PDFDocument(data: data))
         let content = try XCTUnwrap(pdf.string)
         XCTAssertGreaterThan(pdf.pageCount, 10)
-        for required in ["North Star Detail", "Marcus Lee", "Honda Accord", "7HKL248", "Pearl White", "Full detail", "Service started", "Service finished", "END-OF-LONG-NOTES", "Scratch", "Minor", "Door edge mark", "acknowledgment", "visible vehicle condition", "Evidence only", version.reportNumber, "Version 1"] {
+        for required in ["North Star Detail", "Phone: 555-0100", "Email: office@example.test", "Marcus Lee", "Honda Accord", "7HKL248", "Pearl White", "Full detail", "Service started", "Service finished", "END-OF-LONG-NOTES", "Scratch", "Minor", "Door edge mark", "acknowledgment", "visible vehicle condition", "Evidence only", version.reportNumber, "Version 1"] {
             XCTAssertTrue(content.contains(required), "Missing PDF text: \(required)")
         }
         XCTAssertTrue(content.contains("BEFORE"), "Missing BEFORE comparison label")
@@ -111,6 +111,27 @@ final class ReportRepositoryTests: XCTestCase {
         attachment.name = "DetailHandoff-40-photo-signed-report.pdf"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    @MainActor
+    func testReportShowsProviderOnceOnFirstPageAndOmitsBlankContactLabels() throws {
+        let fixture = try ReportFixture(photoCount: 1)
+        defer { fixture.cleanUp() }
+        fixture.business.phone = "   "
+        fixture.business.email = ""
+
+        let version = try fixture.repository.seal(job: fixture.job, business: fixture.business)
+        let data = try Data(contentsOf: fixture.media.url(for: version.pdfPath))
+        let pdf = try XCTUnwrap(PDFDocument(data: data))
+        let firstPage = try XCTUnwrap(pdf.page(at: 0)?.string)
+
+        XCTAssertEqual(firstPage.components(separatedBy: "North Star Detail").count - 1, 1)
+        XCTAssertTrue(firstPage.contains("Version 1"))
+        XCTAssertFalse(firstPage.contains("Phone:"))
+        XCTAssertFalse(firstPage.contains("Email:"))
+        if pdf.pageCount > 1 {
+            XCTAssertTrue(pdf.page(at: 1)?.string?.contains("North Star Detail") == true)
+        }
     }
 
     // Catches preview accidentally sealing or hiding unavailable acknowledgments/skips.

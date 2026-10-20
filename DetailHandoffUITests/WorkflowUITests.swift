@@ -13,6 +13,10 @@ final class WorkflowUITests: XCTestCase {
         launch(arguments: ["--ui-testing", "--screenshot-fixture", "trash"])
         app.buttons["Settings"].firstMatch.tap()
         require(app.navigationBars["Settings"])
+        app.staticTexts["Business details and disclaimer"].tap()
+        require(app.textFields["Customer-facing phone (optional)"])
+        require(app.textFields["Customer-facing email (optional)"])
+        app.navigationBars.buttons.firstMatch.tap()
         app.staticTexts["Services and capture templates"].tap()
         require(app.navigationBars["Services and templates"])
         app.staticTexts["Standard Detail"].firstMatch.tap()
@@ -60,11 +64,11 @@ final class WorkflowUITests: XCTestCase {
             )
             afterRoute.tap()
             require(app.navigationBars["After photos"])
-            let afterRetake = scrollUntilHittable(
-                { app.buttons["capture.camera.front"] },
+            let afterAddPhotos = scrollUntilHittable(
+                { app.buttons["capture.addPhotos.front"] },
                 in: verticalScroll("capture.verticalScroll")
             )
-            XCTAssertTrue(afterRetake.isEnabled)
+            XCTAssertTrue(afterAddPhotos.isEnabled)
             app.navigationBars.buttons.firstMatch.tap()
             let beforeRoute = scrollUntilHittable(
                 { app.buttons["workflow.editBeforeCapture"] },
@@ -73,7 +77,7 @@ final class WorkflowUITests: XCTestCase {
             )
             beforeRoute.tap()
             require(app.navigationBars["Before photos"])
-            XCTAssertTrue(app.buttons["capture.camera.front"].isEnabled)
+            XCTAssertTrue(app.buttons["capture.addPhotos.front"].isEnabled)
             let remove = scrollUntilHittable(
                 { app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "capture.remove.rear.")).firstMatch },
                 in: verticalScroll("capture.verticalScroll")
@@ -235,7 +239,9 @@ final class WorkflowUITests: XCTestCase {
         app.buttons["Save"].tap()
 
         require(app.navigationBars["Jobs"])
-        app.buttons["New job"].tap()
+        let createJob = app.buttons["jobs.create"]
+        require(createJob)
+        createJob.tap()
         require(app.navigationBars["New job"])
         let newJobScroll = verticalScroll("newJob.verticalScroll")
         let vehicle = scrollUntilHittable(
@@ -265,6 +271,8 @@ final class WorkflowUITests: XCTestCase {
 
         require(app.navigationBars["Set up your business"])
         capture("setup")
+        require(app.textFields["Customer-facing phone (optional)"])
+        require(app.textFields["Customer-facing email (optional)"])
         focusAndTypeText(in: app.textFields["Business name"], with: "Fixture Detail")
         require(app.buttons["setup.logoPicker"])
         let firstService = app.textFields["setup.service.0"]
@@ -273,7 +281,9 @@ final class WorkflowUITests: XCTestCase {
         app.buttons["Save"].tap()
 
         require(app.navigationBars["Jobs"])
-        app.buttons["New job"].tap()
+        let createJob = app.buttons["jobs.create"]
+        require(createJob)
+        createJob.tap()
         require(app.navigationBars["New job"])
         let newJobScroll = verticalScroll("newJob.verticalScroll")
         let editedService = scrollUntilHittable(
@@ -310,6 +320,10 @@ final class WorkflowUITests: XCTestCase {
         if searchKey.exists {
             searchKey.tap()
         }
+        replaceText(in: search, with: "No such vehicle")
+        require(app.staticTexts["No matching jobs"])
+        require(app.buttons["jobs.create"])
+        replaceText(in: search, with: "QA-17")
         let jobRow = app.buttons.containing(.staticText, identifier: "QA-17 Sedan").firstMatch
         require(jobRow)
         jobRow.tap()
@@ -415,6 +429,25 @@ final class WorkflowUITests: XCTestCase {
             .completed,
             "The custom workflow thumb must follow the real horizontal scroll offset."
         )
+    }
+
+    func testCompletionAcknowledgmentStepOffersPhotoPairReview() throws {
+        launch(arguments: ["--ui-testing", "--screenshot-fixture", "awaiting-completion"])
+        openFixtureWorkflow(named: "Completion Fixture Coupe")
+
+        let workflowScroll = verticalScroll("workflow.verticalScroll")
+        require(scrollUntilHittable(
+            { app.buttons["workflow.completionAcknowledgment"] },
+            in: workflowScroll
+        ))
+        let photoPairs = scrollUntilHittable(
+            { app.buttons["workflow.photoPairs"] },
+            in: workflowScroll,
+            preferredDirection: .down
+        )
+        require(photoPairs)
+        photoPairs.tap()
+        require(app.navigationBars["Photo pairs"])
     }
 
     func testCompleteFixtureAllowsHistoryAccessWhileCreatingRevision() throws {
@@ -596,6 +629,7 @@ final class WorkflowUITests: XCTestCase {
     }
 
     private func openCaptureScreen() {
+        require(app.buttons["jobs.create"])
         require(app.staticTexts["Silver Sedan Walkaround"])
         app.staticTexts["Silver Sedan Walkaround"].tap()
         require(app.navigationBars["Silver Sedan Walkaround"])
@@ -606,6 +640,15 @@ final class WorkflowUITests: XCTestCase {
         captureButton.tap()
         require(app.navigationBars["Before photos"])
         require(app.staticTexts["1 photo across 12 views. Add as many photos to a view as needed."])
+        let addPhotos = scrollUntilHittable(
+            { app.buttons["capture.addPhotos.front"] },
+            in: verticalScroll("capture.verticalScroll")
+        )
+        addPhotos.tap()
+        require(app.buttons["capture.takePhotos"])
+        require(app.buttons["capture.choosePhotos"])
+        XCTAssertFalse(app.buttons["Retake"].exists)
+        app.buttons["Cancel"].tap()
         capture("capture")
         returnToJobs()
     }
@@ -617,6 +660,7 @@ final class WorkflowUITests: XCTestCase {
         )
         findings.tap()
         require(app.navigationBars["Condition findings"])
+        require(app.buttons["findings.create"])
         capture("findings")
         app.navigationBars.buttons.firstMatch.tap()
     }

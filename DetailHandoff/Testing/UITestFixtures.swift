@@ -112,6 +112,13 @@ enum UITestFixtures {
                 in: context
             )
             try TrashService(context: context, media: media).softDelete(job)
+        case "awaiting-completion":
+            _ = try makeAwaitingCompletionJob(
+                vehicle: "Completion Fixture Coupe",
+                customer: "Taylor Fixture",
+                in: context,
+                media: media
+            )
         default:
             throw FixtureError.unknownFixture
         }
@@ -187,6 +194,34 @@ enum UITestFixtures {
                 SignaturePoint(x: 0.85, y: 0.60)
             ])]
         )
+        try jobs.advance(job)
+        return job
+    }
+
+    private static func makeAwaitingCompletionJob(
+        vehicle: String,
+        customer: String,
+        in context: ModelContext,
+        media: MediaStore
+    ) throws -> JobRecord {
+        let job = try makeJob(vehicle: vehicle, customer: customer, in: context)
+        let jobs = JobRepository(context: context)
+        let capture = CaptureRepository(context: context, media: media)
+
+        try jobs.advance(job)
+        try addRequiredImages(to: job, phase: .before, capture: capture)
+        try jobs.advance(job)
+        try AcknowledgmentRepository(context: context).sign(
+            job: job,
+            name: customer,
+            strokes: [SignatureStroke(points: [
+                SignaturePoint(x: 0.10, y: 0.20),
+                SignaturePoint(x: 0.80, y: 0.70)
+            ])]
+        )
+        try jobs.advance(job)
+        try jobs.advance(job)
+        try addRequiredImages(to: job, phase: .after, capture: capture)
         try jobs.advance(job)
         return job
     }

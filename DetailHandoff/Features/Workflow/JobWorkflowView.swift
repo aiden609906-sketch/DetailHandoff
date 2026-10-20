@@ -11,6 +11,7 @@ struct JobWorkflowView: View {
     @State private var isShowingReport = false
     @State private var workflowContentMetrics = WorkflowScrollContentMetrics()
     @State private var workflowViewportWidth: CGFloat = 0
+    @State private var workflowHorizontalOffset: CGFloat = 0
 
     var body: some View {
         ScrollView {
@@ -112,14 +113,18 @@ struct JobWorkflowView: View {
                         Color.clear.preference(
                             key: WorkflowScrollContentMetricsPreferenceKey.self,
                             value: WorkflowScrollContentMetrics(
-                                width: proxy.size.width,
-                                minX: proxy.frame(in: .named("workflowProgressScroll")).minX
+                                width: proxy.size.width
                             )
                         )
                     }
                 }
+                .background {
+                    WorkflowScrollOffsetObserver(
+                        horizontalOffset: $workflowHorizontalOffset
+                    )
+                }
             }
-            .coordinateSpace(name: "workflowProgressScroll")
+            .accessibilityIdentifier("workflow.horizontalScroll")
             .background {
                 GeometryReader { proxy in
                     Color.clear.preference(
@@ -151,22 +156,45 @@ struct JobWorkflowView: View {
                     minimumWorkflowContentWidth
                 ),
                 viewportWidth: viewportWidth,
-                contentMinX: workflowContentMetrics.minX,
+                contentMinX: -workflowHorizontalOffset,
                 trackWidth: proxy.size.width
             )
 
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.secondary.opacity(0.18))
-                Capsule()
-                    .fill(Color.accentColor.opacity(0.75))
-                    .frame(width: metrics.thumbWidth)
-                    .offset(x: metrics.thumbOffset)
+            ZStack(alignment: .topLeading) {
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.18))
+                    Capsule()
+                        .fill(Color.accentColor.opacity(0.75))
+                        .frame(width: metrics.thumbWidth)
+                        .offset(x: metrics.thumbOffset)
+                }
+                .opacity(metrics.isScrollable ? 1 : 0)
+                .accessibilityHidden(true)
+
+                workflowIndicatorDiagnostic(thumbOffset: metrics.thumbOffset)
             }
-            .opacity(metrics.isScrollable ? 1 : 0)
         }
         .frame(height: 5)
-        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func workflowIndicatorDiagnostic(thumbOffset: CGFloat) -> some View {
+#if DEBUG
+        if isUIDiagnosticsEnabled {
+            Text("Workflow scroll indicator diagnostic")
+                .font(.system(size: 1))
+                .foregroundStyle(.clear)
+                .frame(width: 1, height: 1)
+                .allowsHitTesting(false)
+                .accessibilityElement(children: .ignore)
+                .accessibilityIdentifier("diagnostic.workflow.scrollIndicator")
+                .accessibilityLabel("Workflow scroll indicator diagnostic")
+                .accessibilityValue(String(Double(thumbOffset)))
+        }
+#else
+        EmptyView()
+#endif
     }
 
     private var minimumWorkflowContentWidth: CGFloat {
@@ -197,21 +225,19 @@ struct JobWorkflowView: View {
         case .afterCapture:
             captureActions(phase: .after)
         case .awaitingCompletionAcknowledgment:
-            NavigationLink {
-                AcknowledgmentView(job: job, stage: .completion)
-            } label: {
-                WorkflowActionLabel("Record completion acknowledgment", systemImage: "signature")
-            }
-            .buttonStyle(.borderedProminent)
-            .accessibilityIdentifier("workflow.completionAcknowledgment")
-        case .review:
             VStack(spacing: AppTheme.spacing8) {
                 NavigationLink {
-                    PhotoPairView(job: job)
+                    AcknowledgmentView(job: job, stage: .completion)
                 } label: {
-                    WorkflowActionLabel("Inspect photo pairs", systemImage: "rectangle.split.2x1")
+                    WorkflowActionLabel("Record completion acknowledgment", systemImage: "signature")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("workflow.completionAcknowledgment")
+                photoPairsLink
+            }
+        case .review:
+            VStack(spacing: AppTheme.spacing8) {
+                photoPairsLink
                 NavigationLink {
                     FindingsView(job: job)
                 } label: {
@@ -231,12 +257,7 @@ struct JobWorkflowView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier(job.status == .archived ? "workflow.archivedReport" : "workflow.sealedReport")
-                NavigationLink {
-                    PhotoPairView(job: job)
-                } label: {
-                    WorkflowActionLabel("Inspect photo pairs", systemImage: "rectangle.split.2x1")
-                }
-                .buttonStyle(.bordered)
+                photoPairsLink
             }
         default:
             EmptyView()
@@ -269,13 +290,18 @@ struct JobWorkflowView: View {
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("workflow.findings")
-            NavigationLink {
-                PhotoPairView(job: job)
-            } label: {
-                WorkflowActionLabel("Inspect photo pairs", systemImage: "rectangle.split.2x1")
-            }
-            .buttonStyle(.bordered)
+            photoPairsLink
         }
+    }
+
+    private var photoPairsLink: some View {
+        NavigationLink {
+            PhotoPairView(job: job)
+        } label: {
+            WorkflowActionLabel("Inspect photo pairs", systemImage: "rectangle.split.2x1")
+        }
+        .buttonStyle(.bordered)
+        .accessibilityIdentifier("workflow.photoPairs")
     }
 
     @ViewBuilder
@@ -350,11 +376,17 @@ struct JobWorkflowView: View {
     private func progressColor(for stepState: WorkflowProgressStepState) -> Color {
         stepState == .upcoming ? .secondary.opacity(0.25) : .accentColor
     }
+
+#if DEBUG
+    private var isUIDiagnosticsEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-diagnostics")
+            && ProcessInfo.processInfo.environment["XCUI_TESTING"] == "1"
+    }
+#endif
 }
 
 private struct WorkflowScrollContentMetrics: Equatable {
     var width: CGFloat = 0
-    var minX: CGFloat = 0
 }
 
 private struct WorkflowScrollContentMetricsPreferenceKey: PreferenceKey {

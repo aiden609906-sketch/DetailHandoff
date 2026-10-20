@@ -23,6 +23,11 @@ enum CaptureStorageDecision: Equatable {
     case unavailable
 }
 
+enum CapturePhotoContinuation: Equatable {
+    case offerAnother(slotID: String)
+    case none
+}
+
 enum CapturePresentationState {
     static let lowStorageThreshold: Int64 = 250 * 1_024 * 1_024
 
@@ -45,5 +50,10 @@ enum CapturePresentationState {
 
     static func phasePresentation(photos: [CapturedPhoto], skip: CaptureSkip?) -> CapturePhasePresentation {
         CapturePhasePresentation(photos: photos, skipReason: skip?.reason)
+    }
+
+    static func cameraContinuation(saved: Bool, slotID: String?) -> CapturePhotoContinuation {
+        guard saved, let slotID else { return .none }
+        return .offerAnother(slotID: slotID)
     }
 }

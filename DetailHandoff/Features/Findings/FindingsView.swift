@@ -14,6 +14,24 @@ struct FindingsView: View {
 
     var body: some View {
         List {
+            if isMutable {
+                PrimaryCreationAction(
+                    title: "Add finding",
+                    subtitle: "Document a scratch, dent, or other condition",
+                    systemImage: "plus",
+                    accessibilityIdentifier: "findings.create",
+                    action: beginAdding
+                )
+                .listRowInsets(EdgeInsets(
+                    top: AppTheme.spacing12,
+                    leading: AppTheme.spacing16,
+                    bottom: AppTheme.spacing12,
+                    trailing: AppTheme.spacing16
+                ))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+
             if document.findings.isEmpty {
                 ContentUnavailableView(
                     "No findings recorded",
@@ -29,13 +47,6 @@ struct FindingsView: View {
         }
         .navigationTitle("Condition findings")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if isMutable {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Add finding", systemImage: "plus") { beginAdding() }
-                }
-            }
-        }
         .onAppear(perform: reloadDocument)
         .sheet(item: $editingFinding) { finding in
             FindingEditor(

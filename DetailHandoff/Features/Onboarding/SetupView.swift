@@ -24,11 +24,11 @@ struct SetupView: View {
                     TextField("Business name", text: $businessName)
                         .textContentType(.organizationName)
 
-                    TextField("Phone (optional)", text: $phone)
+                    TextField("Customer-facing phone (optional)", text: $phone)
                         .textContentType(.telephoneNumber)
                         .keyboardType(.phonePad)
 
-                    TextField("Email (optional)", text: $email)
+                    TextField("Customer-facing email (optional)", text: $email)
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .keyboardType(.emailAddress)
@@ -40,7 +40,7 @@ struct SetupView: View {
                 } header: {
                     Text("Business details")
                 } footer: {
-                    Text("Your records stay on this device.")
+                    Text("Phone and email appear on customer reports only when provided. Your records stay on this device.")
                 }
 
                 Section("Defaults for your first job") {

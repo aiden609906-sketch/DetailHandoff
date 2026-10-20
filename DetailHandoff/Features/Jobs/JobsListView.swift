@@ -44,6 +44,23 @@ struct JobsListView: View {
     var body: some View {
         NavigationStack {
             List {
+                PrimaryCreationAction(
+                    title: "Create new job",
+                    subtitle: "Start a vehicle condition record",
+                    systemImage: "plus",
+                    accessibilityIdentifier: "jobs.create"
+                ) {
+                    isShowingNewJob = true
+                }
+                .listRowInsets(EdgeInsets(
+                    top: AppTheme.spacing12,
+                    leading: AppTheme.spacing16,
+                    bottom: AppTheme.spacing12,
+                    trailing: AppTheme.spacing16
+                ))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+
                 switch contentState {
                 case .firstJob:
                     ContentUnavailableView(
@@ -79,13 +96,6 @@ struct JobsListView: View {
             .accessibilityIdentifier("jobs.verticalScroll")
             .navigationTitle("Jobs")
             .searchable(text: $searchText, prompt: "Customer, vehicle, or plate")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("New job", systemImage: "plus") {
-                        isShowingNewJob = true
-                    }
-                }
-            }
             .sheet(isPresented: $isShowingNewJob) {
                 NewJobView()
             }

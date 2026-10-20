@@ -2,6 +2,20 @@ import XCTest
 @testable import DetailHandoff
 
 final class ReportSnapshotContactTests: XCTestCase {
+    func testProviderContactLinesOmitBlankValuesAndTrimVisibleValues() {
+        XCTAssertEqual(
+            ReportRenderer.providerContactLines(
+                phone: " 555-0199 ",
+                email: " service@example.test "
+            ),
+            ["Phone: 555-0199", "Email: service@example.test"]
+        )
+        XCTAssertEqual(
+            ReportRenderer.providerContactLines(phone: "   ", email: "\n"),
+            []
+        )
+    }
+
     @MainActor
     func testSnapshotCopiesCustomerContactAndServiceLocation() {
         let job = JobRecord(customerName: "Avery", vehicleLabel: "Roadster", plate: "EV1", color: "Blue", serviceName: "Wash", notes: "")

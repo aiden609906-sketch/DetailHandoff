@@ -9,6 +9,15 @@ enum ReportRendererError: Error, Equatable {
 /// Native, offline US Letter renderer. Decodes one bounded image at a time.
 @MainActor
 enum ReportRenderer {
+    nonisolated static func providerContactLines(phone: String, email: String) -> [String] {
+        let trimmedPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        return [
+            trimmedPhone.isEmpty ? nil : "Phone: \(trimmedPhone)",
+            trimmedEmail.isEmpty ? nil : "Email: \(trimmedEmail)"
+        ].compactMap { $0 }
+    }
+
     static func render(snapshot: ReportSnapshot, number: String, version: Int, sealedAt: Date, media: MediaStore, isDraft: Bool = false) throws -> Data {
         // Validate every referenced original/thumbnail/logo, even assets not drawn in the PDF.
         for path in snapshot.referencedAssetPaths.sorted() {
@@ -27,7 +36,13 @@ enum ReportRenderer {
                     try autoreleasepool { canvas.image(try loadImage(logo, media: media), maximumHeight: 80) }
                 }
                 canvas.text(snapshot.businessName.isEmpty ? "Business name not provided" : snapshot.businessName, style: .heading)
-                canvas.text("Phone: \(snapshot.businessPhone)\nEmail: \(snapshot.businessEmail)")
+                let providerContacts = providerContactLines(
+                    phone: snapshot.businessPhone,
+                    email: snapshot.businessEmail
+                )
+                if !providerContacts.isEmpty {
+                    canvas.text(providerContacts.joined(separator: "\n"))
+                }
                 canvas.text("Job details", style: .heading)
                 canvas.text("Customer: \(snapshot.customerName)\nVehicle: \(snapshot.vehicleLabel)\nPlate: \(snapshot.plate)\nColor: \(snapshot.color)\nService: \(snapshot.serviceName)")
                 if let phone = snapshot.customerPhone { canvas.text("Customer phone: \(phone)") }
@@ -156,7 +171,12 @@ private final class ReportCanvas {
         let graphics = context.cgContext
         graphics.setFillColor(UIColor.white.cgColor)
         graphics.fill(CGRect(x: 0, y: 0, width: 612, height: 792))
-        let header = businessName.isEmpty ? "DetailHandoff" : businessName
+        let header: String
+        if page == 1 {
+            header = "VEHICLE CONDITION REPORT"
+        } else {
+            header = businessName.isEmpty ? "CONDITION RECORD" : businessName
+        }
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail
         (header as NSString).draw(in: CGRect(x: left, y: 25, width: width - 150, height: 20), withAttributes: [.font: UIFont.boldSystemFont(ofSize: 10), .foregroundColor: UIColor.darkGray, .paragraphStyle: paragraph])

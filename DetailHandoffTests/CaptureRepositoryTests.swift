@@ -25,6 +25,29 @@ final class CaptureRepositoryTests: XCTestCase {
     }
 
     @MainActor
+    func testSameSlotAcceptsFourPhotosWithoutReplacingEarlierEvidence() throws {
+        let container = try makeContainer()
+        let job = try makeSavedJob(in: container)
+        let repository = CaptureRepository(context: container.mainContext, media: MediaStore(root: root))
+
+        for _ in 0..<4 {
+            try repository.addPhoto(
+                to: job,
+                data: try jpegData(),
+                slotID: "wheels-tires",
+                phase: .before
+            )
+        }
+
+        let document = try repository.document(for: job)
+        let matchingPhotos = document.photos.filter {
+            $0.slotID == "wheels-tires" && $0.phase == .before
+        }
+        XCTAssertEqual(matchingPhotos.count, 4)
+        XCTAssertEqual(Set(matchingPhotos.map(\.id)).count, 4)
+    }
+
+    @MainActor
     func testInvalidPhotoLeavesMetadataAndMediaUnchanged() throws {
         let container = try makeContainer()
         let job = try makeSavedJob(in: container)

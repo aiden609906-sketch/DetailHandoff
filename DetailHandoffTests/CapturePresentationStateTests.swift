@@ -80,4 +80,22 @@ final class CapturePresentationStateTests: XCTestCase {
         XCTAssertEqual(presentation.skipReason, "Vehicle blocked")
         XCTAssertFalse(presentation.showsEmptyState)
     }
+
+    func testSuccessfulCameraSaveOffersAnotherPhotoForTheSameSlot() {
+        XCTAssertEqual(
+            CapturePresentationState.cameraContinuation(saved: true, slotID: "front-wheel"),
+            .offerAnother(slotID: "front-wheel")
+        )
+    }
+
+    func testFailedOrCancelledCameraSaveDoesNotOfferContinuation() {
+        XCTAssertEqual(
+            CapturePresentationState.cameraContinuation(saved: false, slotID: "front-wheel"),
+            .none
+        )
+        XCTAssertEqual(
+            CapturePresentationState.cameraContinuation(saved: true, slotID: nil),
+            .none
+        )
+    }
 }

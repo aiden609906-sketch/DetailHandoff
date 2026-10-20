@@ -40,6 +40,8 @@ struct CaptureView: View {
     @State private var activeSlotID: String?
     @State private var isPhotosPickerPresented = false
     @State private var isCameraPresented = false
+    @State private var photoSourceSlot: CaptureSlot?
+    @State private var cameraContinuation: CapturePhotoContinuation = .none
     @State private var isImporting = false
     @State private var referenceOpacity = 0.45
     @State private var skipSlot: CaptureSlot?
@@ -80,7 +82,7 @@ struct CaptureView: View {
         .photosPicker(
             isPresented: $isPhotosPickerPresented,
             selection: $selectedImports,
-            maxSelectionCount: 20,
+            maxSelectionCount: nil,
             matching: .images
         )
         .task(id: selectedImports) {
@@ -109,6 +111,52 @@ struct CaptureView: View {
             Button("Cancel", role: .cancel) { skipSlot = nil }
         } message: {
             Text("Add a reason so the missing \(phase.rawValue) photo is clear in review.")
+        }
+        .confirmationDialog(
+            photoSourceSlot.map { "Add photos to \($0.name)" } ?? "Add photos",
+            isPresented: Binding(
+                get: { photoSourceSlot != nil },
+                set: { if !$0 { photoSourceSlot = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let slot = photoSourceSlot {
+                Button("Take photos", systemImage: "camera") {
+                    photoSourceSlot = nil
+                    begin(.camera(slot.id))
+                }
+                .accessibilityIdentifier("capture.takePhotos")
+                Button("Choose photos", systemImage: "photo.on.rectangle.angled") {
+                    photoSourceSlot = nil
+                    begin(.importPhotos(slot.id))
+                }
+                .accessibilityIdentifier("capture.choosePhotos")
+            }
+            Button("Cancel", role: .cancel) { photoSourceSlot = nil }
+        } message: {
+            Text("Add one photo or as many as this view needs.")
+        }
+        .confirmationDialog(
+            "Photo saved",
+            isPresented: Binding(
+                get: {
+                    if case .offerAnother = cameraContinuation { return true }
+                    return false
+                },
+                set: { if !$0 { cameraContinuation = .none } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if case .offerAnother(let slotID) = cameraContinuation {
+                Button("Take another photo", systemImage: "camera") {
+                    cameraContinuation = .none
+                    begin(.camera(slotID))
+                }
+                .accessibilityIdentifier("capture.takeAnother")
+            }
+            Button("Done", role: .cancel) { cameraContinuation = .none }
+        } message: {
+            Text("You can keep photographing this view or finish for now.")
         }
         .alert("Storage check", isPresented: Binding(get: { storageDecision != nil }, set: { if !$0 { storageDecision = nil } })) {
             storageButtons
@@ -235,9 +283,10 @@ struct CaptureView: View {
                 }
             }
             HStack {
-                Button(photos.isEmpty ? "Take photo" : "Retake") { begin(.camera(slot.id)) }
-                    .accessibilityIdentifier("capture.camera.\(slot.id)")
-                Button("Import") { begin(.importPhotos(slot.id)) }
+                Button("Add photos", systemImage: "photo.badge.plus") {
+                    photoSourceSlot = slot
+                }
+                .accessibilityIdentifier("capture.addPhotos.\(slot.id)")
                 Spacer()
                 Button(skip == nil ? "Skip" : "Change skip") {
                     skipReason = skip?.reason ?? ""
@@ -345,8 +394,17 @@ struct CaptureView: View {
 
     private func handleCameraResult(_ result: Result<Data, CameraPickerError>) {
         switch result {
-        case .success(let data): addPhoto(data, slotID: activeSlotID)
-        case .failure(let error): errorMessage = error.localizedDescription
+        case .success(let data):
+            let slotID = activeSlotID
+            let saved = addPhoto(data, slotID: slotID)
+            cameraContinuation = CapturePresentationState.cameraContinuation(
+                saved: saved,
+                slotID: slotID
+            )
+        case .failure(let error):
+            activeSlotID = nil
+            cameraContinuation = .none
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -374,16 +432,20 @@ struct CaptureView: View {
         }
     }
 
-    private func addPhoto(_ data: Data, slotID: String?) {
-        guard let slotID else { return }
+    @discardableResult
+    private func addPhoto(_ data: Data, slotID: String?) -> Bool {
+        guard let slotID else { return false }
         do {
             try CaptureRepository(context: modelContext, media: MediaStore(root: MediaStore.defaultRoot))
                 .addPhoto(to: job, data: data, slotID: slotID, phase: phase)
             reloadDocument()
+            activeSlotID = nil
+            return true
         } catch {
             errorMessage = "This photo could not be saved. No workflow step was advanced. \(error.localizedDescription)"
+            activeSlotID = nil
+            return false
         }
-        activeSlotID = nil
     }
 
     private func remove(_ photo: CapturedPhoto) {

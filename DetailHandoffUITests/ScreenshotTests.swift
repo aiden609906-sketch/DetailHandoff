@@ -47,6 +47,13 @@ final class ScreenshotTests: XCTestCase {
             shortWindowSide >= 375 && longWindowSide >= 667,
             "Expected a modern full-screen app window of at least 375x667 points; observed \(windowFrame)."
         )
+        let createJob = app.buttons["jobs.create"]
+        XCTAssertTrue(createJob.waitForExistence(timeout: 8))
+        XCTAssertTrue(createJob.isHittable)
+        let jobsAttachment = XCTAttachment(screenshot: app.screenshot())
+        jobsAttachment.name = "accessibility-text-jobs-create"
+        jobsAttachment.lifetime = .keepAlways
+        add(jobsAttachment)
         let vehicleQuery = app.buttons.containing(.staticText, identifier: "Silver Sedan")
         for _ in 0..<5 where !vehicleQuery.firstMatch.isHittable {
             jobsList.swipeUp()
@@ -95,6 +102,20 @@ final class ScreenshotTests: XCTestCase {
             XCTFail("The workflow must expose its named vertical scroll container at accessibility text sizes.")
             return
         }
+        let findingsQuery = app.buttons["workflow.findings"]
+        for _ in 0..<5 where !findingsQuery.isHittable {
+            workflowScroll.swipeUp()
+        }
+        XCTAssertTrue(findingsQuery.isHittable)
+        findingsQuery.tap()
+        XCTAssertTrue(app.navigationBars["Condition findings"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["findings.create"].isHittable)
+        let findingsAttachment = XCTAttachment(screenshot: app.screenshot())
+        findingsAttachment.name = "accessibility-text-findings-create"
+        findingsAttachment.lifetime = .keepAlways
+        add(findingsAttachment)
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(destinationBar.waitForExistence(timeout: 8))
         let reportQuery = app.descendants(matching: .any)
             .matching(identifier: "workflow.report")
         for _ in 0..<5 where !reportQuery.firstMatch.isHittable {
